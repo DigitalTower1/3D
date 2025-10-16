@@ -4,6 +4,7 @@
 
 /* Font */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap');
 
 /* RESET BASE */
 * {
@@ -46,6 +47,7 @@ html, body {
     backdrop-filter: blur(18px) saturate(160%);
     -webkit-backdrop-filter: blur(18px) saturate(160%);
     perspective: 2600px;
+    overflow-y: auto;
 }
 
 .card-stage {
@@ -59,6 +61,7 @@ html, body {
     gap: clamp(1.6rem, 3vh, 2.8rem);
     perspective: inherit;
     transform-style: preserve-3d;
+    touch-action: pan-y;
 }
 
 .card-backdrop {
@@ -83,7 +86,7 @@ html, body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: clamp(260px, 32vw, 360px);
+    width: clamp(280px, 32vw, 420px);
     padding: clamp(2.2rem, 4vw, 2.8rem) clamp(1.8rem, 3.8vw, 2.6rem);
     border-radius: 26px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -95,6 +98,7 @@ html, body {
     color: #fff4da;
     cursor: pointer;
     pointer-events: auto;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .card-panel::before {
@@ -194,18 +198,21 @@ html, body {
     color: color-mix(in srgb, var(--card-accent) 85%, #fff6d2 15%);
     text-shadow: 0 0 30px rgba(255, 213, 138, 0.4);
     text-shadow: 0 0 30px color-mix(in srgb, var(--card-accent) 45%, transparent);
+    font-weight: 700;
 }
 
 .card-subtitle {
     font-size: clamp(0.9rem, 1.6vw, 1rem);
     letter-spacing: 0.24em;
     color: rgba(255, 244, 218, 0.65);
+    font-weight: 600;
 }
 
 .card-tagline {
     font-size: clamp(0.72rem, 1.8vw, 0.92rem);
     letter-spacing: 0.35em;
     color: rgba(255, 242, 220, 0.7);
+    font-weight: 600;
 }
 
 .card-description {
@@ -214,6 +221,7 @@ html, body {
     line-height: 1.8;
     color: rgba(255, 244, 218, 0.92);
     text-align: left;
+    font-weight: 500;
 }
 
 .card-highlights {
@@ -230,6 +238,7 @@ html, body {
     font-size: clamp(0.94rem, 2vw, 1.05rem);
     color: rgba(255, 249, 230, 0.88);
     letter-spacing: 0.02em;
+    font-weight: 500;
 }
 
 .card-highlights li::before {
@@ -254,6 +263,17 @@ html, body {
     justify-content: center;
     gap: clamp(0.8rem, 3vw, 1.6rem);
     width: min(100%, 520px);
+    position: relative;
+    z-index: 12;
+    pointer-events: auto;
+}
+
+.card-controls.is-static {
+    grid-template-columns: 1fr;
+}
+
+.card-controls.is-static .carousel-arrow {
+    display: none;
 }
 
 .carousel-arrow {
@@ -286,6 +306,10 @@ html, body {
     cursor: default;
 }
 
+.card-controls.is-static .close-card {
+    justify-self: center;
+}
+
 .close-card {
     position: relative;
     border: none;
@@ -294,8 +318,9 @@ html, body {
     background: linear-gradient(135deg, var(--active-accent, #ffd58a), rgba(255, 220, 160, 0.85));
     background: linear-gradient(135deg, color-mix(in srgb, var(--active-accent, #ffd58a) 80%, #ffffff 20%), rgba(255, 220, 160, 0.85));
     color: #1f1200;
-    font-family: 'Cinzel Decorative', serif;
+    font-family: 'Montserrat', sans-serif;
     font-size: 1rem;
+    font-weight: 600;
     letter-spacing: 0.2em;
     text-transform: uppercase;
     cursor: pointer;
@@ -303,7 +328,7 @@ html, body {
     transition: transform 0.35s ease, box-shadow 0.35s ease;
     overflow: hidden;
     justify-self: center;
-    width: min(100%, 260px);
+    width: min(100%, 320px);
 }
 
 .close-card::before {
@@ -338,6 +363,9 @@ html, body {
     .card-controls {
         width: min(100%, 440px);
     }
+    .card-stage[data-layout="twin"] .card-carousel {
+        grid-template-columns: 1fr;
+    }
 }
 
 @media (max-width: 768px) {
@@ -354,6 +382,12 @@ html, body {
         width: min(88vw, 380px);
         margin: 0 auto;
         padding: 2rem 1.75rem;
+    }
+    .card-stage[data-layout="twin"] {
+        gap: 1.6rem;
+    }
+    .card-stage[data-layout="twin"] .card-panel {
+        margin: 0;
     }
     .card-panel.is-left,
     .card-panel.is-right {
@@ -409,4 +443,191 @@ html, body {
         opacity: 0;
         backdrop-filter: blur(0px);
     }
+}
+
+/* ===============================
+   LAYOUT SPECIFICO TWIN CARDS
+   =============================== */
+.card-stage[data-layout="twin"] {
+    height: auto;
+    align-content: center;
+    gap: clamp(1.4rem, 3vh, 2.4rem);
+}
+
+.card-stage[data-layout="twin"] .card-carousel {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: clamp(1.2rem, 4vw, 2.4rem);
+    align-items: stretch;
+}
+
+.card-stage[data-layout="twin"] .card-panel {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    opacity: 1;
+    width: 100%;
+    max-width: none;
+    cursor: default;
+    box-shadow: 0 26px 65px rgba(0, 0, 0, 0.45);
+}
+
+.card-stage[data-layout="twin"] .card-panel::before,
+.card-stage[data-layout="twin"] .card-panel::after {
+    opacity: 0.4;
+}
+
+.card-stage[data-layout="twin"] .card-panel .card-nebula {
+    opacity: 0.55;
+    transform: translateZ(-60px);
+}
+
+.card-stage[data-layout="twin"] .card-panel.is-left,
+.card-stage[data-layout="twin"] .card-panel.is-right,
+.card-stage[data-layout="twin"] .card-panel.is-center {
+    transform: none;
+    opacity: 1;
+    z-index: 2;
+}
+
+.card-stage[data-layout="twin"] .card-panel:not(.is-center):hover {
+    opacity: 1;
+}
+
+.card-stage[data-layout="twin"] .card-controls {
+    width: min(100%, 360px);
+}
+
+/* ===============================
+   FORM & CONTATTI NELLE CARD
+   =============================== */
+.card-form {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1.8rem;
+}
+
+.card-form__label {
+    display: grid;
+    gap: 0.45rem;
+    font-size: 0.95rem;
+    color: rgba(255, 244, 218, 0.82);
+    font-weight: 500;
+}
+
+.card-form input,
+.card-form select,
+.card-form textarea {
+    width: 100%;
+    padding: 0.75rem 0.95rem;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(12, 12, 12, 0.65);
+    color: #fff7e6;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 500;
+    font-size: 0.95rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-form input:focus-visible,
+.card-form select:focus-visible,
+.card-form textarea:focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--card-accent) 70%, #ffffff 30%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-accent) 25%, transparent);
+}
+
+.card-form button {
+    margin-top: 0.6rem;
+    border: none;
+    border-radius: 999px;
+    padding: 0.85rem 1.6rem;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--card-accent) 80%, #ffffff 20%), rgba(255, 220, 160, 0.85));
+    color: #1f1200;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 16px 40px rgba(255, 203, 140, 0.35);
+}
+
+.card-form button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 55px rgba(255, 203, 140, 0.45);
+}
+
+.card-form__feedback {
+    min-height: 1.2rem;
+    font-size: 0.85rem;
+    color: rgba(255, 244, 218, 0.8);
+    letter-spacing: 0.04em;
+}
+
+.card-form.is-submitted button {
+    pointer-events: none;
+    opacity: 0.85;
+}
+
+.card-contact {
+    margin-top: 1.8rem;
+    display: grid;
+    gap: 1.1rem;
+}
+
+.card-contact__list {
+    display: grid;
+    gap: 0.8rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.card-contact__list li {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    font-size: 0.98rem;
+    color: rgba(255, 249, 230, 0.86);
+    font-weight: 500;
+}
+
+.card-contact__list li span:first-child {
+    font-size: 0.78rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: rgba(255, 244, 218, 0.6);
+}
+
+.card-contact__list a {
+    color: color-mix(in srgb, var(--card-accent) 80%, #ffffff 20%);
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+.card-contact__list a:hover {
+    color: color-mix(in srgb, var(--card-accent) 100%, #ffffff 0%);
+}
+
+.card-contact__cta {
+    align-self: flex-start;
+    padding: 0.75rem 1.4rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    background: rgba(12, 12, 12, 0.55);
+    color: color-mix(in srgb, var(--card-accent) 85%, #ffffff 15%);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-contact__cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
 }

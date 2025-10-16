@@ -139,94 +139,169 @@ const wormholeReturnEase = (t) => {
         { name: 'Chi Siamo',  pos: new THREE.Vector3( 900, 180, -400) }
     ];
 
-    const CARD_LIBRARY = {
-        Portfolio: [
-            {
-                key: 'Portfolio-1',
-                title: 'Portfolio',
-                subtitle: 'Visioni immersive',
-                tagline: 'Esperienze in tempo reale',
-                description: 'Mostriamo ambienti narrativi plasmati in 3D dove luce volumetrica e particellare raccontano il tuo brand.',
-                highlights: ['Showroom interattivi WebGL', 'Regie virtuali per eventi live', 'Digital twin cinematici'],
-                accent: '#ffd58a'
-            },
-            {
-                key: 'Portfolio-2',
-                title: 'Portfolio',
-                subtitle: 'Metaverso su misura',
-                tagline: 'Spazi brandizzati',
-                description: 'Creiamo hub immersivi multiutente con fisica credibile e storytelling sincronizzato alla musica.',
-                highlights: ['Esperienze VR multi-device', 'Percorsi gamificati', 'Tecniche PBR fotorealistiche'],
-                accent: '#f2a8ff'
-            },
-            {
-                key: 'Portfolio-3',
-                title: 'Portfolio',
-                subtitle: 'Cinematica digitale',
-                tagline: 'Mini film interattivi',
-                description: 'Sequenze registiche con camera keyframed e compositing FX per lanciare prodotti in modo spettacolare.',
-                highlights: ['Pipeline Unreal/Three.js', 'Animazioni GSAP + 3D', 'Color grading in tempo reale'],
-                accent: '#9be7ff'
-            }
-        ],
-        Consulenza: [
+    const CONTACT_DECK = {
+        layout: 'twin',
+        cards: [
             {
                 key: 'Consulenza-1',
-                title: 'Consulenza',
-                subtitle: 'Strategia orbitale',
-                tagline: 'Roadmap su misura',
-                description: 'Analizziamo mercati e touchpoint per definire ecosistemi immersivi che convertano davvero.',
-                highlights: ['Workshop di co-design', 'Analisi customer journey', 'Blueprint tecnologico'],
+                title: 'Consulenza Strategica',
+                subtitle: 'Prenota un incontro',
+                tagline: 'Parla con il nostro team',
+                description: 'Raccontaci le tue esigenze per costruire un percorso su misura e attivare la nostra task force multidisciplinare.',
+                form: {
+                    submitLabel: 'Invia richiesta',
+                    fields: [
+                        { type: 'text', name: 'full-name', label: 'Nome e cognome', placeholder: 'Es. Laura Bianchi' },
+                        { type: 'email', name: 'email', label: 'Email aziendale', placeholder: 'nome@azienda.com' },
+                        { type: 'select', name: 'interest', label: 'Area di interesse', options: ['Lancio prodotto', 'Evento immersivo', 'Digital twin', 'Formazione XR'] },
+                        { type: 'textarea', name: 'message', label: 'Messaggio', placeholder: 'Descrivi obiettivi e tempistiche' }
+                    ]
+                },
                 accent: '#9be7ff'
             },
             {
                 key: 'Consulenza-2',
-                title: 'Consulenza',
-                subtitle: 'Accelerazione',
-                tagline: 'Growth & automation',
-                description: 'Orchestriamo campagne cross-mediali, marketing automation e misurazioni data-driven in real time.',
-                highlights: ['Funnel omnicanale', 'KPI e dashboards live', 'Ottimizzazione AI assistita'],
-                accent: '#ffd58a'
-            },
-            {
-                key: 'Consulenza-3',
-                title: 'Consulenza',
-                subtitle: 'Supporto continuo',
-                tagline: 'Crew dedicata',
-                description: 'Affianchiamo il tuo team con sprint periodici, formazione e aggiornamento sulle ultime tecnologie XR.',
-                highlights: ['Sessioni di mentoring', 'Design review iterative', 'Aggiornamenti mensili'],
-                accent: '#ff9ad6'
-            }
-        ],
-        'Chi Siamo': [
-            {
-                key: 'Chi-1',
-                title: 'Chi Siamo',
-                subtitle: 'Team',
-                tagline: 'Artigiani del digitale',
-                description: 'Direttori creativi, coder, motion designer e sound artist lavorano sincronizzati come un equipaggio.',
-                highlights: ['Squadra multidisciplinare', 'Background cinema & gaming', 'Mentalità human-centered'],
-                accent: '#ff9ad6'
-            },
-            {
-                key: 'Chi-2',
-                title: 'Chi Siamo',
-                subtitle: 'Metodo',
-                tagline: 'Workflow trasparente',
-                description: 'Dal concept all’online, adottiamo pipeline iterative e strumenti collaborativi accessibili al cliente.',
-                highlights: ['Design sprint immersivi', 'Versionamento cloud', 'Testing continuo con utenti'],
-                accent: '#9be7ff'
-            },
-            {
-                key: 'Chi-3',
-                title: 'Chi Siamo',
-                subtitle: 'Manifesto',
-                tagline: 'Visione wormhole',
-                description: 'Crediamo in esperienze che ibridano reale e digitale, con estetica sci-fi ma impatto concreto.',
-                highlights: ['Ricerca costante', 'Storytelling emotivo', 'Etica e sostenibilità dei processi'],
+                title: 'Contatti Agenzia',
+                subtitle: 'Parla con noi',
+                tagline: 'Sempre connessi',
+                description: 'Ti rispondiamo entro 24h con una proposta personalizzata e una prima call conoscitiva.',
+                contact: {
+                    items: [
+                        { label: 'Email', value: 'hello@wormhole.studio', link: 'mailto:hello@wormhole.studio' },
+                        { label: 'Telefono', value: '+39 02 1234 5678', link: 'tel:+390212345678' },
+                        { label: 'HQ', value: 'Via delle Industrie 42, Milano' },
+                        { label: 'Orari', value: 'Lun–Ven 09:00 › 19:00 CET' }
+                    ],
+                    cta: { label: 'Apri WhatsApp', link: 'https://wa.me/390212345678' }
+                },
+                highlights: ['Account manager dedicato', 'Reportistica trasparente', 'Supporto multilingua'],
                 accent: '#ffd58a'
             }
         ]
+    };
+
+    const CARD_LIBRARY = {
+        Portfolio: {
+            layout: 'carousel',
+            autoRotate: 7,
+            cards: [
+                {
+                    key: 'Portfolio-1',
+                    title: 'Showroom Immersivi',
+                    subtitle: 'Portfolio',
+                    tagline: 'Esperienze in tempo reale',
+                    description: 'Ambienti narrativi plasmati in 3D dove luce volumetrica e particellare accompagnano la presentazione dei prodotti.',
+                    highlights: ['Allestimenti WebGL interattivi', 'Percorsi guidati con voice-over', 'Render PBR in tempo reale'],
+                    accent: '#ffd58a'
+                },
+                {
+                    key: 'Portfolio-2',
+                    title: 'Installazioni Immersive',
+                    subtitle: 'Portfolio',
+                    tagline: 'Spazi multisensoriali',
+                    description: 'Set scenografici virtuali sincronizzati con audio reattivo e volumetrie dinamiche per eventi phygital.',
+                    highlights: ['Tracking in tempo reale', 'Lighting procedurale', 'Sound design spazializzato'],
+                    accent: '#f2a8ff'
+                },
+                {
+                    key: 'Portfolio-3',
+                    title: 'Digital Twin',
+                    subtitle: 'Portfolio',
+                    tagline: 'Controllo da remoto',
+                    description: 'Gemelli digitali fotorealistici che consentono walkthrough interattivi e supervisione degli impianti.',
+                    highlights: ['Integrazione dati IoT', 'Mappe termiche dinamiche', 'Gestione asset cloud'],
+                    accent: '#9be7ff'
+                },
+                {
+                    key: 'Portfolio-4',
+                    title: 'Regie Virtuali',
+                    subtitle: 'Portfolio',
+                    tagline: 'Eventi live broadcast',
+                    description: 'Studi virtuali per dirette streaming con camera tracking e compositing in tempo reale.',
+                    highlights: ['Pipeline Unreal/Three.js', 'Overlay grafici personalizzati', 'Control room remota'],
+                    accent: '#ff9ad6'
+                },
+                {
+                    key: 'Portfolio-5',
+                    title: 'Virtual Production',
+                    subtitle: 'Portfolio',
+                    tagline: 'Cinema next-gen',
+                    description: 'Set LED wall e XR stage per spot e branded content con previs e finalizzazione in tempo reale.',
+                    highlights: ['Previs collaborativa', 'Camera tracking full frame', 'Color grading live'],
+                    accent: '#ffd1ff'
+                },
+                {
+                    key: 'Portfolio-6',
+                    title: 'Motion Experiences',
+                    subtitle: 'Portfolio',
+                    tagline: 'Storytelling dinamico',
+                    description: 'Sequenze motion controllate da input dell’utente con titolazioni cinematiche e particellari attivi.',
+                    highlights: ['Animazioni GSAP 3D', 'Typography parametriche', 'FX particellari custom'],
+                    accent: '#9fffe0'
+                },
+                {
+                    key: 'Portfolio-7',
+                    title: 'Metaverse Hub',
+                    subtitle: 'Portfolio',
+                    tagline: 'Community brandizzate',
+                    description: 'Spazi multiutente con avatar custom e contenuti sincronizzati per lanciare prodotti in modalità condivisa.',
+                    highlights: ['Server real-time', 'Sistemi di rewarding', 'Supporto VR/desktop'],
+                    accent: '#ffc38f'
+                },
+                {
+                    key: 'Portfolio-8',
+                    title: 'Experiential Retail',
+                    subtitle: 'Portfolio',
+                    tagline: 'Phygital commerce',
+                    description: 'Corner digitali con interazioni touchless, configuratori 3D e analytics integrate.',
+                    highlights: ['Integrazione CRM', 'Configuratori in WebXR', 'Motion tracking gesture'],
+                    accent: '#9bc9ff'
+                },
+                {
+                    key: 'Portfolio-9',
+                    title: 'XR Training',
+                    subtitle: 'Portfolio',
+                    tagline: 'Formazione immersiva',
+                    description: 'Simulazioni operative con feedback in tempo reale per addestrare team e manutentori.',
+                    highlights: ['Scenario branching', 'Analytics learning path', 'Supporto multi-device'],
+                    accent: '#ff9eb8'
+                }
+            ]
+        },
+        Consulenza: CONTACT_DECK,
+        Contatti: CONTACT_DECK,
+        'Chi Siamo': {
+            layout: 'carousel',
+            cards: [
+                {
+                    key: 'Chi-1',
+                    title: 'Chi Siamo',
+                    subtitle: 'Biografia',
+                    tagline: 'Una crew visionaria',
+                    description: 'Siamo designer, sviluppatori e registi digitali con background in cinema, gaming e architettura immersiva.',
+                    highlights: ['Oltre 40 professionisti interni', 'Partnership con studi creativi europei', 'Premi Red Dot & ADCI'],
+                    accent: '#ff9ad6'
+                },
+                {
+                    key: 'Chi-2',
+                    title: 'I nostri valori',
+                    subtitle: 'Etica & innovazione',
+                    tagline: 'Human first',
+                    description: 'Creiamo esperienze che amplificano le persone: inclusione, accessibilità e sostenibilità guidano ogni scelta.',
+                    highlights: ['Processi carbon neutral', 'Design inclusivo by default', 'Ricerca continua con università'],
+                    accent: '#9be7ff'
+                },
+                {
+                    key: 'Chi-3',
+                    title: 'La nostra missione',
+                    subtitle: 'Visione condivisa',
+                    tagline: 'Aprire wormhole',
+                    description: 'Connettiamo brand e community attraverso portali digitali dove tecnologia e storytelling si fondono senza attriti.',
+                    highlights: ['Esperienze cross-device', 'Strategie data driven', 'Relazioni di lungo periodo'],
+                    accent: '#ffd58a'
+                }
+            ]
+        }
     };
 
     const flareMat = new THREE.ShaderMaterial({
@@ -730,10 +805,17 @@ const wormholeReturnEase = (t) => {
     function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch {}
 
-        const deck = CARD_LIBRARY[name] ? [...CARD_LIBRARY[name]] : [];
+        const deckDefinition = CARD_LIBRARY[name];
+        const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
         if (!deck.length) return;
 
+        const layoutMode = deckDefinition.layout || 'carousel';
+        const autoRotateSeconds = deckDefinition.autoRotate;
         let activeIndex = 0;
+        let autoRotateTimer = null;
+        let swipeStartX = null;
+        let swipeLock = false;
+        let wheelLock = false;
 
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
@@ -756,16 +838,50 @@ const wormholeReturnEase = (t) => {
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
         const closeBtn = overlay.querySelector('.close-card');
-        const arrowButtons = overlay.querySelectorAll('.carousel-arrow');
+        const controls = overlay.querySelector('.card-controls');
+        const arrowButtons = Array.from(overlay.querySelectorAll('.carousel-arrow'));
+        stage.dataset.layout = layoutMode;
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
 
+        if (layoutMode !== 'carousel') {
+            controls.classList.add('is-static');
+            arrowButtons.forEach(btn => {
+                btn.style.display = 'none';
+                btn.setAttribute('aria-hidden', 'true');
+                btn.tabIndex = -1;
+            });
+        } else if (deck.length <= 1) {
+            arrowButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
+        }
+
+        const stopAutoRotate = () => {
+            if (autoRotateTimer) {
+                clearInterval(autoRotateTimer);
+                autoRotateTimer = null;
+            }
+        };
+
+        const startAutoRotate = () => {
+            if (layoutMode !== 'carousel' || !autoRotateSeconds || deck.length <= 1) return;
+            stopAutoRotate();
+            autoRotateTimer = setInterval(() => {
+                activeIndex = (activeIndex + 1) % deck.length;
+                render('right');
+            }, autoRotateSeconds * 1000);
+        };
+
         const layoutFor = (index) => {
+            if (layoutMode !== 'carousel') {
+                return deck.map((card, idx) => ({
+                    role: deck.length === 1 ? 'center' : (idx === 0 ? 'left' : 'right'),
+                    card
+                }));
+            }
             const total = deck.length;
             if (total === 1) {
                 return [{ role: 'center', card: deck[0] }];
             }
-
             const prev = (index + total - 1) % total;
             const next = (index + 1) % total;
             return [
@@ -775,36 +891,101 @@ const wormholeReturnEase = (t) => {
             ];
         };
 
+        const renderHighlights = (card) => {
+            if (!Array.isArray(card.highlights) || !card.highlights.length) return '';
+            return `<ul class="card-highlights">${card.highlights.map(item => `<li>${item}</li>`).join('')}</ul>`;
+        };
+
+        const renderForm = (card) => {
+            if (!card.form) return '';
+            const fields = card.form.fields?.map((field, idx) => {
+                const id = `${card.key}-field-${idx}`;
+                if (field.type === 'textarea') {
+                    return `<label class="card-form__label" for="${id}">${field.label}<textarea id="${id}" name="${field.name}" placeholder="${field.placeholder ?? ''}" rows="3"></textarea></label>`;
+                }
+                if (field.type === 'select') {
+                    const options = field.options?.map(option => `<option value="${option}">${option}</option>`).join('') ?? '';
+                    return `<label class="card-form__label" for="${id}">${field.label}<select id="${id}" name="${field.name}">${options}</select></label>`;
+                }
+                return `<label class="card-form__label" for="${id}">${field.label}<input id="${id}" type="${field.type}" name="${field.name}" placeholder="${field.placeholder ?? ''}" /></label>`;
+            }).join('') ?? '';
+            const submitLabel = card.form.submitLabel ?? 'Invia';
+            return `<form class="card-form" data-card="${card.key}" novalidate>${fields}<button type="submit">${submitLabel}</button><p class="card-form__feedback" role="status" aria-live="polite"></p></form>`;
+        };
+
+        const renderContact = (card) => {
+            if (!card.contact) return '';
+            const items = card.contact.items?.map(item => {
+                if (item.link) {
+                    return `<li><span>${item.label}</span><a href="${item.link}" target="_blank" rel="noopener">${item.value}</a></li>`;
+                }
+                return `<li><span>${item.label}</span><span>${item.value}</span></li>`;
+            }).join('') ?? '';
+            const cta = card.contact.cta ? `<a class="card-contact__cta" href="${card.contact.cta.link}" target="_blank" rel="noopener">${card.contact.cta.label}</a>` : '';
+            return `<div class="card-contact"><ul class="card-contact__list">${items}</ul>${cta}</div>`;
+        };
+
         const cardMarkup = ({ role, card }) => `
           <article class="card-panel is-${role}" data-role="${role}" data-key="${card.key}" style="--card-accent:${card.accent}">
             <div class="card-holo">
               <header class="card-header">
                 <span class="card-title">${card.title}</span>
                 ${card.subtitle ? `<span class="card-subtitle">${card.subtitle}</span>` : ''}
-                <span class="card-tagline">${card.tagline}</span>
+                ${card.tagline ? `<span class="card-tagline">${card.tagline}</span>` : ''}
               </header>
-              <p class="card-description">${card.description}</p>
-              <ul class="card-highlights">
-                ${card.highlights.map(item => `<li>${item}</li>`).join('')}
-              </ul>
+              ${card.description ? `<p class="card-description">${card.description}</p>` : ''}
+              ${renderForm(card)}
+              ${renderContact(card)}
+              ${renderHighlights(card)}
             </div>
             <div class="card-nebula"></div>
           </article>`;
 
+        function initFormHandlers() {
+            carouselEl.querySelectorAll('.card-form').forEach(form => {
+                form.addEventListener('submit', (ev) => {
+                    ev.preventDefault();
+                    const feedback = form.querySelector('.card-form__feedback');
+                    if (feedback) {
+                        feedback.textContent = 'Richiesta inviata! Ti ricontatteremo entro 24 ore.';
+                    }
+                    form.classList.add('is-submitted');
+                });
+            });
+        }
+
         function bindPanelEvents() {
+            if (layoutMode !== 'carousel') return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
                 panel.addEventListener('click', () => {
                     const role = panel.dataset.role;
                     if (role === 'center') return;
+                    stopAutoRotate();
                     activeIndex = role === 'left'
                         ? (activeIndex + deck.length - 1) % deck.length
                         : (activeIndex + 1) % deck.length;
                     render(role);
+                    startAutoRotate();
                 });
             });
         }
 
         function render(direction = 'intro') {
+            if (layoutMode !== 'carousel') {
+                stage.style.setProperty('--active-accent', deck[0]?.accent ?? '#ffd58a');
+                carouselEl.innerHTML = layoutFor(activeIndex).map(cardMarkup).join('');
+                initFormHandlers();
+                const panels = carouselEl.querySelectorAll('.card-panel');
+                gsap.fromTo(panels, { opacity: 0, y: 60 }, {
+                    opacity: 1,
+                    y: 0,
+                    duration: 1.0,
+                    ease: 'expo.out',
+                    stagger: 0.08
+                });
+                return;
+            }
+
             const layout = layoutFor(activeIndex);
             const centerCard = layout.find(item => item.role === 'center')?.card;
             if (centerCard) {
@@ -812,12 +993,13 @@ const wormholeReturnEase = (t) => {
             }
             carouselEl.innerHTML = layout.map(cardMarkup).join('');
             bindPanelEvents();
+            initFormHandlers();
             const panels = carouselEl.querySelectorAll('.card-panel');
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
 
             if (direction === 'intro') {
                 gsap.fromTo(panels, { opacity: 0, y: 80, rotateY: -6 }, {
-                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.35),
+                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.18),
                     y: 0,
                     rotateY: 0,
                     duration: 1.2,
@@ -831,9 +1013,9 @@ const wormholeReturnEase = (t) => {
                     duration: 1.0,
                     ease: 'power3.out'
                 });
-                gsap.fromTo(panels, { opacity: 0.25, scale: 0.92 }, {
-                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.25),
-                    scale: (i) => i === 1 ? 1 : 0.93,
+                gsap.fromTo(panels, { opacity: 0.22, scale: 0.9 }, {
+                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.18),
+                    scale: (i) => i === 1 ? 1 : 0.92,
                     duration: 0.9,
                     ease: 'power2.out',
                     stagger: 0.05
@@ -871,41 +1053,57 @@ const wormholeReturnEase = (t) => {
             }
         };
 
-        stage.addEventListener('pointermove', handlePointer);
-        stage.addEventListener('pointerleave', handleLeave);
+        const handleWheel = (ev) => {
+            if (layoutMode !== 'carousel' || deck.length <= 1) return;
+            ev.preventDefault();
+            if (wheelLock) return;
+            wheelLock = true;
+            const direction = ev.deltaY > 0 ? 'right' : 'left';
+            stopAutoRotate();
+            activeIndex = direction === 'left'
+                ? (activeIndex + deck.length - 1) % deck.length
+                : (activeIndex + 1) % deck.length;
+            render(direction);
+            startAutoRotate();
+            gsap.delayedCall(0.6, () => { wheelLock = false; });
+        };
 
-        if (deck.length <= 1) {
-            arrowButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
+        if (layoutMode === 'carousel') {
+            stage.addEventListener('pointermove', handlePointer);
+            stage.addEventListener('pointerleave', handleLeave);
+            stage.addEventListener('wheel', handleWheel, { passive: false });
         }
 
         arrowButtons.forEach(btn => {
             btn.addEventListener('click', () => {
-                if (deck.length <= 1) return;
+                if (layoutMode !== 'carousel' || deck.length <= 1) return;
                 const direction = btn.dataset.direction === 'left' ? 'left' : 'right';
+                stopAutoRotate();
                 activeIndex = direction === 'left'
                     ? (activeIndex + deck.length - 1) % deck.length
                     : (activeIndex + 1) % deck.length;
                 render(direction);
+                startAutoRotate();
             });
         });
 
-        let swipeStartX = null;
-        let swipeLock = false;
-
         const onPointerDown = (ev) => {
+            if (layoutMode !== 'carousel') return;
             swipeStartX = ev.clientX;
             swipeLock = false;
         };
 
         const onPointerMove = (ev) => {
-            if (swipeStartX === null || swipeLock || deck.length <= 1) return;
+            if (layoutMode !== 'carousel' || swipeStartX === null || swipeLock || deck.length <= 1) return;
             const delta = ev.clientX - swipeStartX;
             if (Math.abs(delta) < 45) return;
             swipeLock = true;
+            stopAutoRotate();
             activeIndex = delta > 0
                 ? (activeIndex + deck.length - 1) % deck.length
                 : (activeIndex + 1) % deck.length;
             render(delta > 0 ? 'left' : 'right');
+            startAutoRotate();
         };
 
         const onPointerUp = () => {
@@ -922,11 +1120,16 @@ const wormholeReturnEase = (t) => {
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
         gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, ease: 'power3.out' });
-        gsap.fromTo(arrowButtons, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, stagger: 0.05, ease: 'power3.out' });
+        if (layoutMode === 'carousel') {
+            gsap.fromTo(arrowButtons, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, stagger: 0.05, ease: 'power3.out' });
+            startAutoRotate();
+        }
 
         const closeOverlay = () => {
+            stopAutoRotate();
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
+            stage.removeEventListener('wheel', handleWheel);
             stage.removeEventListener('pointerdown', onPointerDown);
             stage.removeEventListener('pointermove', onPointerMove);
             stage.removeEventListener('pointerup', onPointerUp);
