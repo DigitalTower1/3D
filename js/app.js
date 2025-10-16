@@ -45,6 +45,7 @@ const wormholeReturnEase = (t) => {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    window.renderer = renderer;
 
     // Assicura che il canvas riceva i click
     const container = document.getElementById('canvas-container');
@@ -136,6 +137,33 @@ const wormholeReturnEase = (t) => {
         { name: 'Portfolio',  pos: new THREE.Vector3(-900, 180, -400) },
         { name: 'Consulenza', pos: new THREE.Vector3(0,    180, -250) },
         { name: 'Chi Siamo',  pos: new THREE.Vector3( 900, 180, -400) }
+    ];
+
+    const CARD_LIBRARY = [
+        {
+            key: 'Portfolio',
+            title: 'Portfolio',
+            tagline: 'Visioni immersive in tempo reale',
+            description: 'Esperienze interattive scolpite in 3D che raccontano la tua storia con luce, materia e movimento.',
+            highlights: ['Scenografie digitali tailor-made', 'Motion design sincronizzato con il suono', 'Percorsi immersivi fruibili ovunque'],
+            accent: '#ffd58a'
+        },
+        {
+            key: 'Consulenza',
+            title: 'Consulenza',
+            tagline: 'Strategia creativa ad alta precisione',
+            description: 'Guidiamo il tuo brand tra realtà fisica e digitale, progettando roadmap e tecnologie futuristiche.',
+            highlights: ['Workshop visionari e co-design', 'Analisi dei touchpoint immersivi', 'Supporto continuo del team creativo'],
+            accent: '#9be7ff'
+        },
+        {
+            key: 'Chi Siamo',
+            title: 'Chi Siamo',
+            tagline: 'Un collettivo di artigiani del digitale',
+            description: 'Architetti di wormhole narrativi, uniamo design, tecnologia e storytelling per sbloccare nuovi universi.',
+            highlights: ['Crew multidisciplinare', 'Processi ispirati al cinema sci-fi', 'Ricerca continua su nuove tecnologie'],
+            accent: '#ff9ad6'
+        }
     ];
 
     const flareMat = new THREE.ShaderMaterial({
@@ -553,41 +581,71 @@ const wormholeReturnEase = (t) => {
         camera.up.set(0, 1, 0);
         controls.target.copy(focus);
 
+        const startQuat = camera.quaternion.clone();
+        const targetMatrix = new THREE.Matrix4().lookAt(camEnd, focus, new THREE.Vector3(0, 1, 0));
+        const endQuat = new THREE.Quaternion().setFromRotationMatrix(targetMatrix);
+        const lateralAxis = new THREE.Vector3().crossVectors(worldDir, new THREE.Vector3(0, 1, 0));
+        if (lateralAxis.lengthSq() < 1e-4) lateralAxis.set(1, 0, 0);
+        lateralAxis.normalize();
+        const verticalAxis = new THREE.Vector3().crossVectors(lateralAxis, worldDir).normalize();
+        const lerpPos = new THREE.Vector3();
+        const jitterVec = new THREE.Vector3();
+
+        const exposureTarget = { value: renderer.toneMappingExposure };
         gsap.to(camera, {
-            fov: entryFov + 10,
-            duration: duration * 0.55,
+            fov: entryFov + 12,
+            duration: duration * 0.58,
             ease: 'sine.inOut',
             yoyo: true,
             repeat: 1,
             onUpdate: () => camera.updateProjectionMatrix()
         });
 
+        gsap.to(exposureTarget, {
+            value: 3.2,
+            duration: duration * 0.48,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => {
+                renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, exposureTarget.value, 0.4);
+            }
+        });
+
         gsap.to(travel, {
             t: 1,
             duration,
-            ease: 'none',
+            ease: 'sine.inOut',
             onUpdate: () => {
                 const phase = wormholeEase(travel.t);
-                camera.position.lerpVectors(camStart, camEnd, phase);
-                camera.up.set(0, 1, 0);
-                camera.lookAt(focus);
+                lerpPos.lerpVectors(camStart, camEnd, phase);
+                const turbulence = Math.sin(phase * Math.PI) ** 1.2;
+                const wobble = THREE.MathUtils.lerp(0, 18, turbulence);
+                jitterVec.copy(lateralAxis).multiplyScalar(Math.sin(phase * Math.PI * 4.0) * wobble);
+                jitterVec.addScaledVector(verticalAxis, Math.cos(phase * Math.PI * 3.0) * wobble * 0.6);
+                lerpPos.add(jitterVec);
+                camera.position.copy(lerpPos);
+                camera.quaternion.slerpQuaternions(startQuat, endQuat, phase);
+                camera.updateMatrixWorld();
                 controls.target.copy(focus);
 
-                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.2, phase);
-                warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.18;
-                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.08, phase);
-                warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.18;
-                const radiusTarget = THREE.MathUtils.lerp(0.28, 0.12, phase);
-                warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.2;
-                const streakTarget = THREE.MathUtils.lerp(0.25, 1.0, phase);
-                warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.15;
-                bloom.strength = THREE.MathUtils.lerp(0.55, 1.05, phase);
+                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.35, phase);
+                warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.2;
+                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.09, phase);
+                warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.2;
+                const radiusTarget = THREE.MathUtils.lerp(0.3, 0.1, phase);
+                warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.22;
+                const streakTarget = THREE.MathUtils.lerp(0.25, 1.2, phase);
+                warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.18;
+                warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
+                bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
 
-                if (!document.querySelector('.warp-card') && phase >= 0.78) showCard(name);
+                if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
                 camera.position.copy(camEnd);
-                camera.lookAt(focus);
+                camera.quaternion.copy(endQuat);
+                camera.updateMatrixWorld();
                 controls.target.copy(focus);
                 gsap.to(warpPass.uniforms.strength, { value: 0.6, duration: 1.0, ease: 'sine.out' });
                 gsap.to(warpPass.uniforms.chroma, { value: 0.045, duration: 1.0, ease: 'sine.out' });
@@ -600,6 +658,7 @@ const wormholeReturnEase = (t) => {
                     ease: 'sine.out',
                     onUpdate: () => camera.updateProjectionMatrix()
                 });
+                renderer.toneMappingExposure = 2.0;
                 if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
             }
         });
@@ -608,25 +667,147 @@ const wormholeReturnEase = (t) => {
     function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch {}
 
+        let activeIndex = CARD_LIBRARY.findIndex(card => card.key === name);
+        if (activeIndex === -1) activeIndex = 0;
+
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
         overlay.innerHTML = `
-        <div class="card-inner">
-          <h1>${name}</h1>
-          <p>${
-            name === 'Portfolio'  ? 'Ecco alcuni esempi del nostro lavoro.'
-                : name === 'Consulenza' ? 'Richiedi una consulenza personalizzata.'
-                    : 'Scopri la nostra storia e la nostra missione.'
-        }</p>
+        <div class="card-stage">
+          <div class="card-backdrop"></div>
+          <div class="card-carousel"></div>
           <button class="close-card">Chiudi</button>
         </div>`;
         document.body.appendChild(overlay);
 
-        const card = overlay.querySelector('.card-inner');
-        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.0, ease: 'power2.out' });
-        gsap.fromTo(card, { y: 36, scale: 0.82, rotateY: 18 }, { y: 0, scale: 1, rotateY: 0, duration: 1.2, ease: 'power3.out' });
+        const stage = overlay.querySelector('.card-stage');
+        const carouselEl = overlay.querySelector('.card-carousel');
+        const closeBtn = overlay.querySelector('.close-card');
+        stage.style.setProperty('--pointer-x', '0');
+        stage.style.setProperty('--pointer-y', '0');
 
-        overlay.querySelector('.close-card').addEventListener('click', () => {
+        const layoutFor = (index) => {
+            const total = CARD_LIBRARY.length;
+            const prev = (index + total - 1) % total;
+            const next = (index + 1) % total;
+            return [
+                { role: 'left', card: CARD_LIBRARY[prev] },
+                { role: 'center', card: CARD_LIBRARY[index] },
+                { role: 'right', card: CARD_LIBRARY[next] }
+            ];
+        };
+
+        const cardMarkup = ({ role, card }) => `
+          <article class="card-panel is-${role}" data-role="${role}" data-key="${card.key}" style="--card-accent:${card.accent}">
+            <div class="card-holo">
+              <header class="card-header">
+                <span class="card-title">${card.title}</span>
+                <span class="card-tagline">${card.tagline}</span>
+              </header>
+              <p class="card-description">${card.description}</p>
+              <ul class="card-highlights">
+                ${card.highlights.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="card-nebula"></div>
+          </article>`;
+
+        function bindPanelEvents() {
+            carouselEl.querySelectorAll('.card-panel').forEach(panel => {
+                panel.addEventListener('click', () => {
+                    const role = panel.dataset.role;
+                    if (role === 'center') return;
+                    activeIndex = role === 'left'
+                        ? (activeIndex + CARD_LIBRARY.length - 1) % CARD_LIBRARY.length
+                        : (activeIndex + 1) % CARD_LIBRARY.length;
+                    render(role);
+                });
+            });
+        }
+
+        function render(direction = 'intro') {
+            const layout = layoutFor(activeIndex);
+            stage.style.setProperty('--active-accent', layout[1].card.accent);
+            carouselEl.innerHTML = layout.map(cardMarkup).join('');
+            bindPanelEvents();
+            const panels = carouselEl.querySelectorAll('.card-panel');
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+
+            if (direction === 'intro') {
+                gsap.fromTo(panels, { opacity: 0, y: 80, rotateY: -6 }, {
+                    opacity: (i) => i === 1 ? 1 : 0.6,
+                    y: 0,
+                    rotateY: 0,
+                    duration: 1.2,
+                    ease: 'expo.out',
+                    stagger: 0.08
+                });
+            } else {
+                const rotation = direction === 'left' ? 16 : -16;
+                gsap.fromTo(carouselEl, { rotationY: rotation }, {
+                    rotationY: 0,
+                    duration: 1.0,
+                    ease: 'power3.out'
+                });
+                gsap.fromTo(panels, { opacity: 0.25, scale: 0.92 }, {
+                    opacity: (i) => i === 1 ? 1 : 0.55,
+                    scale: (i) => i === 1 ? 1 : 0.94,
+                    duration: 0.9,
+                    ease: 'power2.out',
+                    stagger: 0.05
+                });
+            }
+
+            if (centerHolo) {
+                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.1, ease: 'expo.out' });
+            }
+        }
+
+        const handlePointer = (ev) => {
+            const rect = stage.getBoundingClientRect();
+            const x = (ev.clientX - rect.left) / rect.width - 0.5;
+            const y = (ev.clientY - rect.top) / rect.height - 0.5;
+            stage.style.setProperty('--pointer-x', String(x));
+            stage.style.setProperty('--pointer-y', String(y));
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+            if (centerHolo) {
+                gsap.to(centerHolo, {
+                    rotateY: x * 16,
+                    rotateX: -y * 10,
+                    duration: 0.5,
+                    ease: 'power2.out'
+                });
+            }
+        };
+
+        const handleLeave = () => {
+            stage.style.setProperty('--pointer-x', '0');
+            stage.style.setProperty('--pointer-y', '0');
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+            if (centerHolo) {
+                gsap.to(centerHolo, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'power2.out' });
+            }
+        };
+
+        stage.addEventListener('pointermove', handlePointer);
+        stage.addEventListener('pointerleave', handleLeave);
+
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
+        render('intro');
+        gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.3, ease: 'power3.out' });
+
+        const closeOverlay = () => {
+            stage.removeEventListener('pointermove', handlePointer);
+            stage.removeEventListener('pointerleave', handleLeave);
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
+        };
+
+        closeBtn.addEventListener('click', () => {
             try { clickSound.currentTime = 0; clickSound.play(); } catch {}
 
             const boostStrength = gsap.to(warpPass.uniforms.strength, { value: 1.25, duration: 0.6, ease: 'power2.in' });
@@ -634,11 +815,24 @@ const wormholeReturnEase = (t) => {
             const boostBloom = gsap.to(bloom, { strength: 0.9, duration: 0.6, ease: 'sine.in' });
             const boostStreaks = gsap.to(warpPass.uniforms.streaks, { value: 0.95, duration: 0.6, ease: 'power2.in' });
 
-            gsap.to(overlay, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: () => overlay.remove() });
+            closeOverlay();
 
             const startPos = camera.position.clone();
+            const startQuat = camera.quaternion.clone();
             const startFocus = controls.target.clone();
             const retreat = { t: 0 };
+            const returnQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(HOME_POSITION, HOME_LOOK_TARGET, new THREE.Vector3(0, 1, 0)));
+            const returnPos = new THREE.Vector3();
+            const returnJitter = new THREE.Vector3();
+            const homeDir = HOME_POSITION.clone().sub(startPos);
+            if (homeDir.lengthSq() < 1e-4) homeDir.set(0, 0, 1);
+            homeDir.normalize();
+            const returnLateral = new THREE.Vector3().crossVectors(homeDir, new THREE.Vector3(0, 1, 0));
+            if (returnLateral.lengthSq() < 1e-4) returnLateral.set(1, 0, 0);
+            else returnLateral.normalize();
+            const returnVertical = new THREE.Vector3().crossVectors(returnLateral, homeDir);
+            if (returnVertical.lengthSq() < 1e-4) returnVertical.set(0, 1, 0);
+            else returnVertical.normalize();
 
             gsap.delayedCall(0.25, () => {
                 boostStrength.progress(1);
@@ -651,10 +845,16 @@ const wormholeReturnEase = (t) => {
                     ease: 'none',
                     onUpdate: () => {
                         const phase = wormholeReturnEase(retreat.t);
-                        camera.position.lerpVectors(startPos, HOME_POSITION, phase);
+                        returnPos.lerpVectors(startPos, HOME_POSITION, phase);
+                        const shake = Math.sin(phase * Math.PI) ** 1.1;
+                        const wobble = THREE.MathUtils.lerp(0, 12, shake);
+                        returnJitter.copy(returnLateral).multiplyScalar(Math.sin(phase * Math.PI * 3.2) * wobble);
+                        returnJitter.addScaledVector(returnVertical, Math.cos(phase * Math.PI * 2.6) * wobble * 0.5);
+                        returnPos.add(returnJitter);
+                        camera.position.copy(returnPos);
+                        camera.quaternion.slerpQuaternions(startQuat, returnQuat, phase);
+                        camera.updateMatrixWorld();
                         controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
-                        camera.up.set(0, 1, 0);
-                        camera.lookAt(controls.target);
 
                         warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, phase);
                         warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, phase);
@@ -674,6 +874,7 @@ const wormholeReturnEase = (t) => {
                         controls.target.copy(HOME_LOOK_TARGET);
                         camera.up.set(0, 1, 0);
                         camera.position.copy(HOME_POSITION);
+                        camera.quaternion.copy(returnQuat);
                         gsap.to(camera, {
                             fov: DEFAULT_FOV,
                             duration: 1.4,

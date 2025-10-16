@@ -8,7 +8,7 @@
 
 .loader-bg {
     position: absolute; inset: 0;
-    background: #000;
+    background: radial-gradient(circle at 50% 20%, rgba(40,30,15,0.65), rgba(0,0,0,0.95));
     transition: opacity 2s ease;
     z-index: -1;
 }
@@ -33,6 +33,46 @@
     filter: blur(.3px);
 }
 
+.loader-orbits {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    filter: drop-shadow(0 0 40px rgba(255, 190, 120, 0.3));
+}
+
+.orbit {
+    position: absolute;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 208, 136, 0.32);
+    box-shadow: inset 0 0 60px rgba(255, 220, 160, 0.18);
+    background: radial-gradient(circle, rgba(255, 232, 180, 0.18) 0%, rgba(255, 218, 150, 0.04) 55%, transparent 70%);
+    filter: blur(0.6px);
+    transform-style: preserve-3d;
+}
+
+.orbit-one {
+    width: clamp(260px, 42vw, 640px);
+    height: clamp(260px, 42vw, 640px);
+}
+
+.orbit-two {
+    width: clamp(340px, 52vw, 760px);
+    height: clamp(340px, 52vw, 760px);
+    border-color: rgba(120, 200, 255, 0.22);
+    box-shadow: inset 0 0 50px rgba(120, 200, 255, 0.15);
+}
+
+.orbit-three {
+    width: clamp(420px, 62vw, 880px);
+    height: clamp(420px, 62vw, 880px);
+    border-color: rgba(255, 140, 210, 0.18);
+    box-shadow: inset 0 0 70px rgba(255, 140, 210, 0.12);
+}
+
 @keyframes grainMove {
     0%{transform:translate3d(0,0,0);}
     25%{transform:translate3d(-1%,1%,0);}
@@ -46,6 +86,7 @@
     text-align: center; color: #fff;
     max-width: min(90vw, 900px);
     padding: 0 16px; line-height: 1.6;
+    transform-style: preserve-3d;
 }
 .line {
     opacity: 0;
@@ -55,7 +96,7 @@
 }
 .line span {
     color: #ffd27f;
-    text-shadow: 0 0 18px rgba(255,210,127,.4);
+    text-shadow: 0 0 18px rgba(255,210,127,.45);
 }
 #final-line {
     margin-top: 0;
@@ -75,35 +116,54 @@
     justify-content: center;
     gap: 1rem;
     flex-wrap: wrap;
+    perspective: 1200px;
 }
 #buttons button {
-    background: transparent;
-    border: 1px solid #fff;
-    color: #fff;
-    font-size: clamp(14px,1.6vw,16px);
-    padding: .45rem 1rem;
-    border-radius: 6px;
+    background: linear-gradient(135deg, rgba(255, 225, 175, 0.18), rgba(255, 196, 120, 0.06));
+    border: 1px solid rgba(255, 208, 136, 0.55);
+    color: #fff7e5;
+    font-size: clamp(14px,1.8vw,16px);
+    padding: .65rem 1.6rem;
+    border-radius: 999px;
     width: auto;
-    min-width: 90px;
+    min-width: 110px;
     cursor: pointer;
-    transition: all .25s ease;
+    transition: transform .28s ease, box-shadow .28s ease, background .28s ease;
     position: relative;
     overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45), inset 0 0 18px rgba(255, 210, 150, 0.16);
+    transform-style: preserve-3d;
 }
 #buttons button::after {
     content: '';
     position: absolute; inset: 0;
     background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
     transform: translateX(-100%);
-    transition: transform .45s ease;
+    transition: transform .6s ease;
+}
+#buttons button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top, rgba(255,255,255,.35), transparent 65%);
+    opacity: .4;
+    transform: translateZ(-1px);
+    pointer-events: none;
 }
 #buttons button:hover {
-    background: #ffd27f;
-    color: #000;
-    box-shadow: 0 0 25px #ffd27f;
+    background: linear-gradient(135deg, rgba(255, 214, 150, 0.28), rgba(255, 182, 105, 0.12));
+    color: #120a02;
+    box-shadow: 0 20px 40px rgba(255, 208, 150, 0.45);
+    transform: translateY(-4px) scale(1.02);
 }
 #buttons button:hover::after {
     transform: translateX(100%);
+}
+#buttons button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 214, 150, 0.45), 0 20px 40px rgba(255, 208, 150, 0.45);
 }
 
 /* Overlay */
@@ -125,11 +185,14 @@
     opacity: 0;
     pointer-events: none;
     z-index: 99999;
+    mix-blend-mode: screen;
+    filter: blur(2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
     .line { transform: none !important; }
     #grain { animation: none; opacity: .03; }
+    .loader-orbits { display: none; }
 }
 
 /* Blocchi caricamento residui */
