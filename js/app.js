@@ -940,20 +940,24 @@ const wormholeReturnEase = (t) => {
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
-        const layoutMode = deckConfig.layout || 'carousel';
-        const isCarouselLayout = layoutMode === 'carousel';
-        const autoRotateSeconds = deckConfig.autoRotate;
-        const totalCards = deck.length;
-        let activeIndex = 0;
-        let autoRotateTimer = null;
-        let swipeStartX = null;
-        let swipeLock = false;
-        let wheelLock = false;
-        let navAnimating = false;
-        const dragEnabled = deckConfig?.dragReveal === true;
-        let dragCard = null;
-        let dragStartX = 0;
-        let dragActive = false;
+        const state = {
+            layoutMode: deckConfig.layout || 'carousel',
+            autoRotateSeconds: deckConfig.autoRotate,
+            totalCards: deck.length,
+            activeIndex: 0,
+            autoRotateTimer: null,
+            swipeStartX: null,
+            swipeLock: false,
+            wheelLock: false,
+            navAnimating: false,
+            dragEnabled: deckConfig?.dragReveal === true,
+            dragCard: null,
+            dragStartX: 0,
+            dragActive: false,
+            overlayClosed: false,
+            stageResizeObserver: null
+        };
+        const isCarousel = () => state.layoutMode === 'carousel';
 
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
@@ -966,13 +970,11 @@ const wormholeReturnEase = (t) => {
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
-        let overlayClosed = false;
-        let stageResizeObserver = null;
         const exitBindings = [];
         const navBindings = [];
         const interactiveSelector = '.card-form, .card-contact, button, input, textarea, select, a';
         const isInteractiveTarget = (target) => Boolean(target && target.closest?.(interactiveSelector));
-        stage.dataset.layout = layoutMode;
+        stage.dataset.layout = state.layoutMode;
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
 
@@ -987,10 +989,10 @@ const wormholeReturnEase = (t) => {
             const marginX = Math.max(18, Math.min(150, vw * 0.065));
             const marginY = Math.max(70, Math.min(220, vh * 0.16));
             const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
-            const stageHeight = isCarouselLayout
+            const stageHeight = isCarousel()
                 ? Math.max(420, Math.min(vh - marginY, 760))
                 : Math.max(360, Math.min(vh - marginY, 640));
-            const panelHeight = isCarouselLayout
+            const panelHeight = isCarousel()
                 ? Math.max(420, Math.min(stageHeight - 24, 660))
                 : Math.max(340, stageHeight - 36);
             const baseWidth = Math.max(320, Math.min(stageWidth * 0.9, 840));
@@ -1006,37 +1008,37 @@ const wormholeReturnEase = (t) => {
         };
 
         if ('ResizeObserver' in window) {
-            stageResizeObserver = new ResizeObserver(updateStageMetrics);
-            stageResizeObserver.observe(stage);
+            state.stageResizeObserver = new ResizeObserver(updateStageMetrics);
+            state.stageResizeObserver.observe(stage);
         }
         window.addEventListener('resize', updateStageMetrics);
         updateStageMetrics();
 
         const stopAutoRotate = () => {
-            if (autoRotateTimer) {
-                clearInterval(autoRotateTimer);
-                autoRotateTimer = null;
+            if (state.autoRotateTimer) {
+                clearInterval(state.autoRotateTimer);
+                state.autoRotateTimer = null;
             }
         };
 
         const startAutoRotate = () => {
-            if (!isCarouselLayout || !autoRotateSeconds || totalCards <= 1) return;
+            if (!isCarousel() || !state.autoRotateSeconds || state.totalCards <= 1) return;
             stopAutoRotate();
-            autoRotateTimer = setInterval(() => {
-                if (overlayClosed || navAnimating) return;
-                activeIndex = (activeIndex + 1) % totalCards;
+            state.autoRotateTimer = setInterval(() => {
+                if (state.overlayClosed || state.navAnimating) return;
+                state.activeIndex = (state.activeIndex + 1) % state.totalCards;
                 render('right');
-            }, autoRotateSeconds * 1000);
+            }, state.autoRotateSeconds * 1000);
         };
 
         const layoutFor = (index) => {
-            if (!isCarouselLayout) {
+            if (!isCarousel()) {
                 return deck.map((card, idx) => ({
                     role: deck.length === 1 ? 'center' : (idx === 0 ? 'left' : 'right'),
                     card
                 }));
             }
-            const total = totalCards;
+            const total = state.totalCards;
             if (total === 1) {
                 return [{ role: 'center', card: deck[0] }];
             }
@@ -1119,14 +1121,14 @@ const wormholeReturnEase = (t) => {
         };
 
         const renderActions = (role) => {
-            if (isCarouselLayout) {
+            if (isCarousel()) {
                 if (role !== 'center') return '';
-                const showNav = totalCards > 1;
+                const showNav = state.totalCards > 1;
                 const prevButton = showNav ? `<button type="button" class="card-actions__nav is-prev" data-action="nav" data-direction="left" aria-label="Mostra precedente"><span class="chevron"></span></button>` : '';
                 const nextButton = showNav ? `<button type="button" class="card-actions__nav is-next" data-action="nav" data-direction="right" aria-label="Mostra successiva"><span class="chevron"></span></button>` : '';
                 return `<div class="card-actions" data-actions="carousel" data-has-nav="${showNav ? 'true' : 'false'}">${prevButton}<button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>${nextButton}</div>`;
             }
-            const shouldAttach = totalCards === 1 ? role === 'center' : role === 'left';
+            const shouldAttach = state.totalCards === 1 ? role === 'center' : role === 'left';
             if (!shouldAttach) return '';
             return `<div class="card-actions" data-actions="static" data-has-nav="false"><button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button></div>`;
         };
@@ -1211,7 +1213,7 @@ const wormholeReturnEase = (t) => {
         }
 
         function bindPanelEvents() {
-            if (!isCarouselLayout) return;
+            if (!isCarousel()) return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
                 panel.addEventListener('click', (ev) => {
                     if (isInteractiveTarget(ev.target)) return;
@@ -1224,7 +1226,7 @@ const wormholeReturnEase = (t) => {
 
         const handleExit = (event) => {
             if (event) event.preventDefault();
-            if (overlayClosed) return;
+            if (state.overlayClosed) return;
             try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
             try {
                 warpSound.pause();
@@ -1236,18 +1238,18 @@ const wormholeReturnEase = (t) => {
         };
 
         const handleNav = (direction, options = {}) => {
-            if (overlayClosed || navAnimating) return;
-            if (!isCarouselLayout || totalCards <= 1) return;
-            navAnimating = true;
+            if (state.overlayClosed || state.navAnimating) return;
+            if (!isCarousel() || state.totalCards <= 1) return;
+            state.navAnimating = true;
             stopAutoRotate();
             const nextIndex = direction === 'left'
-                ? (activeIndex + totalCards - 1) % totalCards
-                : (activeIndex + 1) % totalCards;
+                ? (state.activeIndex + state.totalCards - 1) % state.totalCards
+                : (state.activeIndex + 1) % state.totalCards;
             const finalize = () => {
-                activeIndex = nextIndex;
+                state.activeIndex = nextIndex;
                 render(direction);
                 startAutoRotate();
-                requestAnimationFrame(() => { navAnimating = false; });
+                requestAnimationFrame(() => { state.navAnimating = false; });
             };
             const { viaDrag, preserveCard } = options;
             if (viaDrag && preserveCard) {
@@ -1285,8 +1287,8 @@ const wormholeReturnEase = (t) => {
         };
 
         function render(direction = 'intro') {
-            if (!isCarouselLayout) {
-                const layout = layoutFor(activeIndex);
+            if (!isCarousel()) {
+                const layout = layoutFor(state.activeIndex);
                 stage.style.setProperty('--active-accent', layout[0]?.card.accent ?? '#ffd58a');
                 carouselEl.innerHTML = layout.map(cardMarkup).join('');
                 initFormHandlers();
@@ -1312,7 +1314,7 @@ const wormholeReturnEase = (t) => {
                 return;
             }
 
-            const layout = layoutFor(activeIndex);
+            const layout = layoutFor(state.activeIndex);
             const centerCard = layout.find(item => item.role === 'center')?.card;
             if (centerCard) {
                 stage.style.setProperty('--active-accent', centerCard.accent);
@@ -1408,53 +1410,53 @@ const wormholeReturnEase = (t) => {
         };
 
         const handleWheel = (ev) => {
-            if (!isCarouselLayout || totalCards <= 1) return;
+            if (!isCarousel() || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const scrollable = ev.target.closest('.card-holo');
             if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
             ev.preventDefault();
             ev.stopPropagation();
-            if (wheelLock || navAnimating) return;
-            wheelLock = true;
+            if (state.wheelLock || state.navAnimating) return;
+            state.wheelLock = true;
             const direction = ev.deltaY > 0 ? 'right' : 'left';
             handleNav(direction);
-            gsap.delayedCall(0.65, () => { wheelLock = false; });
+            gsap.delayedCall(0.65, () => { state.wheelLock = false; });
         };
 
-        if (isCarouselLayout) {
+        if (isCarousel()) {
             stage.addEventListener('pointermove', handlePointer);
             stage.addEventListener('pointerleave', handleLeave);
             stage.addEventListener('wheel', handleWheel, { passive: false });
         }
 
         const onPointerDown = (ev) => {
-            if (!isCarouselLayout) return;
+            if (!isCarousel()) return;
             if (isInteractiveTarget(ev.target)) return;
-            swipeStartX = ev.clientX;
-            swipeLock = false;
+            state.swipeStartX = ev.clientX;
+            state.swipeLock = false;
             if (typeof ev.pointerId === 'number' && stage.setPointerCapture) {
                 try { stage.setPointerCapture(ev.pointerId); } catch (err) { /* noop */ }
             }
-            if (!dragEnabled) return;
+            if (!state.dragEnabled) return;
             const panel = ev.target.closest('.card-panel');
             if (!panel || panel.dataset.role !== 'center') return;
-            dragCard = panel;
-            dragStartX = ev.clientX;
-            dragActive = true;
+            state.dragCard = panel;
+            state.dragStartX = ev.clientX;
+            state.dragActive = true;
             panel.classList.add('is-dragging');
             gsap.to(panel, { scale: 1.03, boxShadow: '0 32px 70px rgba(0,0,0,0.45)', duration: 0.25, ease: 'power2.out' });
         };
 
         const onPointerMove = (ev) => {
-            if (!isCarouselLayout || swipeStartX === null || totalCards <= 1) return;
+            if (!isCarousel() || state.swipeStartX === null || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
-            const delta = ev.clientX - (dragActive ? dragStartX : swipeStartX);
-            if (dragActive && dragCard) {
+            const delta = ev.clientX - (state.dragActive ? state.dragStartX : state.swipeStartX);
+            if (state.dragActive && state.dragCard) {
                 const rect = stage.getBoundingClientRect();
                 const stageWidth = rect.width || 1;
                 const progress = Math.max(-1, Math.min(1, delta / (stageWidth * 0.4)));
                 const translate = progress * Math.min(stageWidth * 0.12, 120);
-                gsap.to(dragCard, {
+                gsap.to(state.dragCard, {
                     x: translate,
                     rotateY: progress * 12,
                     rotateX: -Math.abs(progress) * 3,
@@ -1462,30 +1464,30 @@ const wormholeReturnEase = (t) => {
                     ease: 'power2.out',
                     overwrite: 'auto'
                 });
-                if (!swipeLock && Math.abs(delta) > 110) {
-                    swipeLock = true;
-                    dragActive = false;
-                    const preserved = dragCard;
-                    dragCard = null;
+                if (!state.swipeLock && Math.abs(delta) > 110) {
+                    state.swipeLock = true;
+                    state.dragActive = false;
+                    const preserved = state.dragCard;
+                    state.dragCard = null;
                     handleNav(delta > 0 ? 'left' : 'right', { viaDrag: true, preserveCard: preserved });
                 }
                 return;
             }
-            if (swipeLock) return;
+            if (state.swipeLock) return;
             if (Math.abs(delta) < 60) return;
-            swipeLock = true;
+            state.swipeLock = true;
             handleNav(delta > 0 ? 'left' : 'right');
         };
 
         const onPointerUp = (ev) => {
-            swipeStartX = null;
-            swipeLock = false;
-            if (dragCard) {
-                dragCard.classList.remove('is-dragging');
-                gsap.to(dragCard, { x: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.5, ease: 'expo.out' });
-                dragCard = null;
+            state.swipeStartX = null;
+            state.swipeLock = false;
+            if (state.dragCard) {
+                state.dragCard.classList.remove('is-dragging');
+                gsap.to(state.dragCard, { x: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.5, ease: 'expo.out' });
+                state.dragCard = null;
             }
-            dragActive = false;
+            state.dragActive = false;
             if (ev && typeof ev.pointerId === 'number' && stage.releasePointerCapture) {
                 try {
                     if (stage.hasPointerCapture?.(ev.pointerId)) {
@@ -1505,19 +1507,19 @@ const wormholeReturnEase = (t) => {
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
-        if (isCarouselLayout) {
+        if (isCarousel()) {
             startAutoRotate();
         }
 
         const closeOverlay = () => {
-            if (overlayClosed) return;
-            overlayClosed = true;
+            if (state.overlayClosed) return;
+            state.overlayClosed = true;
             stopAutoRotate();
             detachActionListeners();
             window.removeEventListener('resize', updateStageMetrics);
-            if (stageResizeObserver) {
-                stageResizeObserver.disconnect();
-                stageResizeObserver = null;
+            if (state.stageResizeObserver) {
+                state.stageResizeObserver.disconnect();
+                state.stageResizeObserver = null;
             }
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
