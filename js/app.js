@@ -20,8 +20,19 @@
     // -------------------------
     // DEBUG SWITCH (true/false)
     // -------------------------
-    const DEBUG_LOG = false;
-    const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
+const DEBUG_LOG = false;
+const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
+
+// easing personalizzati per i movimenti "wormhole"
+const wormholeEase = (t) => {
+    const accelerated = Math.pow(t, 1.45);
+    return THREE.MathUtils.clamp(accelerated, 0, 1);
+};
+
+const wormholeReturnEase = (t) => {
+    const eased = 1 - Math.pow(1 - t, 1.85);
+    return THREE.MathUtils.clamp(eased, 0, 1);
+};
 
     // --------------------------------------------------------
     //  RENDERER + SCENA
@@ -321,38 +332,77 @@
             side: THREE.BackSide,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
-            uniforms: { time: { value: 0 }, alpha: { value: 0.0 } },
-            vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-            fragmentShader: `
-      varying vec2 vUv; uniform float time, alpha;
+            uniforms: {
+                time: { value: 0 },
+                alpha: { value: 0.0 },
+                head: { value: 0.0 },
+                glow: { value: 0.6 }
+            },
+            vertexShader: `
+      varying vec2 vUv;
       void main(){
-        float s = sin(vUv.y*80. - time*8.)*0.5 + 0.5;
-        float fade = smoothstep(0.0, 0.8, vUv.y);
-        vec3 col = vec3(1.0, 0.9, 0.6)*s;
-        gl_FragColor = vec4(col, alpha * fade * 0.9);
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+            fragmentShader: `
+      varying vec2 vUv;
+      uniform float time, alpha, head, glow;
+      void main(){
+        float spiral = sin((vUv.y * 28.0 - time * 10.0) + vUv.x * 12.0);
+        float wave = sin(vUv.y * 60.0 - time * 15.0) * 0.5 + 0.5;
+        float reveal = clamp((head - vUv.y) * 8.0 + 0.5, 0.0, 1.0);
+        float entry = smoothstep(0.0, 0.12, vUv.y);
+        float tail = 1.0 - smoothstep(0.85, 1.0, vUv.y);
+        float mask = reveal * entry * tail;
+        vec3 col = vec3(1.0, 0.92, 0.7) * (0.6 + glow * wave + 0.25 * spiral);
+        gl_FragColor = vec4(col, alpha * mask);
       }`
         });
         const cyl = new THREE.Mesh(cylGeo, cylMat);
         cyl.rotation.x = Math.PI / 2;
         cyl.position.z = -400;
+        cyl.scale.set(1, 1, 0.25);
         g.add(cyl);
 
         const light = new THREE.PointLight(0xffe7b0, 2.0, 1000);
         g.add(light);
 
-        gsap.to(ringMat.uniforms.expand, { value: 100, duration: 2.5, ease: "power3.out" });
-        gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], { value: 1.0, duration: 2.0, ease: "power2.out" });
+        ring.scale.set(0.35, 0.35, 0.35);
+        const ringExpand = gsap.to(ringMat.uniforms.expand, { value: 100, duration: 2.4, ease: "power3.out" });
+        const ringScale = gsap.to(ring.scale, { x: 1, y: 1, z: 1, duration: 2.6, ease: "expo.out" });
+        const alphaTween = gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
+            value: 1.0,
+            duration: 1.8,
+            ease: "sine.out"
+        });
+        const headTween = gsap.to(cylMat.uniforms.head, { value: 1.05, duration: 3.2, ease: wormholeEase });
+        const glowTween = gsap.to(cylMat.uniforms.glow, { value: 1.35, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: -1 });
+        const stretchTween = gsap.to(cyl.scale, { z: 1, duration: 2.8, ease: "expo.out" });
+        const swirlTween = gsap.to(g.rotation, { y: "+=6.283", duration: 18, ease: "none", repeat: -1 });
 
         return {
             update(dt) {
                 ringMat.uniforms.time.value += dt;
                 cylMat.uniforms.time.value += dt;
-                light.intensity = 2.5 + Math.sin(performance.now() / 400) * 0.7;
+                light.intensity = 2.1 + cylMat.uniforms.glow.value * 0.9 + Math.sin(performance.now() / 480) * 0.6;
             },
             fadeAndRemove(onDone) {
+                glowTween.pause();
+                swirlTween.pause();
+                gsap.to(cylMat.uniforms.glow, { value: 0.4, duration: 0.6, ease: "sine.in" });
                 gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
                     value: 0.0, duration: 1.2, ease: "power2.inOut",
-                    onComplete: () => { camera.remove(g); if (onDone) onDone(); }
+                    onComplete: () => {
+                        ringExpand.kill();
+                        ringScale.kill();
+                        alphaTween.kill();
+                        headTween.kill();
+                        stretchTween.kill();
+                        glowTween.kill();
+                        swirlTween.kill();
+                        camera.remove(g);
+                        if (onDone) onDone();
+                    }
                 });
             }
         };
@@ -405,94 +455,52 @@
         } catch {
         }
 
-        // Spawn portale dorato
         activePortal = spawnPortalAt(target);
 
-        // Effetti iniziali
-        gsap.to(warpPass.uniforms.strength, {value: 0.3, duration: 1.2, ease: 'sine.inOut'});
-        gsap.to(warpPass.uniforms.chroma, {value: 0.015, duration: 1.2, ease: 'sine.inOut'});
-        gsap.to(bloom, {strength: 0.4, duration: 1.2, ease: 'power1.inOut'});
+        gsap.to(warpPass.uniforms.strength, { value: 0.35, duration: 1.2, ease: 'sine.inOut' });
+        gsap.to(warpPass.uniforms.chroma, { value: 0.02, duration: 1.2, ease: 'sine.inOut' });
+        gsap.to(bloom, { strength: 0.45, duration: 1.2, ease: 'power1.inOut' });
 
-        // Coordinate portale
         const wp = new THREE.Vector3();
         target.getWorldPosition(wp);
 
-        // Traiettoria curva verso il portale (in-out fluido)
-        // Avvicinamento morbido al punto di partenza (1s easing)
         const camStart = camera.position.clone();
-        const smoothStart = camStart.clone().lerp(wp, 0.05);
-        gsap.to(camera.position, {
-            x: smoothStart.x,
-            y: smoothStart.y,
-            z: smoothStart.z,
-            duration: 1.2,
-            ease: "power2.inOut",
-            onComplete: () => startWarpAnimation()
-        });
+        const lookAhead = new THREE.Vector3();
+        const camEnd = wp.clone().add(new THREE.Vector3(0, 140, 140));
+        const ctrlA = camStart.clone().lerp(wp, 0.25).add(new THREE.Vector3(0, 200, -240));
+        const ctrlB = camStart.clone().lerp(wp, 0.68).add(new THREE.Vector3(0, 160, 220));
+        const curve = new THREE.CatmullRomCurve3([camStart, ctrlA, ctrlB, camEnd], false, 'catmullrom', 0.55);
+        const travel = { t: 0 };
+        const duration = 6.2;
 
-        function startWarpAnimation() {
-            const camEnd = wp.clone().add(new THREE.Vector3(0, 120, 120));
-            const controlPoint = camStart.clone().lerp(camEnd, 0.5).add(new THREE.Vector3(0, 200, 0));
-            const curve = new THREE.QuadraticBezierCurve3(camStart, controlPoint, camEnd);
-            const steps = 300;
-            const pathPoints = curve.getPoints(steps);
-            const progress = { t: 0 };
-
-            gsap.to(progress, {
-                t: 1,
-                duration: 5.5,
-                ease: "power3.inOut",
-                onUpdate: () => {
-                    const i = Math.floor(progress.t * (steps - 1));
-                    camera.position.copy(pathPoints[i]);
-                    camera.lookAt(wp);
-
-                    const phase = progress.t;
-                    warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.3, 1.2, phase);
-                    warpPass.uniforms.chroma.value   = THREE.MathUtils.lerp(0.015, 0.05, phase);
-                    bloom.strength = THREE.MathUtils.lerp(0.4, 0.9, phase);
-
-                    if (!document.querySelector('.warp-card') && phase >= 0.9) showCard(name);
-                },
-                onComplete: () => {
-                    if (activePortal) activePortal.fadeAndRemove();
-                }
-            });
-        }
-
-        const curve = new THREE.QuadraticBezierCurve3(camStart, controlPoint, camEnd);
-        const duration = 5.5;
-        const steps = 300;
-        const pathPoints = curve.getPoints(steps);
-
-        let progress = {t: 0};
-        gsap.to(progress, {
+        gsap.to(travel, {
             t: 1,
-            duration: duration,
-            ease: "power3.inOut",
+            duration,
+            ease: wormholeEase,
             onUpdate: () => {
-                const i = Math.floor(progress.t * (steps - 1));
-                camera.position.copy(pathPoints[i]);
-                camera.lookAt(wp);
+                const pos = curve.getPoint(travel.t);
+                const tangent = curve.getTangent(travel.t).normalize();
+                lookAhead.copy(pos).addScaledVector(tangent, 160);
 
-                const phase = progress.t;
-                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.3, 1.2, phase);
-                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.015, 0.05, phase);
-                bloom.strength = THREE.MathUtils.lerp(0.4, 0.9, phase);
+                camera.position.copy(pos);
+                camera.lookAt(lookAhead);
 
-                // Card anticipata (10% prima)
-                if (!document.querySelector('.warp-card') && phase >= 0.9) showCard(name);
+                const phase = travel.t;
+                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.35, 1.1, phase);
+                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.02, 0.065, phase);
+                bloom.strength = THREE.MathUtils.lerp(0.45, 0.95, phase);
+
+                if (!document.querySelector('.warp-card') && phase >= 0.82) showCard(name);
             },
             onComplete: () => {
-                gsap.to(warpPass.uniforms.strength, {value: 0.0, duration: 1.0});
-                gsap.to(warpPass.uniforms.chroma, {value: 0.0, duration: 1.0});
-                gsap.to(bloom, {strength: 0.25, duration: 1.0});
+                gsap.to(warpPass.uniforms.strength, { value: 0.55, duration: 0.9, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.chroma, { value: 0.04, duration: 0.9, ease: 'sine.out' });
                 if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
             }
-        })
+        });
     }
 
-            function showCard(name) {
+    function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch {}
 
         const overlay = document.createElement('div');
@@ -509,37 +517,58 @@
         </div>`;
         document.body.appendChild(overlay);
 
-        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.0, ease: 'power2.out' });
         const card = overlay.querySelector('.card-inner');
-        gsap.fromTo(card, { scale: 0.85, rotateY: 22 }, { scale: 1, rotateY: 0, duration: 1.2, ease: 'power3.out' });
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.0, ease: 'power2.out' });
+        gsap.fromTo(card, { y: 36, scale: 0.82, rotateY: 18 }, { y: 0, scale: 1, rotateY: 0, duration: 1.2, ease: 'power3.out' });
 
         overlay.querySelector('.close-card').addEventListener('click', () => {
             try { clickSound.currentTime = 0; clickSound.play(); } catch {}
-            gsap.to(bloom, { strength: 0.8, duration: 1.2, yoyo: true, repeat: 1 });
-            gsap.to(overlay, { opacity: 0, duration: 0.8, onComplete: () => overlay.remove() });
+
+            const boostStrength = gsap.to(warpPass.uniforms.strength, { value: 1.25, duration: 0.6, ease: 'power2.in' });
+            const boostChroma = gsap.to(warpPass.uniforms.chroma, { value: 0.07, duration: 0.6, ease: 'power2.in' });
+            const boostBloom = gsap.to(bloom, { strength: 0.9, duration: 0.6, ease: 'sine.in' });
+
+            gsap.to(overlay, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: () => overlay.remove() });
+
             const startPos = camera.position.clone();
             const targetPos = new THREE.Vector3(16.89, 282.66, -1406.02);
+            const ctrl1 = startPos.clone().add(new THREE.Vector3(0, 210, 220));
+            const ctrl2 = targetPos.clone().add(new THREE.Vector3(0, 180, -260));
+            const retreatCurve = new THREE.CatmullRomCurve3([startPos, ctrl1, ctrl2, targetPos], false, 'catmullrom', 0.6);
+            const retreat = { t: 0 };
+            const lookAhead = new THREE.Vector3();
 
-            gsap.to(startPos, {
-                x: targetPos.x,
-                y: targetPos.y,
-                z: targetPos.z,
-                duration: 4.5,
-                ease: "power3.inOut",
-                onUpdate: () => {
-                    camera.position.copy(startPos);
-                    camera.lookAt(0, 180, 0); // oppure il punto medio della scena
-                },
-                onComplete: () => {
-                    warpPass.uniforms.strength.value = 0.0;
-                    warpPass.uniforms.chroma.value = 0.0;
-                    bloom.strength = 0.25;
-                    warpActive = false;
-                    portalTarget = null;
-                    camera.remove(...camera.children);
-                }
+            gsap.delayedCall(0.25, () => {
+                boostStrength.progress(1);
+                boostChroma.progress(1);
+                boostBloom.progress(1);
+                gsap.to(retreat, {
+                    t: 1,
+                    duration: 6.0,
+                    ease: wormholeEase,
+                    onUpdate: () => {
+                        const pos = retreatCurve.getPoint(retreat.t);
+                        const tangent = retreatCurve.getTangent(retreat.t).normalize();
+                        lookAhead.copy(pos).addScaledVector(tangent, 220);
+
+                        camera.position.copy(pos);
+                        camera.lookAt(lookAhead);
+
+                        const fade = THREE.MathUtils.clamp(retreat.t, 0, 1);
+                        warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, fade);
+                        warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, fade);
+                        bloom.strength = THREE.MathUtils.lerp(0.9, 0.25, fade);
+                    },
+                    onComplete: () => {
+                        warpPass.uniforms.strength.value = 0.0;
+                        warpPass.uniforms.chroma.value = 0.0;
+                        bloom.strength = 0.25;
+                        warpActive = false;
+                        portalTarget = null;
+                        camera.lookAt(0, 180, 0);
+                    }
+                });
             });
-
         });
     }
 
