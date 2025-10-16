@@ -192,6 +192,7 @@ const wormholeReturnEase = (t) => {
     const CARD_LIBRARY = {
         Portfolio: {
             layout: 'carousel',
+            dragReveal: true,
             autoRotate: 7,
             cards: [
                 {
@@ -281,6 +282,7 @@ const wormholeReturnEase = (t) => {
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
             layout: 'carousel',
+            dragReveal: true,
             cards: [
                 {
                     key: 'Chi-1',
@@ -942,6 +944,11 @@ const wormholeReturnEase = (t) => {
         let swipeStartX = null;
         let swipeLock = false;
         let wheelLock = false;
+        let navAnimating = false;
+        const dragEnabled = deckDefinition?.dragReveal === true;
+        let dragCard = null;
+        let dragStartX = 0;
+        let dragActive = false;
 
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
@@ -972,19 +979,25 @@ const wormholeReturnEase = (t) => {
         const updateStageMetrics = () => {
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const marginX = Math.max(24, Math.min(160, vw * 0.08));
-            const marginY = Math.max(90, Math.min(220, vh * 0.18));
-            const stageWidth = Math.max(360, Math.min(1280, vw - marginX * 2));
-            const stageHeight = Math.max(420, Math.min(vh - marginY, 780));
-            const panelHeight = Math.max(420, stageHeight - 48);
-            const baseWidth = Math.max(340, Math.min(stageWidth - 72, stageWidth * 0.9, 960));
-            const stagePadding = Math.max(28, Math.min(64, stageWidth * 0.06));
+            const marginX = Math.max(18, Math.min(140, vw * 0.07));
+            const marginY = Math.max(70, Math.min(200, vh * 0.16));
+            const stageWidth = Math.max(340, Math.min(1120, vw - marginX * 2));
+            const stageHeight = layoutMode === 'carousel'
+                ? Math.max(420, Math.min(vh - marginY, 720))
+                : Math.max(360, Math.min(vh - marginY, 620));
+            const panelHeight = layoutMode === 'carousel'
+                ? Math.max(420, Math.min(stageHeight - 24, 640))
+                : Math.max(340, stageHeight - 40);
+            const baseWidth = Math.max(320, Math.min(stageWidth * 0.86, 780));
+            const stagePadding = Math.max(18, Math.min(48, stageWidth * 0.045));
+            const sideOffset = Math.max(160, Math.min(stageWidth * 0.38, 320));
             stage.style.setProperty('--stage-width', `${stageWidth}px`);
             stage.style.setProperty('--stage-height', `${stageHeight}px`);
             stage.style.setProperty('--panel-height', `${panelHeight}px`);
             stage.style.setProperty('--panel-base-width', `${baseWidth}px`);
             stage.style.setProperty('--stage-padding', `${stagePadding}px`);
-            stage.classList.toggle('is-compact', stageWidth < 820);
+            stage.style.setProperty('--side-offset', `${sideOffset}px`);
+            stage.classList.toggle('is-compact', stageWidth < 720);
         };
 
         if ('ResizeObserver' in window) {
@@ -1005,6 +1018,7 @@ const wormholeReturnEase = (t) => {
             if (layoutMode !== 'carousel' || !autoRotateSeconds || totalCards <= 1) return;
             stopAutoRotate();
             autoRotateTimer = setInterval(() => {
+                if (overlayClosed || navAnimating) return;
                 activeIndex = (activeIndex + 1) % totalCards;
                 render('right');
             }, autoRotateSeconds * 1000);
@@ -1107,6 +1121,20 @@ const wormholeReturnEase = (t) => {
             });
         }
 
+        function enableSmoothScroll(node) {
+            if (!node || node.dataset.smoothScroll === 'true') return;
+            node.dataset.smoothScroll = 'true';
+            node.addEventListener('wheel', (event) => {
+                if (Math.abs(event.deltaY) < 1) return;
+                const maxScroll = node.scrollHeight - node.clientHeight;
+                if (maxScroll <= 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const next = Math.max(0, Math.min(maxScroll, node.scrollTop + event.deltaY));
+                gsap.to(node, { scrollTop: next, duration: 0.45, ease: 'power2.out' });
+            }, { passive: false });
+        }
+
         function bindPanelEvents() {
             if (layoutMode !== 'carousel') return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
@@ -1114,12 +1142,7 @@ const wormholeReturnEase = (t) => {
                     if (isInteractiveTarget(ev.target)) return;
                     const role = panel.dataset.role;
                     if (role === 'center') return;
-                    stopAutoRotate();
-                    activeIndex = role === 'left'
-                        ? (activeIndex + totalCards - 1) % totalCards
-                        : (activeIndex + 1) % totalCards;
-                    render(role);
-                    startAutoRotate();
+                    handleNav(role === 'left' ? 'left' : 'right', { fromPanel: panel });
                 });
             });
         }
@@ -1137,15 +1160,35 @@ const wormholeReturnEase = (t) => {
             requestAnimationFrame(() => animateReturnHome());
         };
 
-        const handleNav = (direction) => {
-            if (overlayClosed) return;
+        const handleNav = (direction, options = {}) => {
+            if (overlayClosed || navAnimating) return;
             if (layoutMode !== 'carousel' || totalCards <= 1) return;
+            navAnimating = true;
             stopAutoRotate();
-            activeIndex = direction === 'left'
+            const nextIndex = direction === 'left'
                 ? (activeIndex + totalCards - 1) % totalCards
                 : (activeIndex + 1) % totalCards;
-            render(direction);
-            startAutoRotate();
+            const finalize = () => {
+                activeIndex = nextIndex;
+                render(direction);
+                startAutoRotate();
+                requestAnimationFrame(() => { navAnimating = false; });
+            };
+            const { viaDrag, preserveCard } = options;
+            if (viaDrag && preserveCard) {
+                preserveCard.classList.remove('is-dragging');
+                gsap.to(preserveCard, {
+                    xPercent: direction === 'left' ? 120 : -120,
+                    rotateY: direction === 'left' ? 18 : -18,
+                    rotateX: -4,
+                    opacity: 0,
+                    duration: 0.45,
+                    ease: 'power2.in',
+                    onComplete: finalize
+                });
+                return;
+            }
+            finalize();
         };
 
         const bindActions = () => {
@@ -1173,6 +1216,7 @@ const wormholeReturnEase = (t) => {
                 carouselEl.innerHTML = layout.map(cardMarkup).join('');
                 initFormHandlers();
                 bindActions();
+                carouselEl.querySelectorAll('.card-holo').forEach(enableSmoothScroll);
                 const panels = carouselEl.querySelectorAll('.card-panel');
                 gsap.fromTo(panels, { opacity: 0, y: 60, filter: 'blur(16px)', clipPath: 'inset(0 0 100% 0 round 32px)' }, {
                     opacity: 1,
@@ -1200,6 +1244,7 @@ const wormholeReturnEase = (t) => {
             bindPanelEvents();
             initFormHandlers();
             bindActions();
+            carouselEl.querySelectorAll('.card-holo').forEach(enableSmoothScroll);
             const panels = carouselEl.querySelectorAll('.card-panel');
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
 
@@ -1289,16 +1334,12 @@ const wormholeReturnEase = (t) => {
             const scrollable = ev.target.closest('.card-holo');
             if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
             ev.preventDefault();
-            if (wheelLock) return;
+            ev.stopPropagation();
+            if (wheelLock || navAnimating) return;
             wheelLock = true;
             const direction = ev.deltaY > 0 ? 'right' : 'left';
-            stopAutoRotate();
-            activeIndex = direction === 'left'
-                ? (activeIndex + totalCards - 1) % totalCards
-                : (activeIndex + 1) % totalCards;
-            render(direction);
-            startAutoRotate();
-            gsap.delayedCall(0.6, () => { wheelLock = false; });
+            handleNav(direction);
+            gsap.delayedCall(0.65, () => { wheelLock = false; });
         };
 
         if (layoutMode === 'carousel') {
@@ -1312,25 +1353,57 @@ const wormholeReturnEase = (t) => {
             if (isInteractiveTarget(ev.target)) return;
             swipeStartX = ev.clientX;
             swipeLock = false;
+            if (!dragEnabled) return;
+            const panel = ev.target.closest('.card-panel');
+            if (!panel || panel.dataset.role !== 'center') return;
+            dragCard = panel;
+            dragStartX = ev.clientX;
+            dragActive = true;
+            panel.classList.add('is-dragging');
+            gsap.to(panel, { scale: 1.03, boxShadow: '0 32px 70px rgba(0,0,0,0.45)', duration: 0.25, ease: 'power2.out' });
         };
 
         const onPointerMove = (ev) => {
-            if (layoutMode !== 'carousel' || swipeStartX === null || swipeLock || totalCards <= 1) return;
+            if (layoutMode !== 'carousel' || swipeStartX === null || totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
-            const delta = ev.clientX - swipeStartX;
-            if (Math.abs(delta) < 45) return;
+            const delta = ev.clientX - (dragActive ? dragStartX : swipeStartX);
+            if (dragActive && dragCard) {
+                const rect = stage.getBoundingClientRect();
+                const stageWidth = rect.width || 1;
+                const progress = Math.max(-1, Math.min(1, delta / (stageWidth * 0.4)));
+                const translate = progress * Math.min(stageWidth * 0.12, 120);
+                gsap.to(dragCard, {
+                    x: translate,
+                    rotateY: progress * 12,
+                    rotateX: -Math.abs(progress) * 3,
+                    duration: 0.2,
+                    ease: 'power2.out',
+                    overwrite: 'auto'
+                });
+                if (!swipeLock && Math.abs(delta) > 110) {
+                    swipeLock = true;
+                    dragActive = false;
+                    const preserved = dragCard;
+                    dragCard = null;
+                    handleNav(delta > 0 ? 'left' : 'right', { viaDrag: true, preserveCard: preserved });
+                }
+                return;
+            }
+            if (swipeLock) return;
+            if (Math.abs(delta) < 60) return;
             swipeLock = true;
-            stopAutoRotate();
-            activeIndex = delta > 0
-                ? (activeIndex + totalCards - 1) % totalCards
-                : (activeIndex + 1) % totalCards;
-            render(delta > 0 ? 'left' : 'right');
-            startAutoRotate();
+            handleNav(delta > 0 ? 'left' : 'right');
         };
 
         const onPointerUp = () => {
             swipeStartX = null;
             swipeLock = false;
+            if (dragCard) {
+                dragCard.classList.remove('is-dragging');
+                gsap.to(dragCard, { x: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.5, ease: 'expo.out' });
+                dragCard = null;
+            }
+            dragActive = false;
         };
 
         stage.addEventListener('pointerdown', onPointerDown);
@@ -1357,7 +1430,7 @@ const wormholeReturnEase = (t) => {
             }
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
-            stage.removeEventListener('wheel', handleWheel, { passive: false });
+            stage.removeEventListener('wheel', handleWheel);
             stage.removeEventListener('pointerdown', onPointerDown);
             stage.removeEventListener('pointermove', onPointerMove);
             stage.removeEventListener('pointerup', onPointerUp);
