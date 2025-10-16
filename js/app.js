@@ -936,12 +936,12 @@ const wormholeReturnEase = (t) => {
     function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
 
-        const deckDefinition = CARD_LIBRARY[name];
-        const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
+        const deckConfig = CARD_LIBRARY[name];
+        const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
-        const layoutMode = deckDefinition.layout || 'carousel';
-        const autoRotateSeconds = deckDefinition.autoRotate;
+        const layoutMode = deckConfig.layout || 'carousel';
+        const autoRotateSeconds = deckConfig.autoRotate;
         const totalCards = deck.length;
         let activeIndex = 0;
         let autoRotateTimer = null;
@@ -949,25 +949,7 @@ const wormholeReturnEase = (t) => {
         let swipeLock = false;
         let wheelLock = false;
         let navAnimating = false;
-        const dragEnabled = deckDefinition?.dragReveal === true;
-        let dragCard = null;
-        let dragStartX = 0;
-        let dragActive = false;
-
-        const deckDefinition = CARD_LIBRARY[name];
-        const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
-        if (!deck.length) return;
-
-        const layoutMode = deckDefinition.layout || 'carousel';
-        const autoRotateSeconds = deckDefinition.autoRotate;
-        const totalCards = deck.length;
-        let activeIndex = 0;
-        let autoRotateTimer = null;
-        let swipeStartX = null;
-        let swipeLock = false;
-        let wheelLock = false;
-        let navAnimating = false;
-        const dragEnabled = deckDefinition?.dragReveal === true;
+        const dragEnabled = deckConfig?.dragReveal === true;
         let dragCard = null;
         let dragStartX = 0;
         let dragActive = false;
