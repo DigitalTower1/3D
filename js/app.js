@@ -974,11 +974,11 @@ const wormholeReturnEase = (t) => {
             const vh = window.innerHeight;
             const marginX = Math.max(24, Math.min(160, vw * 0.08));
             const marginY = Math.max(90, Math.min(220, vh * 0.18));
-            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
-            const stageHeight = Math.max(420, Math.min(vh - marginY, 760));
-            const panelHeight = Math.max(400, stageHeight - 40);
-            const baseWidth = Math.max(320, Math.min(stageWidth - 96, stageWidth * 0.82, 860));
-            const stagePadding = Math.max(24, Math.min(56, stageWidth * 0.06));
+            const stageWidth = Math.max(360, Math.min(1280, vw - marginX * 2));
+            const stageHeight = Math.max(420, Math.min(vh - marginY, 780));
+            const panelHeight = Math.max(420, stageHeight - 48);
+            const baseWidth = Math.max(340, Math.min(stageWidth - 72, stageWidth * 0.9, 960));
+            const stagePadding = Math.max(28, Math.min(64, stageWidth * 0.06));
             stage.style.setProperty('--stage-width', `${stageWidth}px`);
             stage.style.setProperty('--stage-height', `${stageHeight}px`);
             stage.style.setProperty('--panel-height', `${panelHeight}px`);
@@ -1070,11 +1070,11 @@ const wormholeReturnEase = (t) => {
                 const showNav = totalCards > 1;
                 const prevButton = showNav ? `<button type="button" class="card-actions__nav is-prev" data-action="nav" data-direction="left" aria-label="Mostra precedente"><span class="chevron"></span></button>` : '';
                 const nextButton = showNav ? `<button type="button" class="card-actions__nav is-next" data-action="nav" data-direction="right" aria-label="Mostra successiva"><span class="chevron"></span></button>` : '';
-                return `<div class="card-actions" data-actions="carousel" data-has-nav="${showNav ? 'true' : 'false'}">${prevButton}<button type="button" class="card-actions__exit" data-action="exit">Esci</button>${nextButton}</div>`;
+                return `<div class="card-actions" data-actions="carousel" data-has-nav="${showNav ? 'true' : 'false'}">${prevButton}<button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>${nextButton}</div>`;
             }
             const shouldAttach = totalCards === 1 ? role === 'center' : role === 'left';
             if (!shouldAttach) return '';
-            return `<div class="card-actions" data-actions="static" data-has-nav="false"><button type="button" class="card-actions__exit" data-action="exit">Esci</button></div>`;
+            return `<div class="card-actions" data-actions="static" data-has-nav="false"><button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button></div>`;
         };
 
         const cardMarkup = ({ role, card }) => `

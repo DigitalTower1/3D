@@ -110,7 +110,7 @@ html, body {
     left: 50%;
     width: min(100%, var(--panel-base-width, 760px));
     height: var(--panel-height, 560px);
-    padding: clamp(2rem, 3.5vw, 2.8rem);
+    padding: clamp(2.2rem, 4vw, 3.2rem);
     border-radius: clamp(24px, 3.2vw, 32px);
     border: 1px solid rgba(255, 255, 255, 0.12);
     background: rgba(12, 12, 12, 0.58);
@@ -124,7 +124,7 @@ html, body {
     display: grid;
     grid-template-rows: minmax(0, 1fr) auto;
     align-content: stretch;
-    gap: clamp(1.2rem, 2.4vw, 1.8rem);
+    gap: clamp(1.4rem, 2.6vw, 2.1rem);
     overflow: hidden;
 }
 
@@ -351,7 +351,7 @@ html, body {
 }
 
 .card-actions__nav {
-    width: clamp(48px, 7vw, 64px);
+    width: clamp(40px, 5.4vw, 54px);
     aspect-ratio: 1;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.22);
@@ -366,17 +366,17 @@ html, body {
 
 .card-actions__nav .chevron {
     display: inline-block;
-    font-size: clamp(1.3rem, 3vw, 1.7rem);
+    font-size: clamp(1.1rem, 2.6vw, 1.45rem);
     line-height: 1;
     transform: translateY(-1px);
 }
 
 .card-actions__nav .chevron::before {
-    content: '\\2039';
+    content: '\2039';
 }
 
 .card-actions__nav.is-next .chevron::before {
-    content: '\\203A';
+    content: '\203A';
 }
 
 .card-actions__nav:hover {
@@ -399,20 +399,20 @@ html, body {
     position: relative;
     border: none;
     border-radius: 999px;
-    padding: clamp(0.85rem, 2.6vw, 1rem) clamp(2rem, 4vw, 3rem);
+    padding: clamp(0.75rem, 2.2vw, 0.95rem) clamp(1.6rem, 3.2vw, 2.6rem);
     background: linear-gradient(135deg, color-mix(in srgb, var(--active-accent, #ffd58a) 80%, #ffffff 20%), rgba(255, 220, 160, 0.88));
     color: #1f1200;
     font-family: 'Poppins', 'Montserrat', sans-serif;
-    font-size: clamp(0.92rem, 2.4vw, 1rem);
+    font-size: clamp(0.88rem, 2.1vw, 0.98rem);
     font-weight: 600;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
     box-shadow: 0 20px 55px rgba(255, 203, 140, 0.45);
     transition: transform 0.35s ease, box-shadow 0.35s ease;
     overflow: hidden;
     justify-self: center;
-    width: min(100%, 360px);
+    width: min(100%, 320px);
 }
 
 .card-actions__exit::before {
