@@ -954,6 +954,24 @@ const wormholeReturnEase = (t) => {
         let dragStartX = 0;
         let dragActive = false;
 
+        const deckDefinition = CARD_LIBRARY[name];
+        const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
+        if (!deck.length) return;
+
+        const layoutMode = deckDefinition.layout || 'carousel';
+        const autoRotateSeconds = deckDefinition.autoRotate;
+        const totalCards = deck.length;
+        let activeIndex = 0;
+        let autoRotateTimer = null;
+        let swipeStartX = null;
+        let swipeLock = false;
+        let wheelLock = false;
+        let navAnimating = false;
+        const dragEnabled = deckDefinition?.dragReveal === true;
+        let dragCard = null;
+        let dragStartX = 0;
+        let dragActive = false;
+
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
         overlay.innerHTML = `
@@ -1076,6 +1094,7 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        }
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
