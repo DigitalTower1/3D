@@ -61,6 +61,7 @@ const wormholeReturnEase = (t) => {
     //  CAMERA + CONTROLLI
     // --------------------------------------------------------
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 8000);
+    const DEFAULT_FOV = camera.fov;
     camera.position.set(16.89, 282.66, -1406.02);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -237,43 +238,53 @@ const wormholeReturnEase = (t) => {
             strength: { value: 0.0 },      // 0..1 durante il warp
             chroma: { value: 0.0 },        // aberrazione cromatica
             center: { value: new THREE.Vector2(0.5, 0.5) }, // centro portale in NDC [0..1]
-            radius: { value: 0.25 }        // raggio dell'effetto
+            radius: { value: 0.25 },       // raggio dell'effetto
+            streaks: { value: 0.0 },
+            pulse: { value: 0.0 }
         },
         vertexShader: `
         varying vec2 vUv;
         void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
       `,
         fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform float time, strength, chroma, radius;
-        uniform vec2 center;
-        varying vec2 vUv;
-    
-        void main(){
-          vec2 uv = vUv;
-          // distanza dal centro del portale
-          vec2 d = uv - center;
-          float dist = length(d);
-    
-          // maschera radiale morbida
-          float mask = smoothstep(radius, 0.0, dist);
-    
-          // distorsione radiale + onda
-          float ripple = sin(dist*40.0 - time*10.0) * 0.02 * strength;
-          vec2 dir = normalize(d + 1e-6);
-          uv += dir * ripple * (1.0 - mask);
-    
-          // aberrazione cromatica
-          vec2 off = dir * chroma * (1.0 - mask);
-          vec4 col;
-          col.r = texture2D(tDiffuse, uv + off).r;
-          col.g = texture2D(tDiffuse, uv).g;
-          col.b = texture2D(tDiffuse, uv - off).b;
-          col.a = 1.0;
-    
-          gl_FragColor = col;
-        }
-      `
+    uniform sampler2D tDiffuse;
+    uniform float time, strength, chroma, radius, streaks, pulse;
+    uniform vec2 center;
+    varying vec2 vUv;
+
+    void main(){
+      vec2 uv = vUv;
+      // distanza dal centro del portale
+      vec2 d = uv - center;
+      float dist = length(d);
+
+      // maschera radiale morbida
+      float mask = smoothstep(radius, 0.0, dist);
+
+      float angle = atan(d.y, d.x);
+      float streakPattern = sin(angle * 14.0 - time * 6.0) * 0.5 + 0.5;
+      float streakMask = smoothstep(0.6, 0.0, dist) * streaks * streakPattern;
+
+      // distorsione radiale + onda
+      float ripple = sin(dist*40.0 - time*10.0) * 0.02 * strength;
+      vec2 dir = normalize(d + 1e-6);
+      uv += dir * ripple * (1.0 - mask);
+
+      // aberrazione cromatica
+      vec2 off = dir * chroma * (1.0 - mask);
+      vec4 col;
+      col.r = texture2D(tDiffuse, uv + off).r;
+      col.g = texture2D(tDiffuse, uv).g;
+      col.b = texture2D(tDiffuse, uv - off).b;
+      col.a = 1.0;
+
+      float breathing = 0.85 + pulse * 0.35;
+      col.rgb *= breathing;
+      col.rgb += vec3(1.2, 0.96, 0.7) * streakMask * (0.4 + pulse * 0.6);
+
+      gl_FragColor = col;
+    }
+  `
     };
     const warpPass = new ShaderPass(WarpShader);
     composer.addPass(warpPass);
@@ -367,6 +378,62 @@ const wormholeReturnEase = (t) => {
         const light = new THREE.PointLight(0xffe7b0, 2.0, 1000);
         g.add(light);
 
+        const streakCount = 360;
+        const streakGeo = new THREE.BufferGeometry();
+        const streakPos = new Float32Array(streakCount * 3);
+        const streakPhase = new Float32Array(streakCount);
+        for (let i = 0; i < streakCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = THREE.MathUtils.lerp(60, 220, Math.random());
+            const y = THREE.MathUtils.lerp(-140, 140, Math.random());
+            const z = -THREE.MathUtils.lerp(220, 1800, Math.random());
+            streakPos[i * 3] = Math.cos(angle) * radius;
+            streakPos[i * 3 + 1] = y;
+            streakPos[i * 3 + 2] = z;
+            streakPhase[i] = Math.random();
+        }
+        streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPos, 3));
+        streakGeo.setAttribute('aPhase', new THREE.BufferAttribute(streakPhase, 1));
+        const streakMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            uniforms: {
+                time: { value: 0 },
+                stretch: { value: 1400 },
+                opacity: { value: 0.0 }
+            },
+            vertexShader: `
+      attribute float aPhase;
+      uniform float time;
+      uniform float stretch;
+      varying float vAlpha;
+      void main(){
+        float travel = fract(time + aPhase);
+        vec3 pos = position;
+        pos.z -= travel * stretch;
+        float head = smoothstep(0.0, 0.18, travel);
+        float tail = 1.0 - smoothstep(0.55, 1.0, travel);
+        vAlpha = head * tail;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        gl_PointSize = 16.0 * (tail + 0.35);
+      }`,
+            fragmentShader: `
+      varying float vAlpha;
+      uniform float opacity;
+      void main(){
+        vec2 c = gl_PointCoord - vec2(0.5);
+        float falloff = smoothstep(0.5, 0.0, length(c));
+        float alpha = opacity * vAlpha * falloff;
+        if(alpha <= 0.001) discard;
+        vec3 tint = vec3(1.1, 0.95, 0.75);
+        gl_FragColor = vec4(tint, alpha);
+      }`
+        });
+        const streaks = new THREE.Points(streakGeo, streakMat);
+        streaks.rotation.x = Math.PI / 2;
+        g.add(streaks);
+
         ring.scale.set(0.35, 0.35, 0.35);
         const ringExpand = gsap.to(ringMat.uniforms.expand, { value: 100, duration: 2.4, ease: "power3.out" });
         const ringScale = gsap.to(ring.scale, { x: 1, y: 1, z: 1, duration: 2.6, ease: "expo.out" });
@@ -379,16 +446,20 @@ const wormholeReturnEase = (t) => {
         const glowTween = gsap.to(cylMat.uniforms.glow, { value: 1.35, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: -1 });
         const stretchTween = gsap.to(cyl.scale, { z: 1, duration: 2.8, ease: "expo.out" });
         const swirlTween = gsap.to(g.rotation, { y: "+=6.283", duration: 18, ease: "none", repeat: -1 });
+        const streaksFade = gsap.to(streakMat.uniforms.opacity, { value: 1.0, duration: 1.6, ease: "sine.inOut" });
+        const streakStretch = gsap.to(streakMat.uniforms.stretch, { value: 2100, duration: 3.2, ease: "sine.inOut" });
 
         return {
             update(dt) {
                 ringMat.uniforms.time.value += dt;
                 cylMat.uniforms.time.value += dt;
+                streakMat.uniforms.time.value = (streakMat.uniforms.time.value + dt * 0.9) % 1.0;
                 light.intensity = 2.1 + cylMat.uniforms.glow.value * 0.9 + Math.sin(performance.now() / 480) * 0.6;
             },
             fadeAndRemove(onDone) {
                 glowTween.pause();
                 swirlTween.pause();
+                streakStretch.pause();
                 gsap.to(cylMat.uniforms.glow, { value: 0.4, duration: 0.6, ease: "sine.in" });
                 gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
                     value: 0.0, duration: 1.2, ease: "power2.inOut",
@@ -400,10 +471,13 @@ const wormholeReturnEase = (t) => {
                         stretchTween.kill();
                         glowTween.kill();
                         swirlTween.kill();
+                        streaksFade.kill();
+                        streakStretch.kill();
                         camera.remove(g);
                         if (onDone) onDone();
                     }
                 });
+                gsap.to(streakMat.uniforms.opacity, { value: 0.0, duration: 0.8, ease: "power2.in" });
             }
         };
     }
@@ -448,6 +522,7 @@ const wormholeReturnEase = (t) => {
         warpActive = true;
         portalTarget = target;
         warpTimer = 0;
+        controls.enabled = false;
 
         try {
             warpSound.currentTime = 0;
@@ -457,44 +532,69 @@ const wormholeReturnEase = (t) => {
 
         activePortal = spawnPortalAt(target);
 
-        gsap.to(warpPass.uniforms.strength, { value: 0.35, duration: 1.2, ease: 'sine.inOut' });
-        gsap.to(warpPass.uniforms.chroma, { value: 0.02, duration: 1.2, ease: 'sine.inOut' });
-        gsap.to(bloom, { strength: 0.45, duration: 1.2, ease: 'power1.inOut' });
+        gsap.to(bloom, { strength: 0.55, duration: 1.2, ease: 'power1.inOut' });
 
         const wp = new THREE.Vector3();
         target.getWorldPosition(wp);
 
         const camStart = camera.position.clone();
-        const lookAhead = new THREE.Vector3();
-        const camEnd = wp.clone().add(new THREE.Vector3(0, 140, 140));
-        const ctrlA = camStart.clone().lerp(wp, 0.25).add(new THREE.Vector3(0, 200, -240));
-        const ctrlB = camStart.clone().lerp(wp, 0.68).add(new THREE.Vector3(0, 160, 220));
-        const curve = new THREE.CatmullRomCurve3([camStart, ctrlA, ctrlB, camEnd], false, 'catmullrom', 0.55);
+        const worldDir = wp.clone().sub(camStart);
+        if (worldDir.lengthSq() < 1e-6) worldDir.set(0, 0, -1);
+        worldDir.normalize();
+        const camEnd = wp.clone().addScaledVector(worldDir, -220);
+        const focus = wp.clone();
         const travel = { t: 0 };
-        const duration = 6.2;
+        const duration = 5.2;
+        const entryFov = Math.max(camera.fov, DEFAULT_FOV);
+        camera.up.set(0, 1, 0);
+        controls.target.copy(focus);
+
+        gsap.to(camera, {
+            fov: entryFov + 10,
+            duration: duration * 0.55,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => camera.updateProjectionMatrix()
+        });
 
         gsap.to(travel, {
             t: 1,
             duration,
-            ease: wormholeEase,
+            ease: 'none',
             onUpdate: () => {
-                const pos = curve.getPoint(travel.t);
-                const tangent = curve.getTangent(travel.t).normalize();
-                lookAhead.copy(pos).addScaledVector(tangent, 160);
+                const phase = wormholeEase(travel.t);
+                camera.position.copy(camStart).lerp(camEnd, phase);
+                camera.lookAt(focus);
+                controls.target.copy(focus);
 
-                camera.position.copy(pos);
-                camera.lookAt(lookAhead);
+                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.2, phase);
+                warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.18;
+                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.08, phase);
+                warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.18;
+                const radiusTarget = THREE.MathUtils.lerp(0.28, 0.12, phase);
+                warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.2;
+                const streakTarget = THREE.MathUtils.lerp(0.25, 1.0, phase);
+                warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.15;
+                bloom.strength = THREE.MathUtils.lerp(0.55, 1.05, phase);
 
-                const phase = travel.t;
-                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.35, 1.1, phase);
-                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.02, 0.065, phase);
-                bloom.strength = THREE.MathUtils.lerp(0.45, 0.95, phase);
-
-                if (!document.querySelector('.warp-card') && phase >= 0.82) showCard(name);
+                if (!document.querySelector('.warp-card') && phase >= 0.78) showCard(name);
             },
             onComplete: () => {
-                gsap.to(warpPass.uniforms.strength, { value: 0.55, duration: 0.9, ease: 'sine.out' });
-                gsap.to(warpPass.uniforms.chroma, { value: 0.04, duration: 0.9, ease: 'sine.out' });
+                camera.position.copy(camEnd);
+                camera.lookAt(focus);
+                controls.target.copy(focus);
+                gsap.to(warpPass.uniforms.strength, { value: 0.6, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.chroma, { value: 0.045, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.radius, { value: 0.2, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.streaks, { value: 0.55, duration: 1.2, ease: 'power1.out' });
+                gsap.to(bloom, { strength: 0.65, duration: 1.0, ease: 'sine.out' });
+                gsap.to(camera, {
+                    fov: DEFAULT_FOV + 2,
+                    duration: 1.2,
+                    ease: 'sine.out',
+                    onUpdate: () => camera.updateProjectionMatrix()
+                });
                 if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
             }
         });
@@ -527,6 +627,7 @@ const wormholeReturnEase = (t) => {
             const boostStrength = gsap.to(warpPass.uniforms.strength, { value: 1.25, duration: 0.6, ease: 'power2.in' });
             const boostChroma = gsap.to(warpPass.uniforms.chroma, { value: 0.07, duration: 0.6, ease: 'power2.in' });
             const boostBloom = gsap.to(bloom, { strength: 0.9, duration: 0.6, ease: 'sine.in' });
+            const boostStreaks = gsap.to(warpPass.uniforms.streaks, { value: 0.95, duration: 0.6, ease: 'power2.in' });
 
             gsap.to(overlay, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: () => overlay.remove() });
 
@@ -542,6 +643,7 @@ const wormholeReturnEase = (t) => {
                 boostStrength.progress(1);
                 boostChroma.progress(1);
                 boostBloom.progress(1);
+                boostStreaks.progress(1);
                 gsap.to(retreat, {
                     t: 1,
                     duration: 6.0,
@@ -553,18 +655,32 @@ const wormholeReturnEase = (t) => {
 
                         camera.position.copy(pos);
                         camera.lookAt(lookAhead);
+                        controls.target.copy(lookAhead);
 
                         const fade = THREE.MathUtils.clamp(retreat.t, 0, 1);
                         warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, fade);
                         warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, fade);
+                        warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, fade);
+                        warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(0.95, 0.0, fade);
                         bloom.strength = THREE.MathUtils.lerp(0.9, 0.25, fade);
                     },
                     onComplete: () => {
                         warpPass.uniforms.strength.value = 0.0;
                         warpPass.uniforms.chroma.value = 0.0;
+                        warpPass.uniforms.streaks.value = 0.0;
+                        warpPass.uniforms.radius.value = 0.25;
                         bloom.strength = 0.25;
                         warpActive = false;
                         portalTarget = null;
+                        controls.enabled = true;
+                        controls.target.set(0, 180, 0);
+                        camera.up.set(0, 1, 0);
+                        gsap.to(camera, {
+                            fov: DEFAULT_FOV,
+                            duration: 1.4,
+                            ease: 'sine.inOut',
+                            onUpdate: () => camera.updateProjectionMatrix()
+                        });
                         camera.lookAt(0, 180, 0);
                     }
                 });
@@ -602,7 +718,10 @@ const wormholeReturnEase = (t) => {
         if (warpActive) {
             warpTimer += dt;
             warpPass.uniforms.time.value = warpTimer;
+            warpPass.uniforms.pulse.value = 0.5 + 0.5 * Math.sin(warpTimer * 2.4);
             updateWarpCenterUniform();
+        } else {
+            warpPass.uniforms.pulse.value += (0.0 - warpPass.uniforms.pulse.value) * 0.12;
         }
 
         // anima flare sui pulsanti
