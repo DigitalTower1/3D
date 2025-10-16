@@ -157,13 +157,18 @@ const wormholeReturnEase = (t) => {
                 description: 'Raccontaci le tue esigenze per costruire un percorso su misura e attivare la nostra task force multidisciplinare.',
                 form: {
                     submitLabel: 'Invia richiesta',
+                    groups: [
+                        { key: 'profile', title: 'Profilo', description: 'Chi sei e come possiamo ricontattarti', accent: '#9be7ff' },
+                        { key: 'project', title: 'Progetto', description: 'Ambito dell’iniziativa e investimento', accent: '#ffd58a' },
+                        { key: 'details', title: 'Dettagli', description: 'Raccontaci la tua visione', accent: '#f2a8ff', span: 'full' }
+                    ],
                     fields: [
-                        { type: 'text', name: 'full-name', label: 'Nome e cognome', placeholder: 'Es. Laura Bianchi' },
-                        { type: 'email', name: 'email', label: 'Email aziendale', placeholder: 'nome@azienda.com' },
-                        { type: 'select', name: 'interest', label: 'Area di interesse', options: ['Lancio prodotto', 'Evento immersivo', 'Digital twin', 'Formazione XR'] },
-                        { type: 'select', name: 'budget', label: 'Budget indicativo', options: ['< 10K €', '10K € – 25K €', '25K € – 50K €', 'Oltre 50K €'] },
-                        { type: 'text', name: 'business-sector', label: 'Settore attività', placeholder: 'Es. Retail, Automotive, Moda...' },
-                        { type: 'textarea', name: 'message', label: 'Messaggio', placeholder: 'Descrivi obiettivi e tempistiche' }
+                        { type: 'text', name: 'full-name', label: 'Nome e cognome', placeholder: 'Es. Laura Bianchi', group: 'profile' },
+                        { type: 'email', name: 'email', label: 'Email aziendale', placeholder: 'nome@azienda.com', group: 'profile' },
+                        { type: 'select', name: 'interest', label: 'Area di interesse', options: ['Lancio prodotto', 'Evento immersivo', 'Digital twin', 'Formazione XR'], group: 'project' },
+                        { type: 'select', name: 'budget', label: 'Budget indicativo', options: ['< 10K €', '10K € – 25K €', '25K € – 50K €', 'Oltre 50K €'], group: 'project' },
+                        { type: 'text', name: 'business-sector', label: 'Settore attività', placeholder: 'Es. Retail, Automotive, Moda...', group: 'project' },
+                        { type: 'textarea', name: 'message', label: 'Messaggio', placeholder: 'Descrivi obiettivi e tempistiche', group: 'details' }
                     ]
                 },
                 accent: '#9be7ff'
@@ -1051,19 +1056,53 @@ const wormholeReturnEase = (t) => {
 
         const renderForm = (card) => {
             if (!card.form) return '';
-            const fields = card.form.fields?.map((field, idx) => {
+            const submitLabel = card.form.submitLabel ?? 'Invia';
+            const fields = Array.isArray(card.form.fields) ? card.form.fields : [];
+            const groups = Array.isArray(card.form.groups) ? card.form.groups : [];
+
+            const fieldMarkup = (field, idx) => {
                 const id = `${card.key}-field-${idx}`;
+                const base = `<span class="card-form__label-text">${field.label ?? ''}</span>`;
                 if (field.type === 'textarea') {
-                    return `<label class="card-form__label" for="${id}">${field.label}<textarea id="${id}" name="${field.name}" placeholder="${field.placeholder ?? ''}" rows="3"></textarea></label>`;
+                    return `<label class="card-form__label" for="${id}">${base}<textarea id="${id}" name="${field.name}" placeholder="${field.placeholder ?? ''}" rows="4"></textarea></label>`;
                 }
                 if (field.type === 'select') {
                     const options = field.options?.map(option => `<option value="${option}">${option}</option>`).join('') ?? '';
-                    return `<label class="card-form__label" for="${id}">${field.label}<select id="${id}" name="${field.name}">${options}</select></label>`;
+                    return `<label class="card-form__label" for="${id}">${base}<select id="${id}" name="${field.name}">${options}</select></label>`;
                 }
-                return `<label class="card-form__label" for="${id}">${field.label}<input id="${id}" type="${field.type}" name="${field.name}" placeholder="${field.placeholder ?? ''}" /></label>`;
-            }).join('') ?? '';
-            const submitLabel = card.form.submitLabel ?? 'Invia';
-            return `<form class="card-form" data-card="${card.key}" novalidate>${fields}<button type="submit">${submitLabel}</button><p class="card-form__feedback" role="status" aria-live="polite"></p></form>`;
+                return `<label class="card-form__label" for="${id}">${base}<input id="${id}" type="${field.type || 'text'}" name="${field.name}" placeholder="${field.placeholder ?? ''}" /></label>`;
+            };
+
+            const grouped = new Map();
+            groups.forEach(group => {
+                grouped.set(group.key, { meta: group, fields: [] });
+            });
+        }
+
+            const ungrouped = [];
+            fields.forEach((field, idx) => {
+                const key = field.group && grouped.has(field.group) ? field.group : null;
+                if (key) {
+                    grouped.get(key).fields.push({ field, idx });
+                } else {
+                    ungrouped.push({ field, idx });
+                }
+            });
+
+            const hasMicrocards = Array.from(grouped.values()).some(entry => entry.fields.length > 0);
+
+            const microMarkup = hasMicrocards
+                ? `<div class="card-form__microgrid">${Array.from(grouped.values()).map(({ meta, fields: items }) => {
+                    if (!items.length) return '';
+                    const style = meta.accent ? ` style="--micro-accent:${meta.accent}"` : '';
+                    const span = meta.span ? ` data-span="${meta.span}"` : '';
+                    const description = meta.description ? `<p class="card-form__microcard-desc">${meta.description}</p>` : '';
+                    const content = items.map(({ field, idx }) => fieldMarkup(field, idx)).join('');
+                    return `<section class="card-form__microcard"${span}${style}><header class="card-form__microcard-head"><span class="card-form__microcard-title">${meta.title ?? ''}</span>${description}</header><div class="card-form__microcard-body">${content}</div></section>`;
+                }).join('')}${ungrouped.length ? `<section class="card-form__microcard" data-span="full"><div class="card-form__microcard-body">${ungrouped.map(({ field, idx }) => fieldMarkup(field, idx)).join('')}</div></section>` : ''}</div>`
+                : fields.map((field, idx) => fieldMarkup(field, idx)).join('');
+
+            return `<form class="card-form${hasMicrocards ? ' card-form--micro' : ''}" data-card="${card.key}" novalidate>${microMarkup}<div class="card-form__actions"><button type="submit">${submitLabel}</button><p class="card-form__feedback" role="status" aria-live="polite"></p></div></form>`;
         };
 
         const renderContact = (card) => {
@@ -1353,6 +1392,9 @@ const wormholeReturnEase = (t) => {
             if (isInteractiveTarget(ev.target)) return;
             swipeStartX = ev.clientX;
             swipeLock = false;
+            if (typeof ev.pointerId === 'number' && stage.setPointerCapture) {
+                try { stage.setPointerCapture(ev.pointerId); } catch (err) { /* noop */ }
+            }
             if (!dragEnabled) return;
             const panel = ev.target.closest('.card-panel');
             if (!panel || panel.dataset.role !== 'center') return;
@@ -1395,7 +1437,7 @@ const wormholeReturnEase = (t) => {
             handleNav(delta > 0 ? 'left' : 'right');
         };
 
-        const onPointerUp = () => {
+        const onPointerUp = (ev) => {
             swipeStartX = null;
             swipeLock = false;
             if (dragCard) {
@@ -1404,6 +1446,13 @@ const wormholeReturnEase = (t) => {
                 dragCard = null;
             }
             dragActive = false;
+            if (ev && typeof ev.pointerId === 'number' && stage.releasePointerCapture) {
+                try {
+                    if (stage.hasPointerCapture?.(ev.pointerId)) {
+                        stage.releasePointerCapture(ev.pointerId);
+                    }
+                } catch (err) { /* noop */ }
+            }
         };
 
         stage.addEventListener('pointerdown', onPointerDown);
@@ -1411,6 +1460,8 @@ const wormholeReturnEase = (t) => {
         stage.addEventListener('pointerup', onPointerUp);
         stage.addEventListener('pointercancel', onPointerUp);
         stage.addEventListener('touchend', onPointerUp);
+        window.addEventListener('pointerup', onPointerUp);
+        window.addEventListener('pointercancel', onPointerUp);
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
@@ -1436,6 +1487,8 @@ const wormholeReturnEase = (t) => {
             stage.removeEventListener('pointerup', onPointerUp);
             stage.removeEventListener('pointercancel', onPointerUp);
             stage.removeEventListener('touchend', onPointerUp);
+            window.removeEventListener('pointerup', onPointerUp);
+            window.removeEventListener('pointercancel', onPointerUp);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
