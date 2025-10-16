@@ -1,0 +1,102 @@
+/* ======================================================
+   UI 3D FLOATING BUTTONS — CINEMATIC RESPONSIVE STYLE
+   ====================================================== */
+
+/* Contenitore generale */
+#ui-buttons {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+}
+
+/* Pulsanti fluttuanti */
+.floating-btn {
+    position: absolute;
+    pointer-events: auto;
+    background: radial-gradient(circle at 30% 30%, rgba(255, 215, 127, 0.95), rgba(255, 180, 80, 0.95));
+    color: #000;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 24px;
+    font-family: 'Cinzel', serif;
+    font-size: clamp(13px, 1.6vw, 18px);
+    font-weight: 600;
+    text-shadow: 0 0 4px rgba(255,255,255,0.3);
+    box-shadow: 0 0 35px rgba(255, 215, 127, 0.55);
+    cursor: pointer;
+    transform-origin: center;
+    transition: all .25s ease;
+    animation: floatAnim 4s ease-in-out infinite;
+    backdrop-filter: blur(6px);
+    letter-spacing: 0.02em;
+}
+
+/* Effetto fluttuante */
+@keyframes floatAnim {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+
+/* Hover desktop */
+.floating-btn:hover {
+    transform: scale(1.1);
+    background: radial-gradient(circle at 50% 50%, rgba(255,240,180,1), rgba(255,210,100,1));
+    box-shadow: 0 0 50px rgba(255, 215, 127, 0.9);
+    text-shadow: 0 0 10px rgba(255,255,255,0.5);
+}
+
+/* Pulsante attivo */
+.floating-btn:active {
+    transform: scale(0.97);
+    box-shadow: 0 0 20px rgba(255,215,127,0.4);
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+    .floating-btn {
+        font-size: clamp(11px, 3.5vw, 15px);
+        padding: 10px 16px;
+        border-radius: 10px;
+        animation: floatAnim 3s ease-in-out infinite;
+    }
+
+    .floating-btn:hover {
+        transform: scale(1.05);
+    }
+}
+
+/* Modalità retina / display HDR */
+@media (min-resolution: 2dppx) {
+    .floating-btn {
+        box-shadow: 0 0 30px rgba(255, 200, 100, 0.55);
+    }
+}
+
+/* Riduzione motion */
+@media (prefers-reduced-motion: reduce) {
+    .floating-btn {
+        animation: none;
+    }
+}
+
+.warp-panel h1 {
+    font-size: 2.5rem;
+    color: #00ffff;
+    text-shadow: 0 0 20px #00ffffaa;
+}
+.warp-panel p {
+    font-size: 1.2rem;
+    line-height: 1.5;
+    max-width: 600px;
+    margin: 0 auto;
+    color: #e0faff;
+}
+.close-btn {
+    animation: pulse 2s infinite ease-in-out;
+}
+@keyframes pulse {
+    0% { box-shadow: 0 0 20px #00ffff88; }
+    50% { box-shadow: 0 0 50px #00ffffcc; }
+    100% { box-shadow: 0 0 20px #00ffff88; }
+}

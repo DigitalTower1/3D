@@ -1,0 +1,140 @@
+#cinematic-loader {
+    position: fixed; inset: 0;
+    display: flex; justify-content: center; align-items: center;
+    overflow: hidden; z-index: 99999;
+    font-family: 'Cinzel', serif;
+    background: #000; /* nero pieno */
+}
+
+.loader-bg {
+    position: absolute; inset: 0;
+    background: #000;
+    transition: opacity 2s ease;
+    z-index: -1;
+}
+
+/* Texture */
+#grain {
+    position: fixed; inset: -50%;
+    width: 200%; height: 200%;
+    background: url('./assets/textures/grain.png') repeat;
+    opacity: .06;
+    animation: grainMove 1.2s steps(2,end) infinite;
+    pointer-events: none;
+    z-index: 99996;
+}
+
+#lens-dirt {
+    position: fixed; inset: 0;
+    background: url('./assets/textures/lens_dirt.png') center/cover no-repeat;
+    opacity: .12;
+    pointer-events: none;
+    z-index: 99995;
+    filter: blur(.3px);
+}
+
+@keyframes grainMove {
+    0%{transform:translate3d(0,0,0);}
+    25%{transform:translate3d(-1%,1%,0);}
+    50%{transform:translate3d(1%,-1%,0);}
+    75%{transform:translate3d(.5%,.5%,0);}
+    100%{transform:translate3d(0,0,0);}
+}
+
+/* Testo */
+.loader-content {
+    text-align: center; color: #fff;
+    max-width: min(90vw, 900px);
+    padding: 0 16px; line-height: 1.6;
+}
+.line {
+    opacity: 0;
+    transform: translateY(40px);
+    font-size: clamp(22px, 3.2vw, 42px);
+    letter-spacing: .03em;
+}
+.line span {
+    color: #ffd27f;
+    text-shadow: 0 0 18px rgba(255,210,127,.4);
+}
+#final-line {
+    margin-top: 0;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+}
+#final-line:empty {
+    display: none !important;
+}
+
+/* Pulsanti */
+#buttons {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+#buttons button {
+    background: transparent;
+    border: 1px solid #fff;
+    color: #fff;
+    font-size: clamp(14px,1.6vw,16px);
+    padding: .45rem 1rem;
+    border-radius: 6px;
+    width: auto;
+    min-width: 90px;
+    cursor: pointer;
+    transition: all .25s ease;
+    position: relative;
+    overflow: hidden;
+}
+#buttons button::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent);
+    transform: translateX(-100%);
+    transition: transform .45s ease;
+}
+#buttons button:hover {
+    background: #ffd27f;
+    color: #000;
+    box-shadow: 0 0 25px #ffd27f;
+}
+#buttons button:hover::after {
+    transform: translateX(100%);
+}
+
+/* Overlay */
+#flash-overlay {
+    position: fixed; inset: 0;
+    background: #000;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 100000;
+    mix-blend-mode: normal;
+}
+
+#lens-flare {
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 120vw; height: 2vh;
+    background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,1) 50%, rgba(255,255,255,0) 100%);
+    transform: translate(-50%, -50%) scaleX(0.8);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .line { transform: none !important; }
+    #grain { animation: none; opacity: .03; }
+}
+
+/* Blocchi caricamento residui */
+#progress-bar, .progress, .loading-bar, progress {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+}

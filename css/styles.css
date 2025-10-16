@@ -1,0 +1,176 @@
+/* =======================================================
+   INTERSTELLAR WARP UI – Cinematic Golden Edition
+   ======================================================= */
+
+/* Font */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
+
+/* RESET BASE */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Cinzel Decorative', serif;
+    background: radial-gradient(circle at 50% 40%, #0b0b0b 0%, #000 90%);
+    color: #f6d89f;
+}
+
+/* CANVAS */
+#canvas-container {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    z-index: 1;
+}
+
+/* ===============================
+   WARP CARD OVERLAY
+   =============================== */
+.warp-card {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(255,230,180,0.08) 0%, rgba(0,0,0,0.9) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    pointer-events: auto;
+    opacity: 0;
+    animation: fadeIn 1.4s forwards ease-out;
+    backdrop-filter: blur(14px) saturate(140%);
+    -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+.card-inner {
+    background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,215,140,0.1));
+    border: 1px solid rgba(255,230,170,0.35);
+    border-radius: 22px;
+    box-shadow: 0 0 40px rgba(255,220,120,0.15),
+    inset 0 0 30px rgba(255,210,130,0.12);
+    padding: 4rem 3rem;
+    text-align: center;
+    max-width: 600px;
+    width: 85%;
+    color: #fff4da;
+    transform-style: preserve-3d;
+    will-change: transform, opacity;
+    animation: floatCard 5s infinite ease-in-out alternate;
+    perspective: 1000px;
+}
+
+.card-inner h1 {
+    font-size: 2.6rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 18px rgba(255,210,100,0.6);
+    color: #ffe4a2;
+    margin-bottom: 1rem;
+}
+
+.card-inner p {
+    font-size: 1.2rem;
+    line-height: 1.8;
+    color: #fff9e6;
+    opacity: 0.9;
+    margin-bottom: 2rem;
+}
+
+.close-card {
+    background: linear-gradient(135deg, #ffcc80, #ffe0b2);
+    color: #5a3200;
+    font-family: 'Cinzel Decorative', serif;
+    border: none;
+    border-radius: 12px;
+    padding: 0.9rem 2.2rem;
+    font-size: 1.1rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 15px rgba(255, 220, 160, 0.25);
+}
+
+.close-card:hover {
+    transform: scale(1.07);
+    box-shadow: 0 0 25px rgba(255, 220, 160, 0.55);
+    background: linear-gradient(135deg, #ffe0b2, #ffefc6);
+}
+
+/* ===============================
+   ANIMAZIONI KEYFRAMES
+   =============================== */
+@keyframes fadeIn {
+    from { opacity: 0; backdrop-filter: blur(0px); }
+    to { opacity: 1; backdrop-filter: blur(14px); }
+}
+
+@keyframes floatCard {
+    0% { transform: translateY(0px) rotateY(0deg); }
+    50% { transform: translateY(-6px) rotateY(1deg); }
+    100% { transform: translateY(0px) rotateY(-1deg); }
+}
+
+/* ===============================
+   SHIMMER / GLOW
+   =============================== */
+.card-inner::after {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: 22px;
+    background: linear-gradient(
+            120deg,
+            rgba(255,255,255,0.1),
+            rgba(255,230,160,0.35),
+            rgba(255,255,255,0.1)
+    );
+    background-size: 200% 200%;
+    animation: shimmer 4s infinite linear;
+    z-index: -1;
+    pointer-events: none;
+}
+
+@keyframes shimmer {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ===============================
+   MOBILE RESPONSIVE
+   =============================== */
+@media (max-width: 768px) {
+    .card-inner {
+        padding: 3rem 2rem;
+        max-width: 90%;
+    }
+    .card-inner h1 {
+        font-size: 2rem;
+    }
+    .card-inner p {
+        font-size: 1rem;
+    }
+    .close-card {
+        padding: 0.7rem 1.5rem;
+        font-size: 1rem;
+    }
+}
+
+/* ===============================
+   TRANSIZIONE IN USCITA
+   =============================== */
+.warp-card.fade-out {
+    animation: fadeOut 1s forwards ease-in;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+}
