@@ -52,8 +52,15 @@ const wormholeReturnEase = (t) => {
     container.style.position = 'fixed';
     container.style.inset = '0';
     container.style.zIndex = '1';
-    container.style.pointerEvents = 'auto';
+    container.style.pointerEvents = 'none';
     container.appendChild(renderer.domElement);
+
+    let sceneInteractive = false;
+
+    window.addEventListener('scene-ready', () => {
+        sceneInteractive = true;
+        container.style.pointerEvents = 'auto';
+    });
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0a0a0a, 0.00025);
@@ -671,6 +678,8 @@ const wormholeReturnEase = (t) => {
         const topEl = document.elementFromPoint(event.clientX, event.clientY);
         if (topEl && topEl.closest && topEl.closest('.warp-card')) return;
 
+        if (!sceneInteractive) return;
+
         if (clickableMeshes.length === 0) return;
 
         mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -927,6 +936,7 @@ const wormholeReturnEase = (t) => {
 
         const layoutMode = deckDefinition.layout || 'carousel';
         const autoRotateSeconds = deckDefinition.autoRotate;
+        const totalCards = deck.length;
         let activeIndex = 0;
         let autoRotateTimer = null;
         let swipeStartX = null;
@@ -939,67 +949,50 @@ const wormholeReturnEase = (t) => {
         <div class="card-stage" data-deck="${name}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
-          <div class="card-controls">
-            <button class="carousel-arrow is-prev" aria-label="Mostra precedente" data-direction="left">
-              <span>&larr;</span>
-            </button>
-            <button class="close-card">Esci dal portale</button>
-            <button class="carousel-arrow is-next" aria-label="Mostra successiva" data-direction="right">
-              <span>&rarr;</span>
-            </button>
-          </div>
         </div>`;
         document.body.appendChild(overlay);
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
-        const closeBtn = overlay.querySelector('.close-card');
-        const controls = overlay.querySelector('.card-controls');
-        const arrowButtons = Array.from(overlay.querySelectorAll('.carousel-arrow'));
         let overlayClosed = false;
         let stageResizeObserver = null;
+        const exitBindings = [];
+        const navBindings = [];
         const interactiveSelector = '.card-form, .card-contact, button, input, textarea, select, a';
         const isInteractiveTarget = (target) => Boolean(target && target.closest?.(interactiveSelector));
         stage.dataset.layout = layoutMode;
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
 
-        if (layoutMode !== 'carousel') {
-            controls.classList.add('is-static');
-            arrowButtons.forEach(btn => {
-                btn.style.display = 'none';
-                btn.setAttribute('aria-hidden', 'true');
-                btn.tabIndex = -1;
-            });
-        } else if (deck.length <= 1) {
-            arrowButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
-        }
+        const detachActionListeners = () => {
+            exitBindings.splice(0).forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
+            navBindings.splice(0).forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
+        };
 
-        const updateStageScale = () => {
+        const updateStageMetrics = () => {
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const baseWidth = layoutMode === 'carousel' ? 1180 : 1260;
-            const baseHeight = layoutMode === 'carousel' ? 720 : 640;
-            const safeHorizontal = layoutMode === 'carousel' ? 160 : 220;
-            const safeVertical = layoutMode === 'carousel' ? 200 : 220;
-            const candidate = Math.min(
-                1,
-                (vw - safeHorizontal) / baseWidth,
-                (vh - safeVertical) / baseHeight
-            );
-            const scale = Number.isFinite(candidate) ? Math.min(1, Math.max(candidate, 0.7)) : 1;
-            stage.style.setProperty('--stage-scale', scale.toFixed(3));
-            if (scale < 0.98) stage.classList.add('is-condensed');
-            else stage.classList.remove('is-condensed');
+            const marginX = Math.max(24, Math.min(160, vw * 0.08));
+            const marginY = Math.max(90, Math.min(220, vh * 0.18));
+            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
+            const stageHeight = Math.max(420, Math.min(vh - marginY, 760));
+            const panelHeight = Math.max(400, stageHeight - 40);
+            const baseWidth = Math.max(320, Math.min(stageWidth - 96, stageWidth * 0.82, 860));
+            const stagePadding = Math.max(24, Math.min(56, stageWidth * 0.06));
+            stage.style.setProperty('--stage-width', `${stageWidth}px`);
+            stage.style.setProperty('--stage-height', `${stageHeight}px`);
+            stage.style.setProperty('--panel-height', `${panelHeight}px`);
+            stage.style.setProperty('--panel-base-width', `${baseWidth}px`);
+            stage.style.setProperty('--stage-padding', `${stagePadding}px`);
+            stage.classList.toggle('is-compact', stageWidth < 820);
         };
 
         if ('ResizeObserver' in window) {
-            stageResizeObserver = new ResizeObserver(updateStageScale);
+            stageResizeObserver = new ResizeObserver(updateStageMetrics);
             stageResizeObserver.observe(stage);
-            stageResizeObserver.observe(carouselEl);
         }
-        window.addEventListener('resize', updateStageScale);
-        updateStageScale();
+        window.addEventListener('resize', updateStageMetrics);
+        updateStageMetrics();
 
         const stopAutoRotate = () => {
             if (autoRotateTimer) {
@@ -1009,10 +1002,10 @@ const wormholeReturnEase = (t) => {
         };
 
         const startAutoRotate = () => {
-            if (layoutMode !== 'carousel' || !autoRotateSeconds || deck.length <= 1) return;
+            if (layoutMode !== 'carousel' || !autoRotateSeconds || totalCards <= 1) return;
             stopAutoRotate();
             autoRotateTimer = setInterval(() => {
-                activeIndex = (activeIndex + 1) % deck.length;
+                activeIndex = (activeIndex + 1) % totalCards;
                 render('right');
             }, autoRotateSeconds * 1000);
         };
@@ -1024,7 +1017,7 @@ const wormholeReturnEase = (t) => {
                     card
                 }));
             }
-            const total = deck.length;
+            const total = totalCards;
             if (total === 1) {
                 return [{ role: 'center', card: deck[0] }];
             }
@@ -1071,6 +1064,19 @@ const wormholeReturnEase = (t) => {
             return `<div class="card-contact"><ul class="card-contact__list">${items}</ul>${cta}</div>`;
         };
 
+        const renderActions = (role) => {
+            if (layoutMode === 'carousel') {
+                if (role !== 'center') return '';
+                const showNav = totalCards > 1;
+                const prevButton = showNav ? `<button type="button" class="card-actions__nav is-prev" data-action="nav" data-direction="left" aria-label="Mostra precedente"><span class="chevron"></span></button>` : '';
+                const nextButton = showNav ? `<button type="button" class="card-actions__nav is-next" data-action="nav" data-direction="right" aria-label="Mostra successiva"><span class="chevron"></span></button>` : '';
+                return `<div class="card-actions" data-actions="carousel" data-has-nav="${showNav ? 'true' : 'false'}">${prevButton}<button type="button" class="card-actions__exit" data-action="exit">Esci</button>${nextButton}</div>`;
+            }
+            const shouldAttach = totalCards === 1 ? role === 'center' : role === 'left';
+            if (!shouldAttach) return '';
+            return `<div class="card-actions" data-actions="static" data-has-nav="false"><button type="button" class="card-actions__exit" data-action="exit">Esci</button></div>`;
+        };
+
         const cardMarkup = ({ role, card }) => `
           <article class="card-panel is-${role}" data-role="${role}" data-key="${card.key}" style="--card-accent:${card.accent}">
             <div class="card-holo">
@@ -1084,6 +1090,7 @@ const wormholeReturnEase = (t) => {
               ${renderContact(card)}
               ${renderHighlights(card)}
             </div>
+            ${renderActions(role)}
             <div class="card-nebula"></div>
           </article>`;
 
@@ -1109,28 +1116,78 @@ const wormholeReturnEase = (t) => {
                     if (role === 'center') return;
                     stopAutoRotate();
                     activeIndex = role === 'left'
-                        ? (activeIndex + deck.length - 1) % deck.length
-                        : (activeIndex + 1) % deck.length;
+                        ? (activeIndex + totalCards - 1) % totalCards
+                        : (activeIndex + 1) % totalCards;
                     render(role);
                     startAutoRotate();
                 });
             });
         }
 
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (overlayClosed) return;
+            try { clickSound.currentTime = 0; clickSound.play(); } catch {}
+            try {
+                warpSound.pause();
+                warpSound.currentTime = 0;
+                warpSound.play();
+            } catch {}
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const handleNav = (direction) => {
+            if (overlayClosed) return;
+            if (layoutMode !== 'carousel' || totalCards <= 1) return;
+            stopAutoRotate();
+            activeIndex = direction === 'left'
+                ? (activeIndex + totalCards - 1) % totalCards
+                : (activeIndex + 1) % totalCards;
+            render(direction);
+            startAutoRotate();
+        };
+
+        const bindActions = () => {
+            detachActionListeners();
+            carouselEl.querySelectorAll('[data-action="exit"]').forEach(btn => {
+                const handler = (ev) => handleExit(ev);
+                btn.addEventListener('click', handler);
+                exitBindings.push({ btn, handler });
+            });
+            carouselEl.querySelectorAll('[data-action="nav"]').forEach(btn => {
+                const direction = btn.dataset.direction === 'left' ? 'left' : 'right';
+                const handler = (ev) => {
+                    ev.preventDefault();
+                    handleNav(direction);
+                };
+                btn.addEventListener('click', handler);
+                navBindings.push({ btn, handler });
+            });
+        };
+
         function render(direction = 'intro') {
             if (layoutMode !== 'carousel') {
-                stage.style.setProperty('--active-accent', deck[0]?.accent ?? '#ffd58a');
-                carouselEl.innerHTML = layoutFor(activeIndex).map(cardMarkup).join('');
+                const layout = layoutFor(activeIndex);
+                stage.style.setProperty('--active-accent', layout[0]?.card.accent ?? '#ffd58a');
+                carouselEl.innerHTML = layout.map(cardMarkup).join('');
                 initFormHandlers();
+                bindActions();
                 const panels = carouselEl.querySelectorAll('.card-panel');
-                gsap.fromTo(panels, { opacity: 0, y: 60 }, {
+                gsap.fromTo(panels, { opacity: 0, y: 60, filter: 'blur(16px)', clipPath: 'inset(0 0 100% 0 round 32px)' }, {
                     opacity: 1,
                     y: 0,
+                    filter: 'blur(0px)',
+                    clipPath: 'inset(0 0 0% 0 round 32px)',
                     duration: 1.0,
                     ease: 'expo.out',
                     stagger: 0.08
                 });
-                requestAnimationFrame(updateStageScale);
+                const actions = carouselEl.querySelectorAll('.card-actions');
+                if (actions.length) {
+                    gsap.fromTo(actions, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.75, ease: 'power3.out', stagger: 0.05 });
+                }
+                requestAnimationFrame(updateStageMetrics);
                 return;
             }
 
@@ -1142,28 +1199,45 @@ const wormholeReturnEase = (t) => {
             carouselEl.innerHTML = layout.map(cardMarkup).join('');
             bindPanelEvents();
             initFormHandlers();
+            bindActions();
             const panels = carouselEl.querySelectorAll('.card-panel');
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
 
             if (direction === 'intro') {
-                gsap.fromTo(panels, { opacity: 0, y: 80, rotateY: -6 }, {
-                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.18),
+                gsap.fromTo(panels, {
+                    opacity: 0,
+                    y: 120,
+                    rotateX: 12,
+                    filter: 'blur(22px)',
+                    clipPath: 'inset(0 0 100% 0 round 32px)'
+                }, {
+                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.16),
                     y: 0,
-                    rotateY: 0,
-                    duration: 1.2,
+                    rotateX: 0,
+                    filter: 'blur(0px)',
+                    clipPath: 'inset(0 0 0% 0 round 32px)',
+                    duration: 1.1,
                     ease: 'expo.out',
-                    stagger: 0.08
+                    stagger: 0.07
                 });
             } else {
-                const rotation = direction === 'left' ? 16 : -16;
-                gsap.fromTo(carouselEl, { rotationY: rotation }, {
-                    rotationY: 0,
-                    duration: 1.0,
+                const directionSign = direction === 'left' ? -1 : 1;
+                gsap.fromTo(carouselEl, { rotateY: directionSign * 18, xPercent: directionSign * 6 }, {
+                    rotateY: 0,
+                    xPercent: 0,
+                    duration: 1.05,
                     ease: 'power3.out'
                 });
-                gsap.fromTo(panels, { opacity: 0.22, scale: 0.9 }, {
+                gsap.fromTo(panels, {
+                    opacity: 0.18,
+                    scale: 0.9,
+                    filter: 'blur(18px)',
+                    clipPath: 'inset(0 14% 18% 14% round 32px)'
+                }, {
                     opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.18),
-                    scale: (i) => i === 1 ? 1 : 0.92,
+                    scale: (i) => i === 1 ? 1 : 0.9,
+                    filter: 'blur(0px)',
+                    clipPath: 'inset(0 0 0 0 round 32px)',
                     duration: 0.9,
                     ease: 'power2.out',
                     stagger: 0.05
@@ -1171,10 +1245,15 @@ const wormholeReturnEase = (t) => {
             }
 
             if (centerHolo) {
-                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.1, ease: 'expo.out' });
+                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.05, ease: 'expo.out' });
             }
 
-            requestAnimationFrame(updateStageScale);
+            const actions = carouselEl.querySelectorAll('.card-actions');
+            if (actions.length) {
+                gsap.fromTo(actions, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.05 });
+            }
+
+            requestAnimationFrame(updateStageMetrics);
         }
 
         const handlePointer = (ev) => {
@@ -1205,7 +1284,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const handleWheel = (ev) => {
-            if (layoutMode !== 'carousel' || deck.length <= 1) return;
+            if (layoutMode !== 'carousel' || totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const scrollable = ev.target.closest('.card-holo');
             if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
@@ -1215,8 +1294,8 @@ const wormholeReturnEase = (t) => {
             const direction = ev.deltaY > 0 ? 'right' : 'left';
             stopAutoRotate();
             activeIndex = direction === 'left'
-                ? (activeIndex + deck.length - 1) % deck.length
-                : (activeIndex + 1) % deck.length;
+                ? (activeIndex + totalCards - 1) % totalCards
+                : (activeIndex + 1) % totalCards;
             render(direction);
             startAutoRotate();
             gsap.delayedCall(0.6, () => { wheelLock = false; });
@@ -1228,19 +1307,6 @@ const wormholeReturnEase = (t) => {
             stage.addEventListener('wheel', handleWheel, { passive: false });
         }
 
-        arrowButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (layoutMode !== 'carousel' || deck.length <= 1) return;
-                const direction = btn.dataset.direction === 'left' ? 'left' : 'right';
-                stopAutoRotate();
-                activeIndex = direction === 'left'
-                    ? (activeIndex + deck.length - 1) % deck.length
-                    : (activeIndex + 1) % deck.length;
-                render(direction);
-                startAutoRotate();
-            });
-        });
-
         const onPointerDown = (ev) => {
             if (layoutMode !== 'carousel') return;
             if (isInteractiveTarget(ev.target)) return;
@@ -1249,15 +1315,15 @@ const wormholeReturnEase = (t) => {
         };
 
         const onPointerMove = (ev) => {
-            if (layoutMode !== 'carousel' || swipeStartX === null || swipeLock || deck.length <= 1) return;
+            if (layoutMode !== 'carousel' || swipeStartX === null || swipeLock || totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const delta = ev.clientX - swipeStartX;
             if (Math.abs(delta) < 45) return;
             swipeLock = true;
             stopAutoRotate();
             activeIndex = delta > 0
-                ? (activeIndex + deck.length - 1) % deck.length
-                : (activeIndex + 1) % deck.length;
+                ? (activeIndex + totalCards - 1) % totalCards
+                : (activeIndex + 1) % totalCards;
             render(delta > 0 ? 'left' : 'right');
             startAutoRotate();
         };
@@ -1275,9 +1341,7 @@ const wormholeReturnEase = (t) => {
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
-        gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, ease: 'power3.out' });
         if (layoutMode === 'carousel') {
-            gsap.fromTo(arrowButtons, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, stagger: 0.05, ease: 'power3.out' });
             startAutoRotate();
         }
 
@@ -1285,7 +1349,8 @@ const wormholeReturnEase = (t) => {
             if (overlayClosed) return;
             overlayClosed = true;
             stopAutoRotate();
-            window.removeEventListener('resize', updateStageScale);
+            detachActionListeners();
+            window.removeEventListener('resize', updateStageMetrics);
             if (stageResizeObserver) {
                 stageResizeObserver.disconnect();
                 stageResizeObserver = null;
@@ -1305,17 +1370,7 @@ const wormholeReturnEase = (t) => {
                 onComplete: () => overlay.remove()
             });
         };
-
-        closeBtn.addEventListener('click', () => {
-            if (overlayClosed) return;
-            try { clickSound.currentTime = 0; clickSound.play(); } catch {}
-            closeBtn.disabled = true;
-            arrowButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
-            closeOverlay();
-            requestAnimationFrame(() => animateReturnHome());
-        });
     }
-
     // --------------------------------------------------------
     //  LOOP
     // --------------------------------------------------------

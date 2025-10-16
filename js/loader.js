@@ -176,7 +176,18 @@ function showScene(text) {
             loader.remove();
 
             const c = document.getElementById('canvas-container');
-            if (c) gsap.fromTo(c, { opacity: 0 }, { opacity: 1, duration: 2 });
+            if (c) {
+                gsap.fromTo(c, { opacity: 0 }, {
+                    opacity: 1,
+                    duration: 2,
+                    onStart: () => {
+                        c.style.pointerEvents = 'auto';
+                        window.dispatchEvent(new Event('scene-ready'));
+                    }
+                });
+            } else {
+                window.dispatchEvent(new Event('scene-ready'));
+            }
         }
     });
 }
