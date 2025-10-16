@@ -3,7 +3,7 @@
     //   Portale dorato attorno al pulsante + Warp postprocess
     //   (tutti gli effetti, click robusto, nessuna rimozione)
     // ========================================================
-    import * as THREE from 'three';
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
     import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
     import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
     import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
@@ -15,7 +15,7 @@
     import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
     import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
     import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
-    import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js';
+    import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -1079,7 +1079,6 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
-        }
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
