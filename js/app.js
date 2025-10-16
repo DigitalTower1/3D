@@ -20,8 +20,19 @@
     // -------------------------
     // DEBUG SWITCH (true/false)
     // -------------------------
-    const DEBUG_LOG = false;
-    const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
+const DEBUG_LOG = false;
+const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
+
+// easing personalizzati per i movimenti "wormhole"
+const wormholeEase = (t) => {
+    const accelerated = Math.pow(t, 1.45);
+    return THREE.MathUtils.clamp(accelerated, 0, 1);
+};
+
+const wormholeReturnEase = (t) => {
+    const eased = 1 - Math.pow(1 - t, 1.85);
+    return THREE.MathUtils.clamp(eased, 0, 1);
+};
 
     // --------------------------------------------------------
     //  RENDERER + SCENA
@@ -34,6 +45,7 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    window.renderer = renderer;
 
     // Assicura che il canvas riceva i click
     const container = document.getElementById('canvas-container');
@@ -50,13 +62,18 @@
     //  CAMERA + CONTROLLI
     // --------------------------------------------------------
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 8000);
-    camera.position.set(16.89, 282.66, -1406.02);
+    const DEFAULT_FOV = camera.fov;
+    const HOME_POSITION = new THREE.Vector3(16.89, 282.66, -1406.02);
+    const HOME_LOOK_TARGET = new THREE.Vector3(0, 180, 0);
+    camera.position.copy(HOME_POSITION);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.minPolarAngle = THREE.MathUtils.degToRad(55);
     controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
+    controls.target.copy(HOME_LOOK_TARGET);
+    camera.lookAt(HOME_LOOK_TARGET);
 
     // --------------------------------------------------------
     //  LUCI
@@ -120,6 +137,33 @@
         { name: 'Portfolio',  pos: new THREE.Vector3(-900, 180, -400) },
         { name: 'Consulenza', pos: new THREE.Vector3(0,    180, -250) },
         { name: 'Chi Siamo',  pos: new THREE.Vector3( 900, 180, -400) }
+    ];
+
+    const CARD_LIBRARY = [
+        {
+            key: 'Portfolio',
+            title: 'Portfolio',
+            tagline: 'Visioni immersive in tempo reale',
+            description: 'Esperienze interattive scolpite in 3D che raccontano la tua storia con luce, materia e movimento.',
+            highlights: ['Scenografie digitali tailor-made', 'Motion design sincronizzato con il suono', 'Percorsi immersivi fruibili ovunque'],
+            accent: '#ffd58a'
+        },
+        {
+            key: 'Consulenza',
+            title: 'Consulenza',
+            tagline: 'Strategia creativa ad alta precisione',
+            description: 'Guidiamo il tuo brand tra realtà fisica e digitale, progettando roadmap e tecnologie futuristiche.',
+            highlights: ['Workshop visionari e co-design', 'Analisi dei touchpoint immersivi', 'Supporto continuo del team creativo'],
+            accent: '#9be7ff'
+        },
+        {
+            key: 'Chi Siamo',
+            title: 'Chi Siamo',
+            tagline: 'Un collettivo di artigiani del digitale',
+            description: 'Architetti di wormhole narrativi, uniamo design, tecnologia e storytelling per sbloccare nuovi universi.',
+            highlights: ['Crew multidisciplinare', 'Processi ispirati al cinema sci-fi', 'Ricerca continua su nuove tecnologie'],
+            accent: '#ff9ad6'
+        }
     ];
 
     const flareMat = new THREE.ShaderMaterial({
@@ -226,43 +270,53 @@
             strength: { value: 0.0 },      // 0..1 durante il warp
             chroma: { value: 0.0 },        // aberrazione cromatica
             center: { value: new THREE.Vector2(0.5, 0.5) }, // centro portale in NDC [0..1]
-            radius: { value: 0.25 }        // raggio dell'effetto
+            radius: { value: 0.25 },       // raggio dell'effetto
+            streaks: { value: 0.0 },
+            pulse: { value: 0.0 }
         },
         vertexShader: `
         varying vec2 vUv;
         void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
       `,
         fragmentShader: `
-        uniform sampler2D tDiffuse;
-        uniform float time, strength, chroma, radius;
-        uniform vec2 center;
-        varying vec2 vUv;
-    
-        void main(){
-          vec2 uv = vUv;
-          // distanza dal centro del portale
-          vec2 d = uv - center;
-          float dist = length(d);
-    
-          // maschera radiale morbida
-          float mask = smoothstep(radius, 0.0, dist);
-    
-          // distorsione radiale + onda
-          float ripple = sin(dist*40.0 - time*10.0) * 0.02 * strength;
-          vec2 dir = normalize(d + 1e-6);
-          uv += dir * ripple * (1.0 - mask);
-    
-          // aberrazione cromatica
-          vec2 off = dir * chroma * (1.0 - mask);
-          vec4 col;
-          col.r = texture2D(tDiffuse, uv + off).r;
-          col.g = texture2D(tDiffuse, uv).g;
-          col.b = texture2D(tDiffuse, uv - off).b;
-          col.a = 1.0;
-    
-          gl_FragColor = col;
-        }
-      `
+    uniform sampler2D tDiffuse;
+    uniform float time, strength, chroma, radius, streaks, pulse;
+    uniform vec2 center;
+    varying vec2 vUv;
+
+    void main(){
+      vec2 uv = vUv;
+      // distanza dal centro del portale
+      vec2 d = uv - center;
+      float dist = length(d);
+
+      // maschera radiale morbida
+      float mask = smoothstep(radius, 0.0, dist);
+
+      float angle = atan(d.y, d.x);
+      float streakPattern = sin(angle * 14.0 - time * 6.0) * 0.5 + 0.5;
+      float streakMask = smoothstep(0.6, 0.0, dist) * streaks * streakPattern;
+
+      // distorsione radiale + onda
+      float ripple = sin(dist*40.0 - time*10.0) * 0.02 * strength;
+      vec2 dir = normalize(d + 1e-6);
+      uv += dir * ripple * (1.0 - mask);
+
+      // aberrazione cromatica
+      vec2 off = dir * chroma * (1.0 - mask);
+      vec4 col;
+      col.r = texture2D(tDiffuse, uv + off).r;
+      col.g = texture2D(tDiffuse, uv).g;
+      col.b = texture2D(tDiffuse, uv - off).b;
+      col.a = 1.0;
+
+      float breathing = 0.85 + pulse * 0.35;
+      col.rgb *= breathing;
+      col.rgb += vec3(1.2, 0.96, 0.7) * streakMask * (0.4 + pulse * 0.6);
+
+      gl_FragColor = col;
+    }
+  `
     };
     const warpPass = new ShaderPass(WarpShader);
     composer.addPass(warpPass);
@@ -321,39 +375,141 @@
             side: THREE.BackSide,
             depthWrite: false,
             blending: THREE.AdditiveBlending,
-            uniforms: { time: { value: 0 }, alpha: { value: 0.0 } },
-            vertexShader: `varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
-            fragmentShader: `
-      varying vec2 vUv; uniform float time, alpha;
+            uniforms: {
+                time: { value: 0 },
+                alpha: { value: 0.0 },
+                head: { value: 0.0 },
+                glow: { value: 0.6 }
+            },
+            vertexShader: `
+      varying vec2 vUv;
       void main(){
-        float s = sin(vUv.y*80. - time*8.)*0.5 + 0.5;
-        float fade = smoothstep(0.0, 0.8, vUv.y);
-        vec3 col = vec3(1.0, 0.9, 0.6)*s;
-        gl_FragColor = vec4(col, alpha * fade * 0.9);
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+            fragmentShader: `
+      varying vec2 vUv;
+      uniform float time, alpha, head, glow;
+      void main(){
+        float spiral = sin((vUv.y * 28.0 - time * 10.0) + vUv.x * 12.0);
+        float wave = sin(vUv.y * 60.0 - time * 15.0) * 0.5 + 0.5;
+        float reveal = clamp((head - vUv.y) * 8.0 + 0.5, 0.0, 1.0);
+        float entry = smoothstep(0.0, 0.12, vUv.y);
+        float tail = 1.0 - smoothstep(0.85, 1.0, vUv.y);
+        float mask = reveal * entry * tail;
+        vec3 col = vec3(1.0, 0.92, 0.7) * (0.6 + glow * wave + 0.25 * spiral);
+        gl_FragColor = vec4(col, alpha * mask);
       }`
         });
         const cyl = new THREE.Mesh(cylGeo, cylMat);
         cyl.rotation.x = Math.PI / 2;
         cyl.position.z = -400;
+        cyl.scale.set(1, 1, 0.25);
         g.add(cyl);
 
         const light = new THREE.PointLight(0xffe7b0, 2.0, 1000);
         g.add(light);
 
-        gsap.to(ringMat.uniforms.expand, { value: 100, duration: 2.5, ease: "power3.out" });
-        gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], { value: 1.0, duration: 2.0, ease: "power2.out" });
+        const streakCount = 360;
+        const streakGeo = new THREE.BufferGeometry();
+        const streakPos = new Float32Array(streakCount * 3);
+        const streakPhase = new Float32Array(streakCount);
+        for (let i = 0; i < streakCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = THREE.MathUtils.lerp(60, 220, Math.random());
+            const y = THREE.MathUtils.lerp(-140, 140, Math.random());
+            const z = -THREE.MathUtils.lerp(220, 1800, Math.random());
+            streakPos[i * 3] = Math.cos(angle) * radius;
+            streakPos[i * 3 + 1] = y;
+            streakPos[i * 3 + 2] = z;
+            streakPhase[i] = Math.random();
+        }
+        streakGeo.setAttribute('position', new THREE.BufferAttribute(streakPos, 3));
+        streakGeo.setAttribute('aPhase', new THREE.BufferAttribute(streakPhase, 1));
+        const streakMat = new THREE.ShaderMaterial({
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+            uniforms: {
+                time: { value: 0 },
+                stretch: { value: 1400 },
+                opacity: { value: 0.0 }
+            },
+            vertexShader: `
+      attribute float aPhase;
+      uniform float time;
+      uniform float stretch;
+      varying float vAlpha;
+      void main(){
+        float travel = fract(time + aPhase);
+        vec3 pos = position;
+        pos.z -= travel * stretch;
+        float head = smoothstep(0.0, 0.18, travel);
+        float tail = 1.0 - smoothstep(0.55, 1.0, travel);
+        vAlpha = head * tail;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+        gl_PointSize = 16.0 * (tail + 0.35);
+      }`,
+            fragmentShader: `
+      varying float vAlpha;
+      uniform float opacity;
+      void main(){
+        vec2 c = gl_PointCoord - vec2(0.5);
+        float falloff = smoothstep(0.5, 0.0, length(c));
+        float alpha = opacity * vAlpha * falloff;
+        if(alpha <= 0.001) discard;
+        vec3 tint = vec3(1.1, 0.95, 0.75);
+        gl_FragColor = vec4(tint, alpha);
+      }`
+        });
+        const streaks = new THREE.Points(streakGeo, streakMat);
+        streaks.rotation.x = Math.PI / 2;
+        g.add(streaks);
+
+        ring.scale.set(0.35, 0.35, 0.35);
+        const ringExpand = gsap.to(ringMat.uniforms.expand, { value: 100, duration: 2.4, ease: "power3.out" });
+        const ringScale = gsap.to(ring.scale, { x: 1, y: 1, z: 1, duration: 2.6, ease: "expo.out" });
+        const alphaTween = gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
+            value: 1.0,
+            duration: 1.8,
+            ease: "sine.out"
+        });
+        const headTween = gsap.to(cylMat.uniforms.head, { value: 1.05, duration: 3.2, ease: wormholeEase });
+        const glowTween = gsap.to(cylMat.uniforms.glow, { value: 1.35, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: -1 });
+        const stretchTween = gsap.to(cyl.scale, { z: 1, duration: 2.8, ease: "expo.out" });
+        const swirlTween = gsap.to(g.rotation, { y: "+=6.283", duration: 18, ease: "none", repeat: -1 });
+        const streaksFade = gsap.to(streakMat.uniforms.opacity, { value: 1.0, duration: 1.6, ease: "sine.inOut" });
+        const streakStretch = gsap.to(streakMat.uniforms.stretch, { value: 2100, duration: 3.2, ease: "sine.inOut" });
 
         return {
             update(dt) {
                 ringMat.uniforms.time.value += dt;
                 cylMat.uniforms.time.value += dt;
-                light.intensity = 2.5 + Math.sin(performance.now() / 400) * 0.7;
+                streakMat.uniforms.time.value = (streakMat.uniforms.time.value + dt * 0.9) % 1.0;
+                light.intensity = 2.1 + cylMat.uniforms.glow.value * 0.9 + Math.sin(performance.now() / 480) * 0.6;
             },
             fadeAndRemove(onDone) {
+                glowTween.pause();
+                swirlTween.pause();
+                streakStretch.pause();
+                gsap.to(cylMat.uniforms.glow, { value: 0.4, duration: 0.6, ease: "sine.in" });
                 gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
                     value: 0.0, duration: 1.2, ease: "power2.inOut",
-                    onComplete: () => { camera.remove(g); if (onDone) onDone(); }
+                    onComplete: () => {
+                        ringExpand.kill();
+                        ringScale.kill();
+                        alphaTween.kill();
+                        headTween.kill();
+                        stretchTween.kill();
+                        glowTween.kill();
+                        swirlTween.kill();
+                        streaksFade.kill();
+                        streakStretch.kill();
+                        camera.remove(g);
+                        if (onDone) onDone();
+                    }
                 });
+                gsap.to(streakMat.uniforms.opacity, { value: 0.0, duration: 0.8, ease: "power2.in" });
             }
         };
     }
@@ -398,6 +554,7 @@
         warpActive = true;
         portalTarget = target;
         warpTimer = 0;
+        controls.enabled = false;
 
         try {
             warpSound.currentTime = 0;
@@ -405,141 +562,329 @@
         } catch {
         }
 
-        // Spawn portale dorato
         activePortal = spawnPortalAt(target);
 
-        // Effetti iniziali
-        gsap.to(warpPass.uniforms.strength, {value: 0.3, duration: 1.2, ease: 'sine.inOut'});
-        gsap.to(warpPass.uniforms.chroma, {value: 0.015, duration: 1.2, ease: 'sine.inOut'});
-        gsap.to(bloom, {strength: 0.4, duration: 1.2, ease: 'power1.inOut'});
+        gsap.to(bloom, { strength: 0.55, duration: 1.2, ease: 'power1.inOut' });
 
-        // Coordinate portale
         const wp = new THREE.Vector3();
         target.getWorldPosition(wp);
 
-        // Traiettoria curva verso il portale (in-out fluido)
-        // Avvicinamento morbido al punto di partenza (1s easing)
         const camStart = camera.position.clone();
-        const smoothStart = camStart.clone().lerp(wp, 0.05);
-        gsap.to(camera.position, {
-            x: smoothStart.x,
-            y: smoothStart.y,
-            z: smoothStart.z,
-            duration: 1.2,
-            ease: "power2.inOut",
-            onComplete: () => startWarpAnimation()
+        const worldDir = wp.clone().sub(camStart);
+        if (worldDir.lengthSq() < 1e-6) worldDir.set(0, 0, -1);
+        worldDir.normalize();
+        const camEnd = wp.clone().addScaledVector(worldDir, -220);
+        const focus = wp.clone();
+        const travel = { t: 0 };
+        const duration = 5.2;
+        const entryFov = Math.max(camera.fov, DEFAULT_FOV);
+        camera.up.set(0, 1, 0);
+        controls.target.copy(focus);
+
+        const startQuat = camera.quaternion.clone();
+        const targetMatrix = new THREE.Matrix4().lookAt(camEnd, focus, new THREE.Vector3(0, 1, 0));
+        const endQuat = new THREE.Quaternion().setFromRotationMatrix(targetMatrix);
+        const lateralAxis = new THREE.Vector3().crossVectors(worldDir, new THREE.Vector3(0, 1, 0));
+        if (lateralAxis.lengthSq() < 1e-4) lateralAxis.set(1, 0, 0);
+        lateralAxis.normalize();
+        const verticalAxis = new THREE.Vector3().crossVectors(lateralAxis, worldDir).normalize();
+        const lerpPos = new THREE.Vector3();
+        const jitterVec = new THREE.Vector3();
+
+        const exposureTarget = { value: renderer.toneMappingExposure };
+        gsap.to(camera, {
+            fov: entryFov + 12,
+            duration: duration * 0.58,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => camera.updateProjectionMatrix()
         });
 
-        function startWarpAnimation() {
-            const camEnd = wp.clone().add(new THREE.Vector3(0, 120, 120));
-            const controlPoint = camStart.clone().lerp(camEnd, 0.5).add(new THREE.Vector3(0, 200, 0));
-            const curve = new THREE.QuadraticBezierCurve3(camStart, controlPoint, camEnd);
-            const steps = 300;
-            const pathPoints = curve.getPoints(steps);
-            const progress = { t: 0 };
-
-            gsap.to(progress, {
-                t: 1,
-                duration: 5.5,
-                ease: "power3.inOut",
-                onUpdate: () => {
-                    const i = Math.floor(progress.t * (steps - 1));
-                    camera.position.copy(pathPoints[i]);
-                    camera.lookAt(wp);
-
-                    const phase = progress.t;
-                    warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.3, 1.2, phase);
-                    warpPass.uniforms.chroma.value   = THREE.MathUtils.lerp(0.015, 0.05, phase);
-                    bloom.strength = THREE.MathUtils.lerp(0.4, 0.9, phase);
-
-                    if (!document.querySelector('.warp-card') && phase >= 0.9) showCard(name);
-                },
-                onComplete: () => {
-                    if (activePortal) activePortal.fadeAndRemove();
-                }
-            });
-        }
-
-        const curve = new THREE.QuadraticBezierCurve3(camStart, controlPoint, camEnd);
-        const duration = 5.5;
-        const steps = 300;
-        const pathPoints = curve.getPoints(steps);
-
-        let progress = {t: 0};
-        gsap.to(progress, {
-            t: 1,
-            duration: duration,
-            ease: "power3.inOut",
+        gsap.to(exposureTarget, {
+            value: 3.2,
+            duration: duration * 0.48,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1,
             onUpdate: () => {
-                const i = Math.floor(progress.t * (steps - 1));
-                camera.position.copy(pathPoints[i]);
-                camera.lookAt(wp);
+                renderer.toneMappingExposure = THREE.MathUtils.lerp(renderer.toneMappingExposure, exposureTarget.value, 0.4);
+            }
+        });
 
-                const phase = progress.t;
-                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(0.3, 1.2, phase);
-                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.015, 0.05, phase);
-                bloom.strength = THREE.MathUtils.lerp(0.4, 0.9, phase);
+        gsap.to(travel, {
+            t: 1,
+            duration,
+            ease: 'sine.inOut',
+            onUpdate: () => {
+                const phase = wormholeEase(travel.t);
+                lerpPos.lerpVectors(camStart, camEnd, phase);
+                const turbulence = Math.sin(phase * Math.PI) ** 1.2;
+                const wobble = THREE.MathUtils.lerp(0, 18, turbulence);
+                jitterVec.copy(lateralAxis).multiplyScalar(Math.sin(phase * Math.PI * 4.0) * wobble);
+                jitterVec.addScaledVector(verticalAxis, Math.cos(phase * Math.PI * 3.0) * wobble * 0.6);
+                lerpPos.add(jitterVec);
+                camera.position.copy(lerpPos);
+                camera.quaternion.slerpQuaternions(startQuat, endQuat, phase);
+                camera.updateMatrixWorld();
+                controls.target.copy(focus);
 
-                // Card anticipata (10% prima)
-                if (!document.querySelector('.warp-card') && phase >= 0.9) showCard(name);
+                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.35, phase);
+                warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.2;
+                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.09, phase);
+                warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.2;
+                const radiusTarget = THREE.MathUtils.lerp(0.3, 0.1, phase);
+                warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.22;
+                const streakTarget = THREE.MathUtils.lerp(0.25, 1.2, phase);
+                warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.18;
+                warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
+                bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
+
+                if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
-                gsap.to(warpPass.uniforms.strength, {value: 0.0, duration: 1.0});
-                gsap.to(warpPass.uniforms.chroma, {value: 0.0, duration: 1.0});
-                gsap.to(bloom, {strength: 0.25, duration: 1.0});
+                camera.position.copy(camEnd);
+                camera.quaternion.copy(endQuat);
+                camera.updateMatrixWorld();
+                controls.target.copy(focus);
+                gsap.to(warpPass.uniforms.strength, { value: 0.6, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.chroma, { value: 0.045, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.radius, { value: 0.2, duration: 1.0, ease: 'sine.out' });
+                gsap.to(warpPass.uniforms.streaks, { value: 0.55, duration: 1.2, ease: 'power1.out' });
+                gsap.to(bloom, { strength: 0.65, duration: 1.0, ease: 'sine.out' });
+                gsap.to(camera, {
+                    fov: DEFAULT_FOV + 2,
+                    duration: 1.2,
+                    ease: 'sine.out',
+                    onUpdate: () => camera.updateProjectionMatrix()
+                });
+                renderer.toneMappingExposure = 2.0;
                 if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
             }
-        })
+        });
     }
 
-            function showCard(name) {
+    function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch {}
+
+        let activeIndex = CARD_LIBRARY.findIndex(card => card.key === name);
+        if (activeIndex === -1) activeIndex = 0;
 
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
         overlay.innerHTML = `
-        <div class="card-inner">
-          <h1>${name}</h1>
-          <p>${
-            name === 'Portfolio'  ? 'Ecco alcuni esempi del nostro lavoro.'
-                : name === 'Consulenza' ? 'Richiedi una consulenza personalizzata.'
-                    : 'Scopri la nostra storia e la nostra missione.'
-        }</p>
+        <div class="card-stage">
+          <div class="card-backdrop"></div>
+          <div class="card-carousel"></div>
           <button class="close-card">Chiudi</button>
         </div>`;
         document.body.appendChild(overlay);
 
-        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.0, ease: 'power2.out' });
-        const card = overlay.querySelector('.card-inner');
-        gsap.fromTo(card, { scale: 0.85, rotateY: 22 }, { scale: 1, rotateY: 0, duration: 1.2, ease: 'power3.out' });
+        const stage = overlay.querySelector('.card-stage');
+        const carouselEl = overlay.querySelector('.card-carousel');
+        const closeBtn = overlay.querySelector('.close-card');
+        stage.style.setProperty('--pointer-x', '0');
+        stage.style.setProperty('--pointer-y', '0');
 
-        overlay.querySelector('.close-card').addEventListener('click', () => {
-            try { clickSound.currentTime = 0; clickSound.play(); } catch {}
-            gsap.to(bloom, { strength: 0.8, duration: 1.2, yoyo: true, repeat: 1 });
-            gsap.to(overlay, { opacity: 0, duration: 0.8, onComplete: () => overlay.remove() });
-            const startPos = camera.position.clone();
-            const targetPos = new THREE.Vector3(16.89, 282.66, -1406.02);
+        const layoutFor = (index) => {
+            const total = CARD_LIBRARY.length;
+            const prev = (index + total - 1) % total;
+            const next = (index + 1) % total;
+            return [
+                { role: 'left', card: CARD_LIBRARY[prev] },
+                { role: 'center', card: CARD_LIBRARY[index] },
+                { role: 'right', card: CARD_LIBRARY[next] }
+            ];
+        };
 
-            gsap.to(startPos, {
-                x: targetPos.x,
-                y: targetPos.y,
-                z: targetPos.z,
-                duration: 4.5,
-                ease: "power3.inOut",
-                onUpdate: () => {
-                    camera.position.copy(startPos);
-                    camera.lookAt(0, 180, 0); // oppure il punto medio della scena
-                },
-                onComplete: () => {
-                    warpPass.uniforms.strength.value = 0.0;
-                    warpPass.uniforms.chroma.value = 0.0;
-                    bloom.strength = 0.25;
-                    warpActive = false;
-                    portalTarget = null;
-                    camera.remove(...camera.children);
-                }
+        const cardMarkup = ({ role, card }) => `
+          <article class="card-panel is-${role}" data-role="${role}" data-key="${card.key}" style="--card-accent:${card.accent}">
+            <div class="card-holo">
+              <header class="card-header">
+                <span class="card-title">${card.title}</span>
+                <span class="card-tagline">${card.tagline}</span>
+              </header>
+              <p class="card-description">${card.description}</p>
+              <ul class="card-highlights">
+                ${card.highlights.map(item => `<li>${item}</li>`).join('')}
+              </ul>
+            </div>
+            <div class="card-nebula"></div>
+          </article>`;
+
+        function bindPanelEvents() {
+            carouselEl.querySelectorAll('.card-panel').forEach(panel => {
+                panel.addEventListener('click', () => {
+                    const role = panel.dataset.role;
+                    if (role === 'center') return;
+                    activeIndex = role === 'left'
+                        ? (activeIndex + CARD_LIBRARY.length - 1) % CARD_LIBRARY.length
+                        : (activeIndex + 1) % CARD_LIBRARY.length;
+                    render(role);
+                });
             });
+        }
 
+        function render(direction = 'intro') {
+            const layout = layoutFor(activeIndex);
+            stage.style.setProperty('--active-accent', layout[1].card.accent);
+            carouselEl.innerHTML = layout.map(cardMarkup).join('');
+            bindPanelEvents();
+            const panels = carouselEl.querySelectorAll('.card-panel');
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+
+            if (direction === 'intro') {
+                gsap.fromTo(panels, { opacity: 0, y: 80, rotateY: -6 }, {
+                    opacity: (i) => i === 1 ? 1 : 0.6,
+                    y: 0,
+                    rotateY: 0,
+                    duration: 1.2,
+                    ease: 'expo.out',
+                    stagger: 0.08
+                });
+            } else {
+                const rotation = direction === 'left' ? 16 : -16;
+                gsap.fromTo(carouselEl, { rotationY: rotation }, {
+                    rotationY: 0,
+                    duration: 1.0,
+                    ease: 'power3.out'
+                });
+                gsap.fromTo(panels, { opacity: 0.25, scale: 0.92 }, {
+                    opacity: (i) => i === 1 ? 1 : 0.55,
+                    scale: (i) => i === 1 ? 1 : 0.94,
+                    duration: 0.9,
+                    ease: 'power2.out',
+                    stagger: 0.05
+                });
+            }
+
+            if (centerHolo) {
+                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.1, ease: 'expo.out' });
+            }
+        }
+
+        const handlePointer = (ev) => {
+            const rect = stage.getBoundingClientRect();
+            const x = (ev.clientX - rect.left) / rect.width - 0.5;
+            const y = (ev.clientY - rect.top) / rect.height - 0.5;
+            stage.style.setProperty('--pointer-x', String(x));
+            stage.style.setProperty('--pointer-y', String(y));
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+            if (centerHolo) {
+                gsap.to(centerHolo, {
+                    rotateY: x * 16,
+                    rotateX: -y * 10,
+                    duration: 0.5,
+                    ease: 'power2.out'
+                });
+            }
+        };
+
+        const handleLeave = () => {
+            stage.style.setProperty('--pointer-x', '0');
+            stage.style.setProperty('--pointer-y', '0');
+            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
+            if (centerHolo) {
+                gsap.to(centerHolo, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'power2.out' });
+            }
+        };
+
+        stage.addEventListener('pointermove', handlePointer);
+        stage.addEventListener('pointerleave', handleLeave);
+
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
+        render('intro');
+        gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.3, ease: 'power3.out' });
+
+        const closeOverlay = () => {
+            stage.removeEventListener('pointermove', handlePointer);
+            stage.removeEventListener('pointerleave', handleLeave);
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
+        };
+
+        closeBtn.addEventListener('click', () => {
+            try { clickSound.currentTime = 0; clickSound.play(); } catch {}
+
+            const boostStrength = gsap.to(warpPass.uniforms.strength, { value: 1.25, duration: 0.6, ease: 'power2.in' });
+            const boostChroma = gsap.to(warpPass.uniforms.chroma, { value: 0.07, duration: 0.6, ease: 'power2.in' });
+            const boostBloom = gsap.to(bloom, { strength: 0.9, duration: 0.6, ease: 'sine.in' });
+            const boostStreaks = gsap.to(warpPass.uniforms.streaks, { value: 0.95, duration: 0.6, ease: 'power2.in' });
+
+            closeOverlay();
+
+            const startPos = camera.position.clone();
+            const startQuat = camera.quaternion.clone();
+            const startFocus = controls.target.clone();
+            const retreat = { t: 0 };
+            const returnQuat = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().lookAt(HOME_POSITION, HOME_LOOK_TARGET, new THREE.Vector3(0, 1, 0)));
+            const returnPos = new THREE.Vector3();
+            const returnJitter = new THREE.Vector3();
+            const homeDir = HOME_POSITION.clone().sub(startPos);
+            if (homeDir.lengthSq() < 1e-4) homeDir.set(0, 0, 1);
+            homeDir.normalize();
+            const returnLateral = new THREE.Vector3().crossVectors(homeDir, new THREE.Vector3(0, 1, 0));
+            if (returnLateral.lengthSq() < 1e-4) returnLateral.set(1, 0, 0);
+            else returnLateral.normalize();
+            const returnVertical = new THREE.Vector3().crossVectors(returnLateral, homeDir);
+            if (returnVertical.lengthSq() < 1e-4) returnVertical.set(0, 1, 0);
+            else returnVertical.normalize();
+
+            gsap.delayedCall(0.25, () => {
+                boostStrength.progress(1);
+                boostChroma.progress(1);
+                boostBloom.progress(1);
+                boostStreaks.progress(1);
+                gsap.to(retreat, {
+                    t: 1,
+                    duration: 5.6,
+                    ease: 'none',
+                    onUpdate: () => {
+                        const phase = wormholeReturnEase(retreat.t);
+                        returnPos.lerpVectors(startPos, HOME_POSITION, phase);
+                        const shake = Math.sin(phase * Math.PI) ** 1.1;
+                        const wobble = THREE.MathUtils.lerp(0, 12, shake);
+                        returnJitter.copy(returnLateral).multiplyScalar(Math.sin(phase * Math.PI * 3.2) * wobble);
+                        returnJitter.addScaledVector(returnVertical, Math.cos(phase * Math.PI * 2.6) * wobble * 0.5);
+                        returnPos.add(returnJitter);
+                        camera.position.copy(returnPos);
+                        camera.quaternion.slerpQuaternions(startQuat, returnQuat, phase);
+                        camera.updateMatrixWorld();
+                        controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
+
+                        warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, phase);
+                        warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, phase);
+                        warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
+                        warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(0.95, 0.0, phase);
+                        bloom.strength = THREE.MathUtils.lerp(0.9, 0.25, phase);
+                    },
+                    onComplete: () => {
+                        warpPass.uniforms.strength.value = 0.0;
+                        warpPass.uniforms.chroma.value = 0.0;
+                        warpPass.uniforms.streaks.value = 0.0;
+                        warpPass.uniforms.radius.value = 0.25;
+                        bloom.strength = 0.25;
+                        warpActive = false;
+                        portalTarget = null;
+                        controls.enabled = true;
+                        controls.target.copy(HOME_LOOK_TARGET);
+                        camera.up.set(0, 1, 0);
+                        camera.position.copy(HOME_POSITION);
+                        camera.quaternion.copy(returnQuat);
+                        gsap.to(camera, {
+                            fov: DEFAULT_FOV,
+                            duration: 1.4,
+                            ease: 'sine.inOut',
+                            onUpdate: () => camera.updateProjectionMatrix()
+                        });
+                        camera.lookAt(HOME_LOOK_TARGET);
+                    }
+                });
+            });
         });
     }
 
@@ -573,7 +918,10 @@
         if (warpActive) {
             warpTimer += dt;
             warpPass.uniforms.time.value = warpTimer;
+            warpPass.uniforms.pulse.value = 0.5 + 0.5 * Math.sin(warpTimer * 2.4);
             updateWarpCenterUniform();
+        } else {
+            warpPass.uniforms.pulse.value += (0.0 - warpPass.uniforms.pulse.value) * 0.12;
         }
 
         // anima flare sui pulsanti
