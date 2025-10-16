@@ -1077,6 +1077,7 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        }
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
