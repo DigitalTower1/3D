@@ -698,7 +698,7 @@ const wormholeReturnEase = (t) => {
             const hit = hits[0].object;
             const root = findRootButton(hit);
             if (root && !warpActive) {
-                try { clickSound.currentTime = 0; clickSound.play(); } catch {}
+                try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
                 triggerWarp(root, root.userData.name);
             }
         }
@@ -716,8 +716,7 @@ const wormholeReturnEase = (t) => {
         try {
             warpSound.currentTime = 0;
             warpSound.play();
-        } catch {
-        }
+        } catch (err) { /* noop */ }
 
         activePortal = spawnPortalAt(target);
 
@@ -935,7 +934,25 @@ const wormholeReturnEase = (t) => {
     }
 
     function showCard(name) {
-        try { portalSound.currentTime = 0; portalSound.play(); } catch {}
+        try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
+
+        const deckDefinition = CARD_LIBRARY[name];
+        const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
+        if (!deck.length) return;
+
+        const layoutMode = deckDefinition.layout || 'carousel';
+        const autoRotateSeconds = deckDefinition.autoRotate;
+        const totalCards = deck.length;
+        let activeIndex = 0;
+        let autoRotateTimer = null;
+        let swipeStartX = null;
+        let swipeLock = false;
+        let wheelLock = false;
+        let navAnimating = false;
+        const dragEnabled = deckDefinition?.dragReveal === true;
+        let dragCard = null;
+        let dragStartX = 0;
+        let dragActive = false;
 
         const deckDefinition = CARD_LIBRARY[name];
         const deck = deckDefinition?.cards ? [...deckDefinition.cards] : [];
@@ -984,18 +1001,18 @@ const wormholeReturnEase = (t) => {
         const updateStageMetrics = () => {
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const marginX = Math.max(18, Math.min(140, vw * 0.07));
-            const marginY = Math.max(70, Math.min(200, vh * 0.16));
-            const stageWidth = Math.max(340, Math.min(1120, vw - marginX * 2));
+            const marginX = Math.max(18, Math.min(150, vw * 0.065));
+            const marginY = Math.max(70, Math.min(220, vh * 0.16));
+            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
             const stageHeight = layoutMode === 'carousel'
-                ? Math.max(420, Math.min(vh - marginY, 720))
-                : Math.max(360, Math.min(vh - marginY, 620));
+                ? Math.max(420, Math.min(vh - marginY, 760))
+                : Math.max(360, Math.min(vh - marginY, 640));
             const panelHeight = layoutMode === 'carousel'
-                ? Math.max(420, Math.min(stageHeight - 24, 640))
-                : Math.max(340, stageHeight - 40);
-            const baseWidth = Math.max(320, Math.min(stageWidth * 0.86, 780));
-            const stagePadding = Math.max(18, Math.min(48, stageWidth * 0.045));
-            const sideOffset = Math.max(160, Math.min(stageWidth * 0.38, 320));
+                ? Math.max(420, Math.min(stageHeight - 24, 660))
+                : Math.max(340, stageHeight - 36);
+            const baseWidth = Math.max(320, Math.min(stageWidth * 0.9, 840));
+            const stagePadding = Math.max(20, Math.min(52, stageWidth * 0.042));
+            const sideOffset = Math.max(170, Math.min(stageWidth * 0.36, 340));
             stage.style.setProperty('--stage-width', `${stageWidth}px`);
             stage.style.setProperty('--stage-height', `${stageHeight}px`);
             stage.style.setProperty('--panel-height', `${panelHeight}px`);
@@ -1089,11 +1106,12 @@ const wormholeReturnEase = (t) => {
                 }
             });
 
-            const hasMicrocards = Array.from(grouped.values()).some(entry => entry.fields.length > 0);
+            const groupedEntries = Array.from(grouped.values()).filter(entry => entry.fields.length > 0);
+            const microcardCount = groupedEntries.length + (ungrouped.length ? 1 : 0);
+            const hasMicrocards = microcardCount > 0;
 
             const microMarkup = hasMicrocards
-                ? `<div class="card-form__microgrid">${Array.from(grouped.values()).map(({ meta, fields: items }) => {
-                    if (!items.length) return '';
+                ? `<div class="card-form__microgrid" data-microcards="${microcardCount}">${groupedEntries.map(({ meta, fields: items }) => {
                     const style = meta.accent ? ` style="--micro-accent:${meta.accent}"` : '';
                     const span = meta.span ? ` data-span="${meta.span}"` : '';
                     const description = meta.description ? `<p class="card-form__microcard-desc">${meta.description}</p>` : '';
@@ -1174,6 +1192,41 @@ const wormholeReturnEase = (t) => {
             }, { passive: false });
         }
 
+        function enableMicroStrip(node) {
+            if (!node || node.dataset.microStrip === 'true') return;
+            node.dataset.microStrip = 'true';
+            const onWheel = (event) => {
+                if (isInteractiveTarget(event.target)) return;
+                const maxScroll = node.scrollWidth - node.clientWidth;
+                if (maxScroll <= 0) return;
+                if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const next = Math.max(0, Math.min(maxScroll, node.scrollLeft + event.deltaY));
+                gsap.to(node, { scrollLeft: next, duration: 0.45, ease: 'power2.out' });
+            };
+            node.addEventListener('wheel', onWheel, { passive: false });
+        }
+
+        function animateMicrocards(root) {
+            const microcards = root.querySelectorAll('.card-form__microcard');
+            if (!microcards.length) return;
+            gsap.fromTo(microcards, {
+                opacity: 0,
+                y: 26,
+                scale: 0.94,
+                rotateX: -4
+            }, {
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                rotateX: 0,
+                duration: 0.65,
+                ease: 'expo.out',
+                stagger: 0.06
+            });
+        }
+
         function bindPanelEvents() {
             if (layoutMode !== 'carousel') return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
@@ -1189,12 +1242,12 @@ const wormholeReturnEase = (t) => {
         const handleExit = (event) => {
             if (event) event.preventDefault();
             if (overlayClosed) return;
-            try { clickSound.currentTime = 0; clickSound.play(); } catch {}
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
             try {
                 warpSound.pause();
                 warpSound.currentTime = 0;
                 warpSound.play();
-            } catch {}
+            } catch (err) { /* noop */ }
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
         };
@@ -1256,6 +1309,8 @@ const wormholeReturnEase = (t) => {
                 initFormHandlers();
                 bindActions();
                 carouselEl.querySelectorAll('.card-holo').forEach(enableSmoothScroll);
+                carouselEl.querySelectorAll('.card-form__microgrid').forEach(enableMicroStrip);
+                animateMicrocards(carouselEl);
                 const panels = carouselEl.querySelectorAll('.card-panel');
                 gsap.fromTo(panels, { opacity: 0, y: 60, filter: 'blur(16px)', clipPath: 'inset(0 0 100% 0 round 32px)' }, {
                     opacity: 1,
@@ -1284,6 +1339,8 @@ const wormholeReturnEase = (t) => {
             initFormHandlers();
             bindActions();
             carouselEl.querySelectorAll('.card-holo').forEach(enableSmoothScroll);
+            carouselEl.querySelectorAll('.card-form__microgrid').forEach(enableMicroStrip);
+            animateMicrocards(carouselEl);
             const panels = carouselEl.querySelectorAll('.card-panel');
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
 
