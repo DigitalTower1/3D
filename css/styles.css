@@ -4,7 +4,7 @@
 
 /* Font */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Poppins:wght@500;600;700;800&display=swap');
 
 /* RESET BASE */
 * {
@@ -53,15 +53,28 @@ html, body {
 .card-stage {
     position: relative;
     width: min(92vw, 1080px);
-    height: min(78vh, 640px);
+    max-width: 100%;
+    min-height: clamp(420px, 70vh, 640px);
+    max-height: min(82vh, 680px);
     display: grid;
-    grid-template-rows: 1fr auto;
+    grid-template-rows: minmax(0, 1fr) auto;
     align-items: center;
     justify-items: center;
     gap: clamp(1.6rem, 3vh, 2.8rem);
     perspective: inherit;
     transform-style: preserve-3d;
     touch-action: pan-y;
+    --stage-scale: 1;
+    transform: scale(var(--stage-scale));
+    transform-origin: center;
+}
+
+.card-stage.is-condensed {
+    gap: clamp(1.2rem, 2.6vh, 2.2rem);
+}
+
+.card-stage.is-condensed .card-controls {
+    width: min(100%, 460px);
 }
 
 .card-backdrop {
@@ -86,8 +99,8 @@ html, body {
     position: absolute;
     top: 50%;
     left: 50%;
-    width: clamp(280px, 32vw, 420px);
-    padding: clamp(2.2rem, 4vw, 2.8rem) clamp(1.8rem, 3.8vw, 2.6rem);
+    width: clamp(260px, 28vw, 400px);
+    padding: clamp(2rem, 3.6vw, 2.6rem) clamp(1.6rem, 3.4vw, 2.4rem);
     border-radius: 26px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background: rgba(12, 12, 12, 0.55);
@@ -96,9 +109,21 @@ html, body {
     transform-origin: center;
     transition: transform 1s cubic-bezier(.23, 1, .32, 1), opacity 0.6s ease, filter 0.6s ease;
     color: #fff4da;
-    cursor: pointer;
     pointer-events: auto;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
+    display: flex;
+    flex-direction: column;
+    max-height: min(68vh, 540px);
+    overflow: hidden;
+}
+
+.card-panel[data-role="left"],
+.card-panel[data-role="right"] {
+    cursor: pointer;
+}
+
+.card-panel[data-role="center"] {
+    cursor: default;
 }
 
 .card-panel::before {
@@ -128,6 +153,26 @@ html, body {
     position: relative;
     z-index: 2;
     transform-style: preserve-3d;
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    gap: clamp(1rem, 2vh, 1.6rem);
+    overflow-y: auto;
+    padding-right: 0.2rem;
+    scrollbar-width: thin;
+}
+
+.card-panel .card-holo::-webkit-scrollbar {
+    width: 6px;
+}
+
+.card-panel .card-holo::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.card-panel .card-holo::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
 }
 
 .card-panel .card-holo::after {
@@ -199,6 +244,7 @@ html, body {
     text-shadow: 0 0 30px rgba(255, 213, 138, 0.4);
     text-shadow: 0 0 30px color-mix(in srgb, var(--card-accent) 45%, transparent);
     font-weight: 700;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
 }
 
 .card-subtitle {
@@ -206,6 +252,7 @@ html, body {
     letter-spacing: 0.24em;
     color: rgba(255, 244, 218, 0.65);
     font-weight: 600;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
 }
 
 .card-tagline {
@@ -213,13 +260,14 @@ html, body {
     letter-spacing: 0.35em;
     color: rgba(255, 242, 220, 0.7);
     font-weight: 600;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
 }
 
 .card-description {
-    margin-top: 1.6rem;
-    font-size: clamp(1rem, 2.4vw, 1.1rem);
-    line-height: 1.8;
-    color: rgba(255, 244, 218, 0.92);
+    margin-top: 0.4rem;
+    font-size: clamp(0.98rem, 2.2vw, 1.08rem);
+    line-height: 1.7;
+    color: rgba(255, 244, 218, 0.9);
     text-align: left;
     font-weight: 500;
 }
@@ -318,7 +366,7 @@ html, body {
     background: linear-gradient(135deg, var(--active-accent, #ffd58a), rgba(255, 220, 160, 0.85));
     background: linear-gradient(135deg, color-mix(in srgb, var(--active-accent, #ffd58a) 80%, #ffffff 20%), rgba(255, 220, 160, 0.85));
     color: #1f1200;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: 0.2em;
@@ -525,7 +573,7 @@ html, body {
     border: 1px solid rgba(255, 255, 255, 0.18);
     background: rgba(12, 12, 12, 0.65);
     color: #fff7e6;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
     font-weight: 500;
     font-size: 0.95rem;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
@@ -546,7 +594,7 @@ html, body {
     padding: 0.85rem 1.6rem;
     background: linear-gradient(135deg, color-mix(in srgb, var(--card-accent) 80%, #ffffff 20%), rgba(255, 220, 160, 0.85));
     color: #1f1200;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -624,6 +672,7 @@ html, body {
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-decoration: none;
+    font-family: 'Poppins', 'Montserrat', sans-serif;
     transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
