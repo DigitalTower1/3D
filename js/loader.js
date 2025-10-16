@@ -29,6 +29,12 @@ loader.innerHTML = `
   <div id="grain"></div>
   <div id="lens-dirt"></div>
   <div id="lens-flare"></div>
+  <div class="loader-orbits">
+    <div class="orbit orbit-one"></div>
+    <div class="orbit orbit-two"></div>
+    <div class="orbit orbit-three"></div>
+  </div>
+  <div class="loader-core"></div>
   <div class="loader-content">
     <h1 class="line" id="line1">Ti trovi sulla sommità della <span>Digital Tower</span></h1>
     <h1 class="line hidden" id="line2">Sei qui perché sai, che in fondo, <span>meriti di raggiungere il successo</span></h1>
@@ -55,6 +61,40 @@ const l2 = loader.querySelector('#line2');
 const l3 = loader.querySelector('#line3');
 const finalLine = loader.querySelector('#final-line');
 const buttons = loader.querySelector('#buttons');
+const buttonEls = buttons.querySelectorAll('button');
+const loaderContent = loader.querySelector('.loader-content');
+const orbitsWrap = loader.querySelector('.loader-orbits');
+const orbits = loader.querySelectorAll('.orbit');
+const loaderCore = loader.querySelector('.loader-core');
+const lensFlare = loader.querySelector('#lens-flare');
+const grain = loader.querySelector('#grain');
+const loaderBg = loader.querySelector('.loader-bg');
+
+gsap.set(buttonEls, { transformPerspective: 900, transformOrigin: '50% 50%' });
+gsap.set(orbitsWrap, { transformStyle: 'preserve-3d', perspective: 1400 });
+gsap.set(orbits, { transformOrigin: '50% 50%', scale: 0.6, opacity: 0 });
+
+const orbitIntro = gsap.timeline({ defaults: { ease: 'power2.out' } });
+orbitIntro.fromTo(orbits, { scale: 0.35, opacity: 0 }, { scale: 1, opacity: 0.65, duration: 2.2, stagger: 0.18, delay: 0.3 });
+gsap.to('.orbit-one', { rotation: 360, duration: 34, ease: 'none', repeat: -1 });
+gsap.to('.orbit-two', { rotation: -360, duration: 26, ease: 'none', repeat: -1 });
+gsap.to('.orbit-three', { rotation: 360, duration: 42, ease: 'none', repeat: -1 });
+gsap.to(orbits, { opacity: 0.85, duration: 3.8, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+if (loaderCore) {
+    gsap.set(loaderCore, { opacity: 0.45 });
+    gsap.to(loaderCore, { opacity: 0.85, duration: 2.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+}
+gsap.to(lensFlare, { opacity: 0.4, duration: 2.6, ease: 'sine.inOut', repeat: -1, yoyo: true });
+gsap.to(grain, { opacity: 0.04, duration: 2.2, ease: 'sine.inOut', repeat: -1, yoyo: true });
+gsap.to(loaderBg, { filter: 'brightness(1.05)', duration: 3.2, ease: 'sine.inOut', repeat: -1, yoyo: true });
+
+const handleParallax = (event) => {
+    const x = event.clientX / window.innerWidth - 0.5;
+    const y = event.clientY / window.innerHeight - 0.5;
+    gsap.to(loaderContent, { x: x * 34, y: y * 24, duration: 0.8, ease: 'power3.out' });
+    gsap.to(orbitsWrap, { rotationY: x * 24, rotationX: -y * 24, duration: 1.2, ease: 'power3.out' });
+};
+window.addEventListener('pointermove', handleParallax);
 
 /* ---------- TIMELINE TESTO ---------- */
 const tl = gsap.timeline({ defaults: { duration: 1.5, ease: "power3.inOut" } });
@@ -67,7 +107,8 @@ tl.add(() => playSafe(sounds.wind), 0)
     .to(l2, { autoAlpha: 1, y: 0, duration: 2, onStart:()=>playSafe(sounds.pulse) })
     .to(l2, { autoAlpha: 0, y: -50, delay: 2 })
     .to(l3, { autoAlpha: 1, y: 0, duration: 2, onStart:()=>playSafe(sounds.echo) })
-    .to(buttons, { autoAlpha: 1, y: 0, duration: 1 }, "+=0.8");
+    .to(buttons, { autoAlpha: 1, y: 0, duration: 1 }, "+=0.8")
+    .fromTo(buttonEls, { opacity: 0, y: 34, rotateX: -18 }, { opacity: 1, y: 0, rotateX: 0, duration: 1.2, ease: "power4.out", stagger: 0.12 }, "<0.2");
 
 /* ---------- TRANSIZIONE SCENA ---------- */
 function showScene(text) {
@@ -76,6 +117,8 @@ function showScene(text) {
     gsap.to(l3, { autoAlpha: 0, duration: 0.8 });
     finalLine.innerHTML = text;
     gsap.to(finalLine, { autoAlpha: 1, y: 0, duration: 2, delay: 0.4 });
+
+    window.removeEventListener('pointermove', handleParallax);
 
     setTimeout(() => {
         playSafe(sounds.transition);
