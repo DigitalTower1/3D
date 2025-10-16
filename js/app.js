@@ -62,13 +62,17 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 8000);
     const DEFAULT_FOV = camera.fov;
-    camera.position.set(16.89, 282.66, -1406.02);
+    const HOME_POSITION = new THREE.Vector3(16.89, 282.66, -1406.02);
+    const HOME_LOOK_TARGET = new THREE.Vector3(0, 180, 0);
+    camera.position.copy(HOME_POSITION);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.minPolarAngle = THREE.MathUtils.degToRad(55);
     controls.maxPolarAngle = THREE.MathUtils.degToRad(85);
+    controls.target.copy(HOME_LOOK_TARGET);
+    camera.lookAt(HOME_LOOK_TARGET);
 
     // --------------------------------------------------------
     //  LUCI
@@ -564,7 +568,8 @@ const wormholeReturnEase = (t) => {
             ease: 'none',
             onUpdate: () => {
                 const phase = wormholeEase(travel.t);
-                camera.position.copy(camStart).lerp(camEnd, phase);
+                camera.position.lerpVectors(camStart, camEnd, phase);
+                camera.up.set(0, 1, 0);
                 camera.lookAt(focus);
                 controls.target.copy(focus);
 
@@ -632,12 +637,8 @@ const wormholeReturnEase = (t) => {
             gsap.to(overlay, { opacity: 0, duration: 0.8, ease: 'power2.in', onComplete: () => overlay.remove() });
 
             const startPos = camera.position.clone();
-            const targetPos = new THREE.Vector3(16.89, 282.66, -1406.02);
-            const ctrl1 = startPos.clone().add(new THREE.Vector3(0, 210, 220));
-            const ctrl2 = targetPos.clone().add(new THREE.Vector3(0, 180, -260));
-            const retreatCurve = new THREE.CatmullRomCurve3([startPos, ctrl1, ctrl2, targetPos], false, 'catmullrom', 0.6);
+            const startFocus = controls.target.clone();
             const retreat = { t: 0 };
-            const lookAhead = new THREE.Vector3();
 
             gsap.delayedCall(0.25, () => {
                 boostStrength.progress(1);
@@ -646,23 +647,20 @@ const wormholeReturnEase = (t) => {
                 boostStreaks.progress(1);
                 gsap.to(retreat, {
                     t: 1,
-                    duration: 6.0,
-                    ease: wormholeEase,
+                    duration: 5.6,
+                    ease: 'none',
                     onUpdate: () => {
-                        const pos = retreatCurve.getPoint(retreat.t);
-                        const tangent = retreatCurve.getTangent(retreat.t).normalize();
-                        lookAhead.copy(pos).addScaledVector(tangent, 220);
+                        const phase = wormholeReturnEase(retreat.t);
+                        camera.position.lerpVectors(startPos, HOME_POSITION, phase);
+                        controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
+                        camera.up.set(0, 1, 0);
+                        camera.lookAt(controls.target);
 
-                        camera.position.copy(pos);
-                        camera.lookAt(lookAhead);
-                        controls.target.copy(lookAhead);
-
-                        const fade = THREE.MathUtils.clamp(retreat.t, 0, 1);
-                        warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, fade);
-                        warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, fade);
-                        warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, fade);
-                        warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(0.95, 0.0, fade);
-                        bloom.strength = THREE.MathUtils.lerp(0.9, 0.25, fade);
+                        warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.25, 0.0, phase);
+                        warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.07, 0.0, phase);
+                        warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
+                        warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(0.95, 0.0, phase);
+                        bloom.strength = THREE.MathUtils.lerp(0.9, 0.25, phase);
                     },
                     onComplete: () => {
                         warpPass.uniforms.strength.value = 0.0;
@@ -673,15 +671,16 @@ const wormholeReturnEase = (t) => {
                         warpActive = false;
                         portalTarget = null;
                         controls.enabled = true;
-                        controls.target.set(0, 180, 0);
+                        controls.target.copy(HOME_LOOK_TARGET);
                         camera.up.set(0, 1, 0);
+                        camera.position.copy(HOME_POSITION);
                         gsap.to(camera, {
                             fov: DEFAULT_FOV,
                             duration: 1.4,
                             ease: 'sine.inOut',
                             onUpdate: () => camera.updateProjectionMatrix()
                         });
-                        camera.lookAt(0, 180, 0);
+                        camera.lookAt(HOME_LOOK_TARGET);
                     }
                 });
             });
