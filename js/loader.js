@@ -34,6 +34,7 @@ loader.innerHTML = `
     <div class="orbit orbit-two"></div>
     <div class="orbit orbit-three"></div>
   </div>
+  <div class="loader-core"></div>
   <div class="loader-content">
     <h1 class="line" id="line1">Ti trovi sulla sommità della <span>Digital Tower</span></h1>
     <h1 class="line hidden" id="line2">Sei qui perché sai, che in fondo, <span>meriti di raggiungere il successo</span></h1>
@@ -64,6 +65,7 @@ const buttonEls = buttons.querySelectorAll('button');
 const loaderContent = loader.querySelector('.loader-content');
 const orbitsWrap = loader.querySelector('.loader-orbits');
 const orbits = loader.querySelectorAll('.orbit');
+const loaderCore = loader.querySelector('.loader-core');
 const lensFlare = loader.querySelector('#lens-flare');
 const grain = loader.querySelector('#grain');
 const loaderBg = loader.querySelector('.loader-bg');
@@ -77,7 +79,11 @@ orbitIntro.fromTo(orbits, { scale: 0.35, opacity: 0 }, { scale: 1, opacity: 0.65
 gsap.to('.orbit-one', { rotation: 360, duration: 34, ease: 'none', repeat: -1 });
 gsap.to('.orbit-two', { rotation: -360, duration: 26, ease: 'none', repeat: -1 });
 gsap.to('.orbit-three', { rotation: 360, duration: 42, ease: 'none', repeat: -1 });
-gsap.to(orbits, { scale: 1.05, duration: 3.8, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+gsap.to(orbits, { opacity: 0.85, duration: 3.8, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+if (loaderCore) {
+    gsap.set(loaderCore, { opacity: 0.45 });
+    gsap.to(loaderCore, { opacity: 0.85, duration: 2.6, yoyo: true, repeat: -1, ease: 'sine.inOut' });
+}
 gsap.to(lensFlare, { opacity: 0.4, duration: 2.6, ease: 'sine.inOut', repeat: -1, yoyo: true });
 gsap.to(grain, { opacity: 0.04, duration: 2.2, ease: 'sine.inOut', repeat: -1, yoyo: true });
 gsap.to(loaderBg, { filter: 'brightness(1.05)', duration: 3.2, ease: 'sine.inOut', repeat: -1, yoyo: true });

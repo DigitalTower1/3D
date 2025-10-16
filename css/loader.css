@@ -54,6 +54,21 @@
     transform-style: preserve-3d;
 }
 
+.loader-core {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: clamp(160px, 24vw, 320px);
+    height: clamp(160px, 24vw, 320px);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 218, 160, 0.55) 0%, rgba(255, 200, 120, 0.18) 45%, transparent 70%);
+    filter: blur(22px);
+    pointer-events: none;
+    mix-blend-mode: screen;
+    opacity: 0.45;
+}
+
 .orbit-one {
     width: clamp(260px, 42vw, 640px);
     height: clamp(260px, 42vw, 640px);

@@ -139,32 +139,95 @@ const wormholeReturnEase = (t) => {
         { name: 'Chi Siamo',  pos: new THREE.Vector3( 900, 180, -400) }
     ];
 
-    const CARD_LIBRARY = [
-        {
-            key: 'Portfolio',
-            title: 'Portfolio',
-            tagline: 'Visioni immersive in tempo reale',
-            description: 'Esperienze interattive scolpite in 3D che raccontano la tua storia con luce, materia e movimento.',
-            highlights: ['Scenografie digitali tailor-made', 'Motion design sincronizzato con il suono', 'Percorsi immersivi fruibili ovunque'],
-            accent: '#ffd58a'
-        },
-        {
-            key: 'Consulenza',
-            title: 'Consulenza',
-            tagline: 'Strategia creativa ad alta precisione',
-            description: 'Guidiamo il tuo brand tra realtà fisica e digitale, progettando roadmap e tecnologie futuristiche.',
-            highlights: ['Workshop visionari e co-design', 'Analisi dei touchpoint immersivi', 'Supporto continuo del team creativo'],
-            accent: '#9be7ff'
-        },
-        {
-            key: 'Chi Siamo',
-            title: 'Chi Siamo',
-            tagline: 'Un collettivo di artigiani del digitale',
-            description: 'Architetti di wormhole narrativi, uniamo design, tecnologia e storytelling per sbloccare nuovi universi.',
-            highlights: ['Crew multidisciplinare', 'Processi ispirati al cinema sci-fi', 'Ricerca continua su nuove tecnologie'],
-            accent: '#ff9ad6'
-        }
-    ];
+    const CARD_LIBRARY = {
+        Portfolio: [
+            {
+                key: 'Portfolio-1',
+                title: 'Portfolio',
+                subtitle: 'Visioni immersive',
+                tagline: 'Esperienze in tempo reale',
+                description: 'Mostriamo ambienti narrativi plasmati in 3D dove luce volumetrica e particellare raccontano il tuo brand.',
+                highlights: ['Showroom interattivi WebGL', 'Regie virtuali per eventi live', 'Digital twin cinematici'],
+                accent: '#ffd58a'
+            },
+            {
+                key: 'Portfolio-2',
+                title: 'Portfolio',
+                subtitle: 'Metaverso su misura',
+                tagline: 'Spazi brandizzati',
+                description: 'Creiamo hub immersivi multiutente con fisica credibile e storytelling sincronizzato alla musica.',
+                highlights: ['Esperienze VR multi-device', 'Percorsi gamificati', 'Tecniche PBR fotorealistiche'],
+                accent: '#f2a8ff'
+            },
+            {
+                key: 'Portfolio-3',
+                title: 'Portfolio',
+                subtitle: 'Cinematica digitale',
+                tagline: 'Mini film interattivi',
+                description: 'Sequenze registiche con camera keyframed e compositing FX per lanciare prodotti in modo spettacolare.',
+                highlights: ['Pipeline Unreal/Three.js', 'Animazioni GSAP + 3D', 'Color grading in tempo reale'],
+                accent: '#9be7ff'
+            }
+        ],
+        Consulenza: [
+            {
+                key: 'Consulenza-1',
+                title: 'Consulenza',
+                subtitle: 'Strategia orbitale',
+                tagline: 'Roadmap su misura',
+                description: 'Analizziamo mercati e touchpoint per definire ecosistemi immersivi che convertano davvero.',
+                highlights: ['Workshop di co-design', 'Analisi customer journey', 'Blueprint tecnologico'],
+                accent: '#9be7ff'
+            },
+            {
+                key: 'Consulenza-2',
+                title: 'Consulenza',
+                subtitle: 'Accelerazione',
+                tagline: 'Growth & automation',
+                description: 'Orchestriamo campagne cross-mediali, marketing automation e misurazioni data-driven in real time.',
+                highlights: ['Funnel omnicanale', 'KPI e dashboards live', 'Ottimizzazione AI assistita'],
+                accent: '#ffd58a'
+            },
+            {
+                key: 'Consulenza-3',
+                title: 'Consulenza',
+                subtitle: 'Supporto continuo',
+                tagline: 'Crew dedicata',
+                description: 'Affianchiamo il tuo team con sprint periodici, formazione e aggiornamento sulle ultime tecnologie XR.',
+                highlights: ['Sessioni di mentoring', 'Design review iterative', 'Aggiornamenti mensili'],
+                accent: '#ff9ad6'
+            }
+        ],
+        'Chi Siamo': [
+            {
+                key: 'Chi-1',
+                title: 'Chi Siamo',
+                subtitle: 'Team',
+                tagline: 'Artigiani del digitale',
+                description: 'Direttori creativi, coder, motion designer e sound artist lavorano sincronizzati come un equipaggio.',
+                highlights: ['Squadra multidisciplinare', 'Background cinema & gaming', 'Mentalità human-centered'],
+                accent: '#ff9ad6'
+            },
+            {
+                key: 'Chi-2',
+                title: 'Chi Siamo',
+                subtitle: 'Metodo',
+                tagline: 'Workflow trasparente',
+                description: 'Dal concept all’online, adottiamo pipeline iterative e strumenti collaborativi accessibili al cliente.',
+                highlights: ['Design sprint immersivi', 'Versionamento cloud', 'Testing continuo con utenti'],
+                accent: '#9be7ff'
+            },
+            {
+                key: 'Chi-3',
+                title: 'Chi Siamo',
+                subtitle: 'Manifesto',
+                tagline: 'Visione wormhole',
+                description: 'Crediamo in esperienze che ibridano reale e digitale, con estetica sci-fi ma impatto concreto.',
+                highlights: ['Ricerca costante', 'Storytelling emotivo', 'Etica e sostenibilità dei processi'],
+                accent: '#ffd58a'
+            }
+        ]
+    };
 
     const flareMat = new THREE.ShaderMaterial({
         transparent: true,
@@ -667,33 +730,48 @@ const wormholeReturnEase = (t) => {
     function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch {}
 
-        let activeIndex = CARD_LIBRARY.findIndex(card => card.key === name);
-        if (activeIndex === -1) activeIndex = 0;
+        const deck = CARD_LIBRARY[name] ? [...CARD_LIBRARY[name]] : [];
+        if (!deck.length) return;
+
+        let activeIndex = 0;
 
         const overlay = document.createElement('div');
         overlay.className = 'warp-card';
         overlay.innerHTML = `
-        <div class="card-stage">
+        <div class="card-stage" data-deck="${name}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
-          <button class="close-card">Chiudi</button>
+          <div class="card-controls">
+            <button class="carousel-arrow is-prev" aria-label="Mostra precedente" data-direction="left">
+              <span>&larr;</span>
+            </button>
+            <button class="close-card">Esci dal portale</button>
+            <button class="carousel-arrow is-next" aria-label="Mostra successiva" data-direction="right">
+              <span>&rarr;</span>
+            </button>
+          </div>
         </div>`;
         document.body.appendChild(overlay);
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
         const closeBtn = overlay.querySelector('.close-card');
+        const arrowButtons = overlay.querySelectorAll('.carousel-arrow');
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
 
         const layoutFor = (index) => {
-            const total = CARD_LIBRARY.length;
+            const total = deck.length;
+            if (total === 1) {
+                return [{ role: 'center', card: deck[0] }];
+            }
+
             const prev = (index + total - 1) % total;
             const next = (index + 1) % total;
             return [
-                { role: 'left', card: CARD_LIBRARY[prev] },
-                { role: 'center', card: CARD_LIBRARY[index] },
-                { role: 'right', card: CARD_LIBRARY[next] }
+                { role: 'left', card: deck[prev] },
+                { role: 'center', card: deck[index] },
+                { role: 'right', card: deck[next] }
             ];
         };
 
@@ -702,6 +780,7 @@ const wormholeReturnEase = (t) => {
             <div class="card-holo">
               <header class="card-header">
                 <span class="card-title">${card.title}</span>
+                ${card.subtitle ? `<span class="card-subtitle">${card.subtitle}</span>` : ''}
                 <span class="card-tagline">${card.tagline}</span>
               </header>
               <p class="card-description">${card.description}</p>
@@ -718,8 +797,8 @@ const wormholeReturnEase = (t) => {
                     const role = panel.dataset.role;
                     if (role === 'center') return;
                     activeIndex = role === 'left'
-                        ? (activeIndex + CARD_LIBRARY.length - 1) % CARD_LIBRARY.length
-                        : (activeIndex + 1) % CARD_LIBRARY.length;
+                        ? (activeIndex + deck.length - 1) % deck.length
+                        : (activeIndex + 1) % deck.length;
                     render(role);
                 });
             });
@@ -727,7 +806,10 @@ const wormholeReturnEase = (t) => {
 
         function render(direction = 'intro') {
             const layout = layoutFor(activeIndex);
-            stage.style.setProperty('--active-accent', layout[1].card.accent);
+            const centerCard = layout.find(item => item.role === 'center')?.card;
+            if (centerCard) {
+                stage.style.setProperty('--active-accent', centerCard.accent);
+            }
             carouselEl.innerHTML = layout.map(cardMarkup).join('');
             bindPanelEvents();
             const panels = carouselEl.querySelectorAll('.card-panel');
@@ -735,7 +817,7 @@ const wormholeReturnEase = (t) => {
 
             if (direction === 'intro') {
                 gsap.fromTo(panels, { opacity: 0, y: 80, rotateY: -6 }, {
-                    opacity: (i) => i === 1 ? 1 : 0.6,
+                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.35),
                     y: 0,
                     rotateY: 0,
                     duration: 1.2,
@@ -750,8 +832,8 @@ const wormholeReturnEase = (t) => {
                     ease: 'power3.out'
                 });
                 gsap.fromTo(panels, { opacity: 0.25, scale: 0.92 }, {
-                    opacity: (i) => i === 1 ? 1 : 0.55,
-                    scale: (i) => i === 1 ? 1 : 0.94,
+                    opacity: (i) => panels.length === 1 ? 1 : (i === 1 ? 1 : 0.25),
+                    scale: (i) => i === 1 ? 1 : 0.93,
                     duration: 0.9,
                     ease: 'power2.out',
                     stagger: 0.05
@@ -792,13 +874,64 @@ const wormholeReturnEase = (t) => {
         stage.addEventListener('pointermove', handlePointer);
         stage.addEventListener('pointerleave', handleLeave);
 
+        if (deck.length <= 1) {
+            arrowButtons.forEach(btn => btn.setAttribute('disabled', 'true'));
+        }
+
+        arrowButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (deck.length <= 1) return;
+                const direction = btn.dataset.direction === 'left' ? 'left' : 'right';
+                activeIndex = direction === 'left'
+                    ? (activeIndex + deck.length - 1) % deck.length
+                    : (activeIndex + 1) % deck.length;
+                render(direction);
+            });
+        });
+
+        let swipeStartX = null;
+        let swipeLock = false;
+
+        const onPointerDown = (ev) => {
+            swipeStartX = ev.clientX;
+            swipeLock = false;
+        };
+
+        const onPointerMove = (ev) => {
+            if (swipeStartX === null || swipeLock || deck.length <= 1) return;
+            const delta = ev.clientX - swipeStartX;
+            if (Math.abs(delta) < 45) return;
+            swipeLock = true;
+            activeIndex = delta > 0
+                ? (activeIndex + deck.length - 1) % deck.length
+                : (activeIndex + 1) % deck.length;
+            render(delta > 0 ? 'left' : 'right');
+        };
+
+        const onPointerUp = () => {
+            swipeStartX = null;
+            swipeLock = false;
+        };
+
+        stage.addEventListener('pointerdown', onPointerDown);
+        stage.addEventListener('pointermove', onPointerMove);
+        stage.addEventListener('pointerup', onPointerUp);
+        stage.addEventListener('pointercancel', onPointerUp);
+        stage.addEventListener('touchend', onPointerUp);
+
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
-        gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.3, ease: 'power3.out' });
+        gsap.fromTo(closeBtn, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, ease: 'power3.out' });
+        gsap.fromTo(arrowButtons, { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1.0, delay: 0.4, stagger: 0.05, ease: 'power3.out' });
 
         const closeOverlay = () => {
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
+            stage.removeEventListener('pointerdown', onPointerDown);
+            stage.removeEventListener('pointermove', onPointerMove);
+            stage.removeEventListener('pointerup', onPointerUp);
+            stage.removeEventListener('pointercancel', onPointerUp);
+            stage.removeEventListener('touchend', onPointerUp);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
