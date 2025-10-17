@@ -345,92 +345,15 @@ const wormholeReturnEase = (t) => {
 
     const CARD_LIBRARY = {
         Portfolio: {
-            layout: 'carousel',
-            dragReveal: true,
-            autoRotate: 7,
-            cards: [
-                {
-                    key: 'Portfolio-1',
-                    title: 'Showroom Immersivi',
-                    subtitle: 'Portfolio',
-                    tagline: 'Esperienze in tempo reale',
-                    description: 'Ambienti narrativi plasmati in 3D dove luce volumetrica e particellare accompagnano la presentazione dei prodotti.',
-                    highlights: ['Allestimenti WebGL interattivi', 'Percorsi guidati con voice-over', 'Render PBR in tempo reale'],
-                    accent: '#ffd58a'
-                },
-                {
-                    key: 'Portfolio-2',
-                    title: 'Installazioni Immersive',
-                    subtitle: 'Portfolio',
-                    tagline: 'Spazi multisensoriali',
-                    description: 'Set scenografici virtuali sincronizzati con audio reattivo e volumetrie dinamiche per eventi phygital.',
-                    highlights: ['Tracking in tempo reale', 'Lighting procedurale', 'Sound design spazializzato'],
-                    accent: '#f2a8ff'
-                },
-                {
-                    key: 'Portfolio-3',
-                    title: 'Digital Twin',
-                    subtitle: 'Portfolio',
-                    tagline: 'Controllo da remoto',
-                    description: 'Gemelli digitali fotorealistici che consentono walkthrough interattivi e supervisione degli impianti.',
-                    highlights: ['Integrazione dati IoT', 'Mappe termiche dinamiche', 'Gestione asset cloud'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Portfolio-4',
-                    title: 'Regie Virtuali',
-                    subtitle: 'Portfolio',
-                    tagline: 'Eventi live broadcast',
-                    description: 'Studi virtuali per dirette streaming con camera tracking e compositing in tempo reale.',
-                    highlights: ['Pipeline Unreal/Three.js', 'Overlay grafici personalizzati', 'Control room remota'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Portfolio-5',
-                    title: 'Virtual Production',
-                    subtitle: 'Portfolio',
-                    tagline: 'Cinema next-gen',
-                    description: 'Set LED wall e XR stage per spot e branded content con previs e finalizzazione in tempo reale.',
-                    highlights: ['Previs collaborativa', 'Camera tracking full frame', 'Color grading live'],
-                    accent: '#ffd1ff'
-                },
-                {
-                    key: 'Portfolio-6',
-                    title: 'Motion Experiences',
-                    subtitle: 'Portfolio',
-                    tagline: 'Storytelling dinamico',
-                    description: 'Sequenze motion controllate da input dell’utente con titolazioni cinematiche e particellari attivi.',
-                    highlights: ['Animazioni GSAP 3D', 'Typography parametriche', 'FX particellari custom'],
-                    accent: '#9fffe0'
-                },
-                {
-                    key: 'Portfolio-7',
-                    title: 'Metaverse Hub',
-                    subtitle: 'Portfolio',
-                    tagline: 'Community brandizzate',
-                    description: 'Spazi multiutente con avatar custom e contenuti sincronizzati per lanciare prodotti in modalità condivisa.',
-                    highlights: ['Server real-time', 'Sistemi di rewarding', 'Supporto VR/desktop'],
-                    accent: '#ffc38f'
-                },
-                {
-                    key: 'Portfolio-8',
-                    title: 'Experiential Retail',
-                    subtitle: 'Portfolio',
-                    tagline: 'Phygital commerce',
-                    description: 'Corner digitali con interazioni touchless, configuratori 3D e analytics integrate.',
-                    highlights: ['Integrazione CRM', 'Configuratori in WebXR', 'Motion tracking gesture'],
-                    accent: '#9bc9ff'
-                },
-                {
-                    key: 'Portfolio-9',
-                    title: 'XR Training',
-                    subtitle: 'Portfolio',
-                    tagline: 'Formazione immersiva',
-                    description: 'Simulazioni operative con feedback in tempo reale per addestrare team e manutentori.',
-                    highlights: ['Scenario branching', 'Analytics learning path', 'Supporto multi-device'],
-                    accent: '#ff9eb8'
-                }
-            ]
+            layout: 'spline',
+            spline: {
+                url: './3d/menu/portfolio_fullscreen.spline',
+                hint: 'Muovi il mouse o trascina per navigare la scena interattiva a tutto schermo.'
+            },
+            meta: {
+                title: 'Portfolio Immersivo',
+                subtitle: 'Esperienze 3D'
+            }
         },
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
@@ -1448,7 +1371,9 @@ const wormholeReturnEase = (t) => {
             sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
         };
 
-        const splineUrl = config?.spline?.url ?? './3d/menu/chi_siamo.spline';
+        const defaultSplineUrl = './3d/menu/chi_siamo.spline';
+        const splineUrl = config?.spline?.url ?? defaultSplineUrl;
+        const displaySplinePath = config?.spline?.url ?? defaultSplineUrl;
         const resolvedSplineUrl = (() => {
             try {
                 return new URL(splineUrl, window.location.href).toString();
@@ -1488,7 +1413,7 @@ const wormholeReturnEase = (t) => {
             setTimeout(() => setSceneStatus(false), 600);
         }).catch((error) => {
             if (assetIssue === 'placeholder') {
-                setFallback('Il file Spline fornito è un segnaposto. Esporta la scena da Spline e sostituisci 3d/menu/chi_siamo.spline.');
+                setFallback(`Il file Spline fornito è un segnaposto. Esporta la scena da Spline e sostituisci ${displaySplinePath}.`);
             } else {
                 setFallback('Impossibile caricare la scena interattiva.');
             }
@@ -1527,28 +1452,37 @@ const wormholeReturnEase = (t) => {
             overlayClosed: false,
             stageResizeObserver: null
         };
-        const isCarousel = state.layoutMode === 'carousel';
+
+        createCardOverlay({
+            deckName: name,
+            deckConfig,
+            deck,
+            state
+        });
 
         return warpReturnTimeline;
     }
 
-    function createSplineOverlay(deckName, config = {}) {
+    function createCardOverlay({ deckName, deckConfig = {}, deck = [], state }) {
+        if (!deck || !state) return;
+        const isCarousel = state.layoutMode === 'carousel';
+
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+        overlay.setAttribute('aria-label', deckConfig?.meta?.title ?? deckName);
 
-        const hintMarkup = config?.spline?.hint
-            ? `<div class="spline-hint">${config.spline.hint}</div>`
+        const hintMarkup = deckConfig?.spline?.hint
+            ? `<div class="spline-hint">${deckConfig.spline.hint}</div>`
             : '';
 
         overlay.innerHTML = `
-        <div class="card-stage" data-deck="${name}">
+        <div class="card-stage" data-deck="${deckName}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
-        </div>`;
+        </div>${hintMarkup}`;
 
         document.body.appendChild(overlay);
         document.body.classList.add('is-spline-open');
