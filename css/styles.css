@@ -38,7 +38,7 @@ body.is-spline-open {
 /* ===============================
    WARP CARD OVERLAY
    =============================== */
-.warp-card {
+ .warp-card {
     position: fixed;
     inset: 0;
     padding: clamp(1.6rem, 4vw, 3.2rem);
