@@ -345,92 +345,15 @@ const wormholeReturnEase = (t) => {
 
     const CARD_LIBRARY = {
         Portfolio: {
-            layout: 'carousel',
-            dragReveal: true,
-            autoRotate: 7,
-            cards: [
-                {
-                    key: 'Portfolio-1',
-                    title: 'Showroom Immersivi',
-                    subtitle: 'Portfolio',
-                    tagline: 'Esperienze in tempo reale',
-                    description: 'Ambienti narrativi plasmati in 3D dove luce volumetrica e particellare accompagnano la presentazione dei prodotti.',
-                    highlights: ['Allestimenti WebGL interattivi', 'Percorsi guidati con voice-over', 'Render PBR in tempo reale'],
-                    accent: '#ffd58a'
-                },
-                {
-                    key: 'Portfolio-2',
-                    title: 'Installazioni Immersive',
-                    subtitle: 'Portfolio',
-                    tagline: 'Spazi multisensoriali',
-                    description: 'Set scenografici virtuali sincronizzati con audio reattivo e volumetrie dinamiche per eventi phygital.',
-                    highlights: ['Tracking in tempo reale', 'Lighting procedurale', 'Sound design spazializzato'],
-                    accent: '#f2a8ff'
-                },
-                {
-                    key: 'Portfolio-3',
-                    title: 'Digital Twin',
-                    subtitle: 'Portfolio',
-                    tagline: 'Controllo da remoto',
-                    description: 'Gemelli digitali fotorealistici che consentono walkthrough interattivi e supervisione degli impianti.',
-                    highlights: ['Integrazione dati IoT', 'Mappe termiche dinamiche', 'Gestione asset cloud'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Portfolio-4',
-                    title: 'Regie Virtuali',
-                    subtitle: 'Portfolio',
-                    tagline: 'Eventi live broadcast',
-                    description: 'Studi virtuali per dirette streaming con camera tracking e compositing in tempo reale.',
-                    highlights: ['Pipeline Unreal/Three.js', 'Overlay grafici personalizzati', 'Control room remota'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Portfolio-5',
-                    title: 'Virtual Production',
-                    subtitle: 'Portfolio',
-                    tagline: 'Cinema next-gen',
-                    description: 'Set LED wall e XR stage per spot e branded content con previs e finalizzazione in tempo reale.',
-                    highlights: ['Previs collaborativa', 'Camera tracking full frame', 'Color grading live'],
-                    accent: '#ffd1ff'
-                },
-                {
-                    key: 'Portfolio-6',
-                    title: 'Motion Experiences',
-                    subtitle: 'Portfolio',
-                    tagline: 'Storytelling dinamico',
-                    description: 'Sequenze motion controllate da input dell’utente con titolazioni cinematiche e particellari attivi.',
-                    highlights: ['Animazioni GSAP 3D', 'Typography parametriche', 'FX particellari custom'],
-                    accent: '#9fffe0'
-                },
-                {
-                    key: 'Portfolio-7',
-                    title: 'Metaverse Hub',
-                    subtitle: 'Portfolio',
-                    tagline: 'Community brandizzate',
-                    description: 'Spazi multiutente con avatar custom e contenuti sincronizzati per lanciare prodotti in modalità condivisa.',
-                    highlights: ['Server real-time', 'Sistemi di rewarding', 'Supporto VR/desktop'],
-                    accent: '#ffc38f'
-                },
-                {
-                    key: 'Portfolio-8',
-                    title: 'Experiential Retail',
-                    subtitle: 'Portfolio',
-                    tagline: 'Phygital commerce',
-                    description: 'Corner digitali con interazioni touchless, configuratori 3D e analytics integrate.',
-                    highlights: ['Integrazione CRM', 'Configuratori in WebXR', 'Motion tracking gesture'],
-                    accent: '#9bc9ff'
-                },
-                {
-                    key: 'Portfolio-9',
-                    title: 'XR Training',
-                    subtitle: 'Portfolio',
-                    tagline: 'Formazione immersiva',
-                    description: 'Simulazioni operative con feedback in tempo reale per addestrare team e manutentori.',
-                    highlights: ['Scenario branching', 'Analytics learning path', 'Supporto multi-device'],
-                    accent: '#ff9eb8'
-                }
-            ]
+            layout: 'spline',
+            spline: {
+                url: './3d/menu/portfolio_fullscreen.spline',
+                hint: 'Muovi il mouse o trascina per navigare la scena interattiva a tutto schermo.'
+            },
+            meta: {
+                title: 'Portfolio Immersivo',
+                subtitle: 'Esperienze 3D'
+            }
         },
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
@@ -1448,7 +1371,9 @@ const wormholeReturnEase = (t) => {
             sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
         };
 
-        const splineUrl = config?.spline?.url ?? './3d/menu/chi_siamo.spline';
+        const defaultSplineUrl = './3d/menu/chi_siamo.spline';
+        const splineUrl = config?.spline?.url ?? defaultSplineUrl;
+        const displaySplinePath = config?.spline?.url ?? defaultSplineUrl;
         const resolvedSplineUrl = (() => {
             try {
                 return new URL(splineUrl, window.location.href).toString();
@@ -1488,7 +1413,7 @@ const wormholeReturnEase = (t) => {
             setTimeout(() => setSceneStatus(false), 600);
         }).catch((error) => {
             if (assetIssue === 'placeholder') {
-                setFallback('Il file Spline fornito è un segnaposto. Esporta la scena da Spline e sostituisci 3d/menu/chi_siamo.spline.');
+                setFallback(`Il file Spline fornito è un segnaposto. Esporta la scena da Spline e sostituisci ${displaySplinePath}.`);
             } else {
                 setFallback('Impossibile caricare la scena interattiva.');
             }
@@ -1527,69 +1452,35 @@ const wormholeReturnEase = (t) => {
             overlayClosed: false,
             stageResizeObserver: null
         };
-        const isCarousel = state.layoutMode === 'carousel';
+
+        createCardOverlay({
+            deckName: name,
+            deckConfig,
+            deck,
+            state
+        });
 
         return warpReturnTimeline;
     }
 
-    function createSplineOverlay(deckName, config = {}) {
+    function createCardOverlay({ deckName, deckConfig = {}, deck = [], state }) {
+        if (!deck || !state) return;
+        const isCarousel = state.layoutMode === 'carousel';
+
         const overlay = document.createElement('div');
-        overlay.className = 'warp-card warp-card--spline';
+        overlay.className = 'warp-card';
         overlay.dataset.deck = deckName;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
-
-        const hintMarkup = config?.spline?.hint
-            ? `<div class="spline-hint">${config.spline.hint}</div>`
-            : '';
+        overlay.setAttribute('aria-label', deckConfig?.meta?.title ?? deckName);
 
         overlay.innerHTML = `
-        <div class="card-stage" data-deck="${name}">
+        <div class="card-stage" data-deck="${deckName}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
         </div>`;
 
         document.body.appendChild(overlay);
-        document.body.classList.add('is-spline-open');
-        document.documentElement.classList.add('is-spline-open');
-
-        const stageEl = overlay.querySelector('.card-stage');
-        const sceneHost = overlay.querySelector('.spline-scene');
-        const exitButton = overlay.querySelector('[data-action="exit"]');
-
-        const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
-        stageTimeline.fromTo(stageEl, {
-            opacity: 0,
-            scale: 0.95
-        }, {
-            opacity: 1,
-            scale: 1,
-            duration: 1.05,
-            clearProps: 'transform'
-        });
-        stageTimeline.fromTo(sceneHost, {
-            filter: 'blur(24px)',
-            opacity: 0
-        }, {
-            filter: 'blur(0px)',
-            opacity: 1,
-            duration: 1.1
-        }, 0.1);
-
-        const cleanup = [];
-        let closed = false;
-
-        const setSceneStatus = (busy) => {
-            if (!sceneHost) return;
-            if (busy) {
-                sceneHost.setAttribute('aria-busy', 'true');
-                sceneHost.classList.remove('is-ready');
-            } else {
-                sceneHost.setAttribute('aria-busy', 'false');
-                sceneHost.classList.add('is-ready');
-            }
-        };
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1714,54 +1605,6 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
-        };
-
-        const performExit = () => {
-            if (closed) return;
-            exitButton.disabled = true;
-            exitButton.setAttribute('aria-disabled', 'true');
-            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
-            try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
-            stopTravelTween();
-            closeOverlay();
-            requestAnimationFrame(() => animateReturnHome());
-        };
-
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
-            if (closed) return;
-            if (!exitButton.classList.contains('is-expanded')) {
-                exitButton.classList.add('is-expanded');
-                exitButton.setAttribute('aria-expanded', 'true');
-                requestAnimationFrame(() => requestAnimationFrame(performExit));
-                return;
-            }
-            performExit();
-        };
-
-        const overlayClickHandler = (event) => {
-            if (event.target === overlay) {
-                handleExit(event);
-            }
-        };
-
-        exitButton.addEventListener('click', handleExit);
-        overlay.addEventListener('click', overlayClickHandler);
-        const keyHandler = (event) => {
-            if (event.key === 'Escape') handleExit(event);
-        };
-        document.addEventListener('keydown', keyHandler);
-
-        cleanup.push(() => exitButton.removeEventListener('click', handleExit));
-        cleanup.push(() => overlay.removeEventListener('click', overlayClickHandler));
-        cleanup.push(() => document.removeEventListener('keydown', keyHandler));
-
-        setTimeout(() => exitButton?.focus({ preventScroll: true }), 520);
-
-        const setFallback = (message) => {
-            if (closed || !sceneHost) return;
-            setSceneStatus(false);
-            sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
         };
 
             const ungrouped = [];
@@ -1919,6 +1762,18 @@ const wormholeReturnEase = (t) => {
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const keyHandler = (event) => {
+            if (event.key === 'Escape') {
+                handleExit(event);
+            }
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
         };
 
         const handleNav = (direction, options = {}) => {
@@ -2188,6 +2043,8 @@ const wormholeReturnEase = (t) => {
         stage.addEventListener('touchend', onPointerUp);
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
+        overlay.addEventListener('click', overlayClickHandler);
+        document.addEventListener('keydown', keyHandler);
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
@@ -2216,6 +2073,8 @@ const wormholeReturnEase = (t) => {
             stage.removeEventListener('touchend', onPointerUp);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            overlay.removeEventListener('click', overlayClickHandler);
+            document.removeEventListener('keydown', keyHandler);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
