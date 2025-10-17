@@ -209,37 +209,15 @@ const wormholeReturnEase = (t) => {
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
-            layout: 'carousel',
-            dragReveal: true,
-            cards: [
-                {
-                    key: 'Chi-1',
-                    title: 'Chi Siamo',
-                    subtitle: 'Biografia',
-                    tagline: 'Una crew visionaria',
-                    description: 'Siamo designer, sviluppatori e registi digitali con background in cinema, gaming e architettura immersiva.',
-                    highlights: ['Oltre 40 professionisti interni', 'Partnership con studi creativi europei', 'Premi Red Dot & ADCI'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Chi-2',
-                    title: 'I nostri valori',
-                    subtitle: 'Etica & innovazione',
-                    tagline: 'Human first',
-                    description: 'Creiamo esperienze che amplificano le persone: inclusione, accessibilità e sostenibilità guidano ogni scelta.',
-                    highlights: ['Processi carbon neutral', 'Design inclusivo by default', 'Ricerca continua con università'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Chi-3',
-                    title: 'La nostra missione',
-                    subtitle: 'Visione condivisa',
-                    tagline: 'Aprire wormhole',
-                    description: 'Connettiamo brand e community attraverso portali digitali dove tecnologia e storytelling si fondono senza attriti.',
-                    highlights: ['Esperienze cross-device', 'Strategie data driven', 'Relazioni di lungo periodo'],
-                    accent: '#ffd58a'
-                }
-            ]
+            layout: 'spline',
+            spline: {
+                url: './3d/menu/chi_siamo.spline',
+                hint: 'Interagisci con la scena tridimensionale trascinando o toccando lo schermo.'
+            },
+            meta: {
+                title: 'Chi Siamo',
+                subtitle: 'Experience Hub'
+            }
         }
     };
 
@@ -1090,15 +1068,11 @@ const wormholeReturnEase = (t) => {
         const isCarousel = state.layoutMode === 'carousel';
 
         const overlay = document.createElement('div');
-        overlay.className = 'warp-card warp-card--spline';
+        overlay.className = 'warp-card';
         overlay.dataset.deck = deckName;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
         overlay.setAttribute('aria-label', deckConfig?.meta?.title ?? deckName);
-
-        const hintMarkup = deckConfig?.spline?.hint
-            ? `<div class="spline-hint">${deckConfig.spline.hint}</div>`
-            : '';
 
         overlay.innerHTML = `
         <div class="card-stage" data-deck="${deckName}">
@@ -1219,6 +1193,7 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        };
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
@@ -1374,6 +1349,18 @@ const wormholeReturnEase = (t) => {
             } catch (err) { /* noop */ }
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const keyHandler = (event) => {
+            if (event.key === 'Escape') {
+                handleExit(event);
+            }
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
         };
 
         const handleNav = (direction, options = {}) => {
@@ -1643,6 +1630,8 @@ const wormholeReturnEase = (t) => {
         stage.addEventListener('touchend', onPointerUp);
         window.addEventListener('pointerup', onPointerUp);
         window.addEventListener('pointercancel', onPointerUp);
+        overlay.addEventListener('click', overlayClickHandler);
+        document.addEventListener('keydown', keyHandler);
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
@@ -1670,6 +1659,8 @@ const wormholeReturnEase = (t) => {
             stage.removeEventListener('touchend', onPointerUp);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            overlay.removeEventListener('click', overlayClickHandler);
+            document.removeEventListener('keydown', keyHandler);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
