@@ -1527,7 +1527,7 @@ const wormholeReturnEase = (t) => {
             overlayClosed: false,
             stageResizeObserver: null
         };
-        const isCarousel = () => state.layoutMode === 'carousel';
+        const isCarousel = state.layoutMode === 'carousel';
 
         return warpReturnTimeline;
     }
@@ -1612,10 +1612,10 @@ const wormholeReturnEase = (t) => {
             const marginX = Math.max(18, Math.min(150, vw * 0.065));
             const marginY = Math.max(70, Math.min(220, vh * 0.16));
             const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
-            const stageHeight = isCarousel()
+            const stageHeight = isCarousel
                 ? Math.max(420, Math.min(vh - marginY, 760))
                 : Math.max(360, Math.min(vh - marginY, 640));
-            const panelHeight = isCarousel()
+            const panelHeight = isCarousel
                 ? Math.max(420, Math.min(stageHeight - 24, 660))
                 : Math.max(340, stageHeight - 36);
             const baseWidth = Math.max(320, Math.min(stageWidth * 0.9, 840));
@@ -1657,7 +1657,7 @@ const wormholeReturnEase = (t) => {
 
         const startAutoRotate = () => {
             if (qualityState.reduceMotion) return;
-            if (!isCarousel() || !state.autoRotateSeconds || state.totalCards <= 1) return;
+            if (!isCarousel || !state.autoRotateSeconds || state.totalCards <= 1) return;
             stopAutoRotate();
             state.autoRotateTimer = setInterval(() => {
                 if (state.overlayClosed || state.navAnimating) return;
@@ -1667,7 +1667,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const layoutFor = (index) => {
-            if (!isCarousel()) {
+            if (!isCarousel) {
                 return deck.map((card, idx) => ({
                     role: deck.length === 1 ? 'center' : (idx === 0 ? 'left' : 'right'),
                     card
@@ -1804,7 +1804,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const renderActions = (role) => {
-            if (isCarousel()) {
+            if (isCarousel) {
                 if (role !== 'center') return '';
                 const showNav = state.totalCards > 1;
                 const prevButton = showNav ? `<button type="button" class="card-actions__nav is-prev" data-action="nav" data-direction="left" aria-label="Mostra precedente"><span class="chevron"></span></button>` : '';
@@ -1896,7 +1896,7 @@ const wormholeReturnEase = (t) => {
         }
 
         function bindPanelEvents() {
-            if (!isCarousel()) return;
+            if (!isCarousel) return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
                 panel.addEventListener('click', (ev) => {
                     if (isInteractiveTarget(ev.target)) return;
@@ -1923,7 +1923,7 @@ const wormholeReturnEase = (t) => {
 
         const handleNav = (direction, options = {}) => {
             if (state.overlayClosed || state.navAnimating) return;
-            if (!isCarousel() || state.totalCards <= 1) return;
+            if (!isCarousel || state.totalCards <= 1) return;
             state.navAnimating = true;
             stopAutoRotate();
             const nextIndex = direction === 'left'
@@ -1971,7 +1971,7 @@ const wormholeReturnEase = (t) => {
         };
 
         function render(direction = 'intro') {
-            if (!isCarousel()) {
+            if (!isCarousel) {
                 const layout = layoutFor(state.activeIndex);
                 stage.style.setProperty('--active-accent', layout[0]?.card.accent ?? '#ffd58a');
                 carouselEl.innerHTML = layout.map(cardMarkup).join('');
@@ -2094,7 +2094,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const handleWheel = (ev) => {
-            if (!isCarousel() || state.totalCards <= 1) return;
+            if (!isCarousel || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const scrollable = ev.target.closest('.card-holo');
             if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
@@ -2107,14 +2107,14 @@ const wormholeReturnEase = (t) => {
             gsap.delayedCall(0.65, () => { state.wheelLock = false; });
         };
 
-        if (isCarousel()) {
+        if (isCarousel) {
             stage.addEventListener('pointermove', handlePointer);
             stage.addEventListener('pointerleave', handleLeave);
             stage.addEventListener('wheel', handleWheel, { passive: false });
         }
 
         const onPointerDown = (ev) => {
-            if (!isCarousel()) return;
+            if (!isCarousel) return;
             if (isInteractiveTarget(ev.target)) return;
             state.swipeStartX = ev.clientX;
             state.swipeLock = false;
@@ -2132,7 +2132,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const onPointerMove = (ev) => {
-            if (!isCarousel() || state.swipeStartX === null || state.totalCards <= 1) return;
+            if (!isCarousel || state.swipeStartX === null || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const delta = ev.clientX - (state.dragActive ? state.dragStartX : state.swipeStartX);
             if (state.dragActive && state.dragCard) {
@@ -2191,7 +2191,7 @@ const wormholeReturnEase = (t) => {
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
-        if (isCarousel()) {
+        if (isCarousel) {
             startAutoRotate();
         }
 
