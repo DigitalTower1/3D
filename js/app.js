@@ -837,11 +837,22 @@ const wormholeReturnEase = (t) => {
     let warpReturnTimeline = null; // gestisce l'animazione di rientro
     let activeTravelTween = null;  // tween di andata verso il portale
 
+    const fadeOutActivePortal = () => {
+        if (!activePortal) return;
+        const portalRef = activePortal;
+        portalRef.fadeAndRemove(() => {
+            if (activePortal === portalRef) {
+                activePortal = null;
+            }
+        });
+    };
+
     const stopTravelTween = () => {
         if (activeTravelTween) {
             activeTravelTween.kill();
             activeTravelTween = null;
         }
+        fadeOutActivePortal();
     };
 
     window.addEventListener('click', (event) => {
@@ -982,7 +993,7 @@ const wormholeReturnEase = (t) => {
                     onUpdate: () => camera.updateProjectionMatrix()
                 });
                 renderer.toneMappingExposure = 2.0;
-                if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
+                fadeOutActivePortal();
             }
         });
     }
@@ -1371,13 +1382,53 @@ const wormholeReturnEase = (t) => {
         };
         const isCarousel = () => state.layoutMode === 'carousel';
 
+    function openSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
-        overlay.className = 'warp-card';
+        overlay.className = 'warp-card warp-card--spline';
+        overlay.dataset.deck = deckName;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+
+        const meta = config?.meta ?? {};
+        const sections = Array.isArray(meta?.sections) ? meta.sections : [];
+        const sectionMarkup = sections.map((section) => {
+            const accent = section?.accent ? ` style="--spline-accent:${section.accent}"` : '';
+            const details = Array.isArray(section?.items) && section.items.length
+                ? `<ul class="spline-meta__list">${section.items.map(item => `<li>${item}</li>`).join('')}</ul>`
+                : (section?.body ? `<p>${section.body}</p>` : '');
+            const heading = section?.heading ? `<h3>${section.heading}</h3>` : '';
+            return `<section class="spline-meta__section"${accent}>${heading}${details}</section>`;
+        }).join('');
+
+        const hasMetaAside = Boolean(sectionMarkup || meta?.description);
+        const shellClass = hasMetaAside ? 'spline-shell' : 'spline-shell spline-shell--full';
+        const eyebrow = meta?.subtitle ? `<span class="spline-meta__eyebrow">${meta.subtitle}</span>` : '';
+        const description = meta?.description ? `<p class="spline-meta__description">${meta.description}</p>` : '';
+        const hint = config?.spline?.hint ? `<p class="spline-meta__hint">${config.spline.hint}</p>` : '';
+        const metaAside = hasMetaAside
+            ? `<aside class="spline-meta">
+              <header class="spline-meta__header">
+                ${eyebrow}
+                <h2 class="spline-meta__title">${meta?.title ?? deckName}</h2>
+              </header>
+              ${description}
+              ${sectionMarkup}
+              ${hint}
+            </aside>`
+            : '';
+        const inlineInfo = hasMetaAside ? '' : `
+            <div class="spline-inline-info">
+              ${eyebrow || meta?.title ? `<div class="spline-inline-info__heading">${eyebrow}<h2>${meta?.title ?? deckName}</h2></div>` : ''}
+              ${hint ? `<div class="spline-inline-info__hint">${config.spline.hint}</div>` : ''}
+            </div>`;
+
         overlay.innerHTML = `
         <div class="card-stage" data-deck="${name}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
         </div>`;
+
         document.body.appendChild(overlay);
 
         const stage = overlay.querySelector('.card-stage');
@@ -1491,6 +1542,17 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
+            stopTravelTween();
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
