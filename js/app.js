@@ -1,21 +1,21 @@
-    // ========================================================
-    //   AGENZIA DIGITALE 3D SCENE – INTERSTELLAR WARP EDITION
-    //   Portale dorato attorno al pulsante + Warp postprocess
-    //   (tutti gli effetti, click robusto, nessuna rimozione)
-    // ========================================================
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
-    import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
-    import { RGBELoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/RGBELoader.js';
-    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/RenderPass.js';
-    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/UnrealBloomPass.js';
-    import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/SSAOPass.js';
-    import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
-    import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
-    import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
-    import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+// ========================================================
+//   AGENZIA DIGITALE 3D SCENE – INTERSTELLAR WARP EDITION
+//   Portale dorato attorno al pulsante + Warp postprocess
+//   (tutti gli effetti, click robusto, nessuna rimozione)
+// ========================================================
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { SSAOPass } from 'three/examples/jsm/postprocessing/SSAOPass.js';
+import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
+import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -108,9 +108,92 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  AUDIO
     // --------------------------------------------------------
-    const warpSound   = new Audio('./assets/audio/warp.mp3');        warpSound.volume = 0.8; warpSound.playbackRate = 0.8;
-    const portalSound = new Audio('./assets/audio/portal-open.mp3'); portalSound.volume = 0.9;
-    const clickSound  = new Audio('./assets/audio/click.mp3');       clickSound.volume = 0.8;
+    const warpSound   = new Audio('https://cdn.pixabay.com/download/audio/2022/09/01/audio_26cc30e131.mp3?filename=cosmic-portal-118435.mp3');
+    warpSound.preload = 'auto';
+    warpSound.crossOrigin = 'anonymous';
+    warpSound.volume = 0.8;
+    warpSound.playbackRate = 0.8;
+
+    const portalSound = new Audio('https://cdn.pixabay.com/download/audio/2022/11/01/audio_9f0b62be09.mp3?filename=portal-120005.mp3');
+    portalSound.preload = 'auto';
+    portalSound.crossOrigin = 'anonymous';
+    portalSound.volume = 0.9;
+
+    const clickSound  = new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_b3843a5a6b.mp3?filename=menu-selection-111499.mp3');
+    clickSound.preload = 'auto';
+    clickSound.crossOrigin = 'anonymous';
+    clickSound.volume = 0.8;
+
+    function createPortalLoopingAudio(src) {
+        const audio = new Audio(src);
+        audio.loop = true;
+        audio.preload = 'auto';
+        audio.crossOrigin = 'anonymous';
+        audio.volume = 0;
+        return audio;
+    }
+
+    const portalBackgroundMusic = {
+        'Chi Siamo': {
+            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
+            baseVolume: 0.38,
+            title: '"Deep Ambient" by Olexy (Pixabay)'
+        },
+        Portfolio: {
+            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
+            baseVolume: 0.34,
+            title: '"Future Technology Ambient" by Alex-Productions (Pixabay)'
+        }
+    };
+
+    function stopPortalBackground(name, { immediate = false } = {}) {
+        const track = portalBackgroundMusic[name];
+        if (!track) return;
+        const { audio } = track;
+        gsap.killTweensOf(audio);
+        const finish = () => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 0;
+        };
+        log('Portal music ⏹', name);
+        if (immediate) {
+            finish();
+            return;
+        }
+        gsap.to(audio, {
+            volume: 0,
+            duration: 0.9,
+            ease: 'sine.in',
+            onComplete: finish
+        });
+    }
+
+    function playPortalBackground(name) {
+        const track = portalBackgroundMusic[name];
+        Object.keys(portalBackgroundMusic).forEach((key) => {
+            if (key !== name) {
+                stopPortalBackground(key);
+            }
+        });
+        if (!track) return;
+        const { audio, baseVolume, title } = track;
+        log('Portal music ▶', name, title || '');
+        gsap.killTweensOf(audio);
+        if (audio.paused) {
+            audio.currentTime = 0;
+            audio.volume = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch(() => {});
+            }
+        }
+        gsap.to(audio, {
+            volume: baseVolume,
+            duration: 1.6,
+            ease: 'sine.out'
+        });
+    }
 
     // --------------------------------------------------------
     //  MODELLO PRINCIPALE
@@ -196,129 +279,784 @@ const wormholeReturnEase = (t) => {
 
     const CARD_LIBRARY = {
         Portfolio: {
-            layout: 'carousel',
-            dragReveal: true,
-            autoRotate: 7,
-            cards: [
-                {
-                    key: 'Portfolio-1',
-                    title: 'Showroom Immersivi',
-                    subtitle: 'Portfolio',
-                    tagline: 'Esperienze in tempo reale',
-                    description: 'Ambienti narrativi plasmati in 3D dove luce volumetrica e particellare accompagnano la presentazione dei prodotti.',
-                    highlights: ['Allestimenti WebGL interattivi', 'Percorsi guidati con voice-over', 'Render PBR in tempo reale'],
-                    accent: '#ffd58a'
-                },
-                {
-                    key: 'Portfolio-2',
-                    title: 'Installazioni Immersive',
-                    subtitle: 'Portfolio',
-                    tagline: 'Spazi multisensoriali',
-                    description: 'Set scenografici virtuali sincronizzati con audio reattivo e volumetrie dinamiche per eventi phygital.',
-                    highlights: ['Tracking in tempo reale', 'Lighting procedurale', 'Sound design spazializzato'],
-                    accent: '#f2a8ff'
-                },
-                {
-                    key: 'Portfolio-3',
-                    title: 'Digital Twin',
-                    subtitle: 'Portfolio',
-                    tagline: 'Controllo da remoto',
-                    description: 'Gemelli digitali fotorealistici che consentono walkthrough interattivi e supervisione degli impianti.',
-                    highlights: ['Integrazione dati IoT', 'Mappe termiche dinamiche', 'Gestione asset cloud'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Portfolio-4',
-                    title: 'Regie Virtuali',
-                    subtitle: 'Portfolio',
-                    tagline: 'Eventi live broadcast',
-                    description: 'Studi virtuali per dirette streaming con camera tracking e compositing in tempo reale.',
-                    highlights: ['Pipeline Unreal/Three.js', 'Overlay grafici personalizzati', 'Control room remota'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Portfolio-5',
-                    title: 'Virtual Production',
-                    subtitle: 'Portfolio',
-                    tagline: 'Cinema next-gen',
-                    description: 'Set LED wall e XR stage per spot e branded content con previs e finalizzazione in tempo reale.',
-                    highlights: ['Previs collaborativa', 'Camera tracking full frame', 'Color grading live'],
-                    accent: '#ffd1ff'
-                },
-                {
-                    key: 'Portfolio-6',
-                    title: 'Motion Experiences',
-                    subtitle: 'Portfolio',
-                    tagline: 'Storytelling dinamico',
-                    description: 'Sequenze motion controllate da input dell’utente con titolazioni cinematiche e particellari attivi.',
-                    highlights: ['Animazioni GSAP 3D', 'Typography parametriche', 'FX particellari custom'],
-                    accent: '#9fffe0'
-                },
-                {
-                    key: 'Portfolio-7',
-                    title: 'Metaverse Hub',
-                    subtitle: 'Portfolio',
-                    tagline: 'Community brandizzate',
-                    description: 'Spazi multiutente con avatar custom e contenuti sincronizzati per lanciare prodotti in modalità condivisa.',
-                    highlights: ['Server real-time', 'Sistemi di rewarding', 'Supporto VR/desktop'],
-                    accent: '#ffc38f'
-                },
-                {
-                    key: 'Portfolio-8',
-                    title: 'Experiential Retail',
-                    subtitle: 'Portfolio',
-                    tagline: 'Phygital commerce',
-                    description: 'Corner digitali con interazioni touchless, configuratori 3D e analytics integrate.',
-                    highlights: ['Integrazione CRM', 'Configuratori in WebXR', 'Motion tracking gesture'],
-                    accent: '#9bc9ff'
-                },
-                {
-                    key: 'Portfolio-9',
-                    title: 'XR Training',
-                    subtitle: 'Portfolio',
-                    tagline: 'Formazione immersiva',
-                    description: 'Simulazioni operative con feedback in tempo reale per addestrare team e manutentori.',
-                    highlights: ['Scenario branching', 'Analytics learning path', 'Supporto multi-device'],
-                    accent: '#ff9eb8'
-                }
-            ]
+            layout: 'spline',
+            splineSrc: './3d/menu/portfolio_fullscreen.spline',
+            title: 'Portfolio — Esperienza 3D',
+            description: 'Sfoglia i nostri progetti in un ambiente immersivo creato per raccontare ogni dettaglio visivo.'
         },
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
-            layout: 'carousel',
-            dragReveal: true,
-            cards: [
-                {
-                    key: 'Chi-1',
-                    title: 'Chi Siamo',
-                    subtitle: 'Biografia',
-                    tagline: 'Una crew visionaria',
-                    description: 'Siamo designer, sviluppatori e registi digitali con background in cinema, gaming e architettura immersiva.',
-                    highlights: ['Oltre 40 professionisti interni', 'Partnership con studi creativi europei', 'Premi Red Dot & ADCI'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Chi-2',
-                    title: 'I nostri valori',
-                    subtitle: 'Etica & innovazione',
-                    tagline: 'Human first',
-                    description: 'Creiamo esperienze che amplificano le persone: inclusione, accessibilità e sostenibilità guidano ogni scelta.',
-                    highlights: ['Processi carbon neutral', 'Design inclusivo by default', 'Ricerca continua con università'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Chi-3',
-                    title: 'La nostra missione',
-                    subtitle: 'Visione condivisa',
-                    tagline: 'Aprire wormhole',
-                    description: 'Connettiamo brand e community attraverso portali digitali dove tecnologia e storytelling si fondono senza attriti.',
-                    highlights: ['Esperienze cross-device', 'Strategie data driven', 'Relazioni di lungo periodo'],
-                    accent: '#ffd58a'
-                }
-            ]
+            layout: 'spline',
+            splineSrc: './3d/menu/chi_siamo.spline',
+            title: 'Chi Siamo — Esperienza 3D',
+            description: 'Esplora il nostro spazio immersivo e incontra il team direttamente all’interno del portale.'
         }
     };
+
+    let splineViewerLoaderPromise = null;
+
+    function ensureSplineViewerModule() {
+        if (typeof window === 'undefined') {
+            return Promise.reject(new Error('Viewer non disponibile in questo contesto.'));
+        }
+        const registry = window.customElements;
+        if (registry && typeof registry.get === 'function' && registry.get('spline-viewer')) {
+            return Promise.resolve();
+        }
+        if (!splineViewerLoaderPromise) {
+            splineViewerLoaderPromise = Promise.resolve().then(() => {
+                const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+                const toColor = (value, fallback = '#ffffff') => {
+                    try {
+                        return new THREE.Color(value);
+                    } catch (err) {
+                        log('Colore non valido nel viewer', value, err);
+                        return new THREE.Color(fallback);
+                    }
+                };
+
+                const disposeObject = (object) => {
+                    if (!object) return;
+                    if (Array.isArray(object)) {
+                        object.forEach(disposeObject);
+                        return;
+                    }
+                    if (object.geometry && typeof object.geometry.dispose === 'function') {
+                        object.geometry.dispose();
+                    }
+                    if (object.material) {
+                        const materials = Array.isArray(object.material) ? object.material : [object.material];
+                        materials.forEach((mat) => {
+                            if (mat && typeof mat.dispose === 'function') {
+                                mat.dispose();
+                            }
+                        });
+                    }
+                };
+
+                class LocalSplineViewer extends HTMLElement {
+                    static get observedAttributes() {
+                        return ['url'];
+                    }
+
+                    constructor() {
+                        super();
+                        this._shadow = this.attachShadow({ mode: 'open' });
+                        const style = document.createElement('style');
+                        style.textContent = `
+                            :host {
+                                display: block;
+                                width: 100%;
+                                height: 100%;
+                            }
+                            canvas {
+                                width: 100%;
+                                height: 100%;
+                                display: block;
+                                border: 0;
+                                outline: none;
+                                background: transparent;
+                            }
+                        `;
+                        this._canvas = document.createElement('canvas');
+                        this._canvas.setAttribute('part', 'canvas');
+                        this._shadow.append(style, this._canvas);
+
+                        this._renderer = null;
+                        this._scene = null;
+                        this._camera = null;
+                        this._controls = null;
+                        this._clock = null;
+                        this._raf = null;
+                        this._resizeObserver = null;
+                        this._animations = [];
+                        this._elapsed = 0;
+                        this._currentUrl = null;
+                        this._ready = false;
+
+                        this._handleResize = this._handleResize.bind(this);
+                    }
+
+                    connectedCallback() {
+                        if (!this._renderer) {
+                            this._initRenderer();
+                        }
+                        window.addEventListener('resize', this._handleResize);
+                        if ('ResizeObserver' in window) {
+                            this._resizeObserver = new ResizeObserver(this._handleResize);
+                            this._resizeObserver.observe(this);
+                        }
+                        this._handleResize();
+                        this._startRenderLoop();
+                        if (this.hasAttribute('url')) {
+                            this._loadFromUrl(this.getAttribute('url'));
+                        }
+                    }
+
+                    disconnectedCallback() {
+                        window.removeEventListener('resize', this._handleResize);
+                        if (this._resizeObserver) {
+                            this._resizeObserver.disconnect();
+                            this._resizeObserver = null;
+                        }
+                        if (this._raf) {
+                            cancelAnimationFrame(this._raf);
+                            this._raf = null;
+                        }
+                        this._disposeScene();
+                        if (this._controls) {
+                            this._controls.dispose();
+                            this._controls = null;
+                        }
+                        if (this._renderer) {
+                            this._renderer.dispose();
+                            if (typeof this._renderer.forceContextLoss === 'function') {
+                                this._renderer.forceContextLoss();
+                            }
+                            this._renderer = null;
+                        }
+                    }
+
+                    attributeChangedCallback(name, oldValue, newValue) {
+                        if (name === 'url' && newValue && newValue !== oldValue) {
+                            this._loadFromUrl(newValue);
+                        }
+                    }
+
+                    set url(value) {
+                        this.setAttribute('url', value);
+                    }
+
+                    get url() {
+                        return this.getAttribute('url');
+                    }
+
+                    _initRenderer() {
+                        this._renderer = new THREE.WebGLRenderer({
+                            canvas: this._canvas,
+                            antialias: true,
+                            alpha: true
+                        });
+                        this._renderer.outputColorSpace = THREE.SRGBColorSpace;
+                        this._renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                        this._renderer.toneMappingExposure = 1.15;
+                        this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                        this._renderer.shadowMap.enabled = false;
+
+                        this._scene = new THREE.Scene();
+                        this._camera = new THREE.PerspectiveCamera(45, 1, 0.1, 180);
+                        this._controls = new OrbitControls(this._camera, this._canvas);
+                        this._controls.enableZoom = false;
+                        this._controls.enablePan = false;
+                        this._controls.enableDamping = true;
+                        this._controls.dampingFactor = 0.08;
+
+                        this._clock = new THREE.Clock();
+                        this._animations = [];
+                        this._elapsed = 0;
+
+                        this._scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+                    }
+
+                    _handleResize() {
+                        if (!this.isConnected || !this._renderer || !this._camera) return;
+                        const width = this.clientWidth || (this.parentElement ? this.parentElement.clientWidth : 1) || 1;
+                        const height = this.clientHeight || (this.parentElement ? this.parentElement.clientHeight : 1) || 1;
+                        this._renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                        this._renderer.setSize(width, height, false);
+                        this._camera.aspect = width / Math.max(height, 0.0001);
+                        this._camera.updateProjectionMatrix();
+                    }
+
+                    _startRenderLoop() {
+                        if (this._raf) return;
+                        this._clock?.getDelta();
+                        const loop = () => {
+                            this._raf = requestAnimationFrame(loop);
+                            if (!this._renderer || !this._scene || !this._camera) return;
+                            const delta = this._clock.getDelta();
+                            this._elapsed += delta;
+                            for (const anim of this._animations) {
+                                try {
+                                    anim(delta, this._elapsed);
+                                } catch (err) {
+                                    log('Animazione viewer errore', err);
+                                }
+                            }
+                            if (this._controls) {
+                                this._controls.update();
+                            }
+                            this._renderer.render(this._scene, this._camera);
+                        };
+                        this._raf = requestAnimationFrame(loop);
+                    }
+
+                    _loadFromUrl(url) {
+                        if (!url) return;
+                        this._currentUrl = url;
+                        this._ready = false;
+                        this.dispatchEvent(new CustomEvent('loading', { bubbles: true, detail: { url } }));
+                        fetch(url)
+                            .then((response) => {
+                                if (!response.ok) {
+                                    throw new Error(`Impossibile caricare la scena 3D (${response.status})`);
+                                }
+                                return response.json();
+                            })
+                            .then((data) => {
+                                this._applyScene(data || {});
+                                this._ready = true;
+                                this.dispatchEvent(new CustomEvent('ready', { bubbles: true, detail: { url } }));
+                            })
+                            .catch((error) => {
+                                log('Errore caricamento scena 3D', error);
+                                this.dispatchEvent(new CustomEvent('error', { bubbles: true, detail: { url, error } }));
+                            });
+                    }
+
+                    _disposeScene() {
+                        if (!this._scene) return;
+                        this._animations = [];
+                        const removable = [];
+                        this._scene.traverse((child) => {
+                            if (child.isMesh || child.isPoints || child.isLine) {
+                                removable.push(child);
+                            }
+                        });
+                        removable.forEach((child) => {
+                            if (child.parent) {
+                                child.parent.remove(child);
+                            }
+                            disposeObject(child);
+                        });
+                    }
+
+                    _applyScene(data) {
+                        if (!this._scene) return;
+                        this._disposeScene();
+
+                        const background = data.background || '#04030c';
+                        const backgroundColor = toColor(background, '#04030c');
+                        this._renderer.setClearColor(backgroundColor, clamp(data.backgroundAlpha ?? 1, 0, 1));
+                        if (data.fog && typeof data.fog === 'object') {
+                            const fogColor = toColor(data.fog.color || background, background);
+                            this._scene.fog = new THREE.FogExp2(fogColor, data.fog.density ?? 0.08);
+                        } else {
+                            this._scene.fog = null;
+                        }
+
+                        this._setupCamera(data.camera);
+                        this._setupLights(data.lights);
+                        if (Array.isArray(data.objects)) {
+                            data.objects.forEach((item) => this._createObject(item));
+                        }
+                        if (Array.isArray(data.rings)) {
+                            data.rings.forEach((item) => this._createRing(item));
+                        }
+                        if (data.particles) {
+                            this._createParticles(data.particles);
+                        }
+                        if (Array.isArray(data.trails)) {
+                            data.trails.forEach((trail) => this._createTrail(trail));
+                        }
+
+                        this._handleResize();
+                    }
+
+                    _setupCamera(cameraConfig = {}) {
+                        if (!this._camera || !this._controls) return;
+                        const { position = [0, 1.6, 6], target = [0, 1.2, 0], fov = 45 } = cameraConfig;
+                        this._camera.fov = clamp(fov, 20, 90);
+                        this._camera.position.fromArray(position);
+                        this._controls.target.set(target[0] || 0, target[1] || 0, target[2] || 0);
+                        this._controls.update();
+                    }
+
+                    _setupLights(lights) {
+                        if (!this._scene) return;
+                        const toRemove = [];
+                        this._scene.traverse((child) => {
+                            if (child.isLight) {
+                                toRemove.push(child);
+                            }
+                        });
+                        toRemove.forEach((light) => {
+                            if (light.parent) {
+                                light.parent.remove(light);
+                            }
+                        });
+                        this._scene.add(new THREE.AmbientLight(0xffffff, 0.12));
+                        if (!Array.isArray(lights)) return;
+                        lights.forEach((light) => {
+                            if (!light || typeof light !== 'object') return;
+                            const intensity = light.intensity ?? 1;
+                            switch (light.type) {
+                                case 'directional': {
+                                    const dir = new THREE.DirectionalLight(toColor(light.color || '#ffffff'), intensity);
+                                    const pos = light.position || [5, 8, 5];
+                                    dir.position.set(pos[0], pos[1], pos[2]);
+                                    dir.castShadow = Boolean(light.castShadow);
+                                    this._scene.add(dir);
+                                    break;
+                                }
+                                case 'hemisphere': {
+                                    const hemi = new THREE.HemisphereLight(
+                                        toColor(light.sky || '#ffffff'),
+                                        toColor(light.ground || '#222222'),
+                                        intensity
+                                    );
+                                    this._scene.add(hemi);
+                                    break;
+                                }
+                                case 'point': {
+                                    const point = new THREE.PointLight(toColor(light.color || '#ffffff'), intensity, light.distance || 0, light.decay || 1);
+                                    const pos = light.position || [0, 0, 0];
+                                    point.position.set(pos[0], pos[1], pos[2]);
+                                    this._scene.add(point);
+                                    break;
+                                }
+                                case 'spot': {
+                                    const spot = new THREE.SpotLight(toColor(light.color || '#ffffff'), intensity, light.distance || 0, THREE.MathUtils.degToRad(light.angle ?? 30), light.penumbra ?? 0.3, light.decay ?? 1);
+                                    const pos = light.position || [0, 0, 0];
+                                    spot.position.set(pos[0], pos[1], pos[2]);
+                                    if (Array.isArray(light.target)) {
+                                        const target = new THREE.Object3D();
+                                        target.position.set(light.target[0], light.target[1], light.target[2]);
+                                        this._scene.add(target);
+                                        spot.target = target;
+                                    }
+                                    this._scene.add(spot);
+                                    break;
+                                }
+                                case 'ambient': {
+                                    const amb = new THREE.AmbientLight(toColor(light.color || '#ffffff'), intensity);
+                                    this._scene.add(amb);
+                                    break;
+                                }
+                                default:
+                                    break;
+                            }
+                        });
+                    }
+
+                    _createObject(def = {}) {
+                        if (!def.type) return;
+                        let mesh = null;
+                        let geometry = null;
+                        const materialConfig = def.material || {};
+                        const baseMaterial = new THREE.MeshStandardMaterial({
+                            color: toColor(materialConfig.color || '#ffffff'),
+                            emissive: toColor(materialConfig.emissive || '#000000'),
+                            metalness: clamp(materialConfig.metalness ?? 0.4, 0, 1),
+                            roughness: clamp(materialConfig.roughness ?? 0.4, 0, 1),
+                            transparent: materialConfig.opacity !== undefined ? materialConfig.opacity < 1 : Boolean(materialConfig.transparent),
+                            opacity: clamp(materialConfig.opacity ?? 1, 0, 1),
+                            side: materialConfig.side === 'double' ? THREE.DoubleSide : THREE.FrontSide
+                        });
+
+                        switch (def.type) {
+                            case 'torus':
+                                geometry = new THREE.TorusGeometry(
+                                    def.radius ?? 2,
+                                    def.tube ?? 0.35,
+                                    clamp(def.radialSegments ?? 32, 8, 128),
+                                    clamp(def.tubularSegments ?? 120, 12, 300)
+                                );
+                                break;
+                            case 'sphere':
+                                geometry = new THREE.SphereGeometry(
+                                    def.radius ?? 0.8,
+                                    clamp(def.widthSegments ?? 48, 8, 128),
+                                    clamp(def.heightSegments ?? 32, 8, 128)
+                                );
+                                break;
+                            case 'icosahedron':
+                                geometry = new THREE.IcosahedronGeometry(def.radius ?? 0.9, clamp(def.detail ?? 0, 0, 3));
+                                break;
+                            case 'octahedron':
+                                geometry = new THREE.OctahedronGeometry(def.radius ?? 0.7, clamp(def.detail ?? 0, 0, 3));
+                                break;
+                            case 'box':
+                                geometry = new THREE.BoxGeometry(
+                                    def.size?.[0] ?? 1,
+                                    def.size?.[1] ?? 1,
+                                    def.size?.[2] ?? 1
+                                );
+                                break;
+                            case 'plane':
+                                geometry = new THREE.PlaneGeometry(
+                                    def.size?.[0] ?? 4,
+                                    def.size?.[1] ?? 4,
+                                    clamp(def.widthSegments ?? 1, 1, 32),
+                                    clamp(def.heightSegments ?? 1, 1, 32)
+                                );
+                                baseMaterial.side = THREE.DoubleSide;
+                                break;
+                            default:
+                                return;
+                        }
+
+                        mesh = new THREE.Mesh(geometry, baseMaterial);
+                        mesh.castShadow = Boolean(def.castShadow);
+                        mesh.receiveShadow = Boolean(def.receiveShadow);
+
+                        if (Array.isArray(def.position)) {
+                            mesh.position.set(def.position[0] || 0, def.position[1] || 0, def.position[2] || 0);
+                        }
+                        if (Array.isArray(def.rotation)) {
+                            mesh.rotation.set(
+                                THREE.MathUtils.degToRad(def.rotation[0] || 0),
+                                THREE.MathUtils.degToRad(def.rotation[1] || 0),
+                                THREE.MathUtils.degToRad(def.rotation[2] || 0)
+                            );
+                        }
+                        if (Array.isArray(def.scale)) {
+                            mesh.scale.set(def.scale[0] ?? 1, def.scale[1] ?? 1, def.scale[2] ?? 1);
+                        }
+
+                        const animation = def.animation || {};
+                        const basePosition = mesh.position.clone();
+                        const baseScale = mesh.scale.clone();
+                        const rotSpeed = animation.rotationSpeed || animation.speed || [0, 0.2, 0];
+                        const floatCfg = animation.float || null;
+                        const pulseCfg = animation.pulse || null;
+                        const orbitCfg = animation.orbit || null;
+
+                        this._animations.push((delta, elapsed) => {
+                            if (rotSpeed) {
+                                mesh.rotation.x += (rotSpeed[0] || 0) * delta;
+                                mesh.rotation.y += (rotSpeed[1] || 0) * delta;
+                                mesh.rotation.z += (rotSpeed[2] || 0) * delta;
+                            }
+                            if (floatCfg) {
+                                const amp = floatCfg.amplitude ?? 0.4;
+                                const speed = floatCfg.speed ?? 1.0;
+                                const axis = floatCfg.axis || [0, 1, 0];
+                                const offset = Math.sin(elapsed * speed + (floatCfg.phase ?? 0)) * amp;
+                                mesh.position.set(
+                                    basePosition.x + (axis[0] || 0) * offset,
+                                    basePosition.y + (axis[1] ?? 1) * offset,
+                                    basePosition.z + (axis[2] || 0) * offset
+                                );
+                            }
+                            if (pulseCfg) {
+                                const amp = pulseCfg.amplitude ?? 0.12;
+                                const speed = pulseCfg.speed ?? 1.2;
+                                const scaleFactor = 1 + Math.sin(elapsed * speed + (pulseCfg.phase ?? 0)) * amp;
+                                mesh.scale.set(
+                                    baseScale.x * scaleFactor,
+                                    baseScale.y * scaleFactor,
+                                    baseScale.z * scaleFactor
+                                );
+                            }
+                            if (orbitCfg) {
+                                const radius = orbitCfg.radius ?? 3;
+                                const speed = orbitCfg.speed ?? 0.4;
+                                const height = orbitCfg.height ?? basePosition.y;
+                                const offset = orbitCfg.offset ?? 0;
+                                mesh.position.set(
+                                    Math.cos(elapsed * speed + offset) * radius,
+                                    height,
+                                    Math.sin(elapsed * speed + offset) * radius
+                                );
+                            }
+                        });
+
+                        this._scene.add(mesh);
+                    }
+
+                    _createRing(def = {}) {
+                        const innerRadius = def.innerRadius ?? 1.2;
+                        const outerRadius = def.outerRadius ?? 1.6;
+                        const segments = clamp(def.segments ?? 128, 16, 256);
+                        const geometry = new THREE.RingGeometry(innerRadius, outerRadius, segments);
+                        const material = new THREE.MeshBasicMaterial({
+                            color: toColor(def.color || '#ffddb0'),
+                            transparent: true,
+                            opacity: clamp(def.opacity ?? 0.55, 0, 1),
+                            side: THREE.DoubleSide,
+                            blending: THREE.AdditiveBlending
+                        });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.rotation.x = THREE.MathUtils.degToRad(def.rotation?.[0] ?? 90);
+                        mesh.rotation.y = THREE.MathUtils.degToRad(def.rotation?.[1] ?? 0);
+                        mesh.rotation.z = THREE.MathUtils.degToRad(def.rotation?.[2] ?? 0);
+                        mesh.position.set(
+                            def.position?.[0] ?? 0,
+                            def.position?.[1] ?? 0,
+                            def.position?.[2] ?? 0
+                        );
+                        const baseScale = new THREE.Vector3(
+                            def.scale?.[0] ?? 1,
+                            def.scale?.[1] ?? 1,
+                            def.scale?.[2] ?? 1
+                        );
+                        mesh.scale.copy(baseScale);
+
+                        const rotationSpeed = def.rotationSpeed || [0, 0.2, 0];
+                        const pulseCfg = def.pulse || null;
+                        this._animations.push((delta, elapsed) => {
+                            mesh.rotation.x += (rotationSpeed[0] || 0) * delta;
+                            mesh.rotation.y += (rotationSpeed[1] || 0) * delta;
+                            mesh.rotation.z += (rotationSpeed[2] || 0) * delta;
+                            if (pulseCfg) {
+                                const amp = pulseCfg.amplitude ?? 0.08;
+                                const speed = pulseCfg.speed ?? 1.4;
+                                const factor = 1 + Math.sin(elapsed * speed + (pulseCfg.phase ?? 0)) * amp;
+                                mesh.scale.set(
+                                    baseScale.x * factor,
+                                    baseScale.y * factor,
+                                    baseScale.z * factor
+                                );
+                            }
+                        });
+
+                        this._scene.add(mesh);
+                    }
+
+                    _createParticles(config = {}) {
+                        const count = clamp(config.count ?? 900, 100, 5000);
+                        const radiusRange = config.radius || [1.2, 6.0];
+                        const heightRange = config.height || [-2.0, 2.0];
+                        const colors = (config.colors || ['#ffe8c6', '#8fd2ff', '#f0a6ff']).map((c) => toColor(c));
+                        const positions = new Float32Array(count * 3);
+                        const colorsArr = new Float32Array(count * 3);
+
+                        for (let i = 0; i < count; i++) {
+                            const radius = THREE.MathUtils.lerp(radiusRange[0], radiusRange[1], Math.random());
+                            const angle = Math.random() * Math.PI * 2;
+                            const height = THREE.MathUtils.lerp(heightRange[0], heightRange[1], Math.random());
+                            positions[i * 3] = Math.cos(angle) * radius;
+                            positions[i * 3 + 1] = height;
+                            positions[i * 3 + 2] = Math.sin(angle) * radius;
+                            const color = colors[i % colors.length];
+                            colorsArr[i * 3] = color.r;
+                            colorsArr[i * 3 + 1] = color.g;
+                            colorsArr[i * 3 + 2] = color.b;
+                        }
+
+                        const geometry = new THREE.BufferGeometry();
+                        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                        geometry.setAttribute('color', new THREE.BufferAttribute(colorsArr, 3));
+
+                        const sizeRange = config.size || [12, 26];
+                        const material = new THREE.PointsMaterial({
+                            size: THREE.MathUtils.lerp(sizeRange[0], sizeRange[1], 0.5) * 0.01,
+                            vertexColors: true,
+                            transparent: true,
+                            opacity: clamp(config.opacity ?? 0.85, 0, 1),
+                            depthWrite: false,
+                            blending: THREE.AdditiveBlending,
+                            sizeAttenuation: true
+                        });
+
+                        const points = new THREE.Points(geometry, material);
+                        points.frustumCulled = false;
+                        this._animations.push((delta) => {
+                            points.rotation.y += (config.speed ?? 0.08) * delta;
+                        });
+                        this._scene.add(points);
+                    }
+
+                    _createTrail(config = {}) {
+                        const count = clamp(config.count ?? 60, 8, 400);
+                        const radius = config.radius ?? 2.4;
+                        const height = config.height ?? 1.2;
+                        const length = config.length ?? 1.2;
+                        const color = toColor(config.color || '#ffddb0');
+                        const material = new THREE.LineBasicMaterial({
+                            color,
+                            transparent: true,
+                            opacity: clamp(config.opacity ?? 0.45, 0, 1)
+                        });
+                        const points = [];
+                        for (let i = 0; i < count; i++) {
+                            const t = i / (count - 1);
+                            const angle = t * Math.PI * 2;
+                            const r = radius + Math.sin(t * Math.PI * 4 + (config.phase ?? 0)) * (config.wave ?? 0.15);
+                            points.push(new THREE.Vector3(Math.cos(angle) * r, height + Math.sin(t * Math.PI * 2) * (config.verticalWave ?? 0.3), Math.sin(angle) * r));
+                        }
+                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                        const line = new THREE.Line(geometry, material);
+                        this._animations.push((delta) => {
+                            line.rotation.y += (config.speed ?? 0.25) * delta;
+                        });
+                        this._scene.add(line);
+                    }
+
+                    dispose() {
+                        this.disconnectedCallback();
+                    }
+                }
+
+                registry.define('spline-viewer', LocalSplineViewer);
+            }).catch((err) => {
+                splineViewerLoaderPromise = null;
+                throw err;
+            });
+        }
+        return splineViewerLoaderPromise;
+    }
+
+    function showSplineExperience(name, config) {
+        const overlay = document.createElement('div');
+        overlay.className = 'warp-card';
+        overlay.dataset.mode = 'spline';
+        overlay.innerHTML = `
+        <div class="card-stage" data-layout="spline" data-deck="${name}">
+          <div class="card-backdrop"></div>
+          ${config.title ? `<header class="spline-header"><h2>${config.title}</h2>${config.description ? `<p>${config.description}</p>` : ''}</header>` : ''}
+          <div class="spline-frame">
+            <div class="spline-loader">Caricamento esperienza 3D…</div>
+          </div>
+          <div class="card-actions" data-actions="spline" data-has-nav="false">
+            <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
+          </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        playPortalBackground(name);
+
+        const stage = overlay.querySelector('.card-stage');
+        const frame = overlay.querySelector('.spline-frame');
+        const loaderEl = overlay.querySelector('.spline-loader');
+        const exitBtn = overlay.querySelector('[data-action="exit"]');
+
+        let viewer = null;
+        let overlayClosed = false;
+
+        const handleViewerLoading = () => {
+            if (!loaderEl) return;
+            loaderEl.classList.remove('has-error');
+            loaderEl.classList.remove('is-hidden');
+            loaderEl.textContent = 'Caricamento esperienza 3D…';
+        };
+
+        const handleViewerReady = () => {
+            if (!loaderEl) return;
+            loaderEl.classList.add('is-hidden');
+        };
+
+        const handleViewerError = (event) => {
+            if (!loaderEl) return;
+            loaderEl.classList.remove('is-hidden');
+            loaderEl.classList.add('has-error');
+            loaderEl.textContent = event?.detail?.error?.message || 'Impossibile caricare l’esperienza 3D.';
+        };
+
+        const detachViewerListeners = () => {
+            if (!viewer) return;
+            viewer.removeEventListener('loading', handleViewerLoading);
+            viewer.removeEventListener('ready', handleViewerReady);
+            viewer.removeEventListener('error', handleViewerError);
+        };
+
+        ensureSplineViewerModule()
+            .then(() => {
+                if (overlayClosed) return;
+                viewer = document.createElement('spline-viewer');
+                viewer.setAttribute('url', config.splineSrc);
+                viewer.setAttribute('loading', 'eager');
+                viewer.addEventListener('loading', handleViewerLoading);
+                viewer.addEventListener('ready', handleViewerReady);
+                viewer.addEventListener('error', handleViewerError);
+                frame.insertBefore(viewer, loaderEl);
+            })
+            .catch((error) => {
+                log('Spline viewer load failed', error);
+                if (loaderEl) {
+                    loaderEl.classList.add('has-error');
+                    loaderEl.textContent = 'Impossibile inizializzare il visualizzatore 3D.';
+                }
+            });
+
+        const updateStageMetrics = () => {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const marginX = Math.max(18, Math.min(150, vw * 0.065));
+            const marginY = Math.max(70, Math.min(220, vh * 0.16));
+            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
+            const stageHeight = Math.max(420, Math.min(vh - marginY, 760));
+            const stagePadding = Math.max(20, Math.min(52, stageWidth * 0.042));
+            const baseWidth = Math.max(320, Math.min(stageWidth * 0.92, 900));
+            const frameHeight = Math.max(320, Math.min(stageHeight - 140, vh - marginY * 2 - 80));
+
+            stage.style.setProperty('--stage-width', `${stageWidth}px`);
+            stage.style.setProperty('--stage-height', `${stageHeight}px`);
+            stage.style.setProperty('--stage-padding', `${stagePadding}px`);
+            stage.style.setProperty('--panel-base-width', `${baseWidth}px`);
+            stage.style.setProperty('--frame-width', `${baseWidth}px`);
+            stage.style.setProperty('--frame-height', `${frameHeight}px`);
+        };
+
+        const onResize = () => updateStageMetrics();
+
+        const handleKeydown = (ev) => {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                handleExit(ev);
+            }
+        };
+
+        const handleOverlayClick = (ev) => {
+            if (ev.target === overlay) {
+                handleExit(ev);
+            }
+        };
+
+        const closeOverlay = () => {
+            if (overlayClosed) return;
+            overlayClosed = true;
+            if (exitBtn) {
+                exitBtn.removeEventListener('click', handleExit);
+            }
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('keydown', handleKeydown);
+            overlay.removeEventListener('click', handleOverlayClick);
+            detachViewerListeners();
+            if (viewer && typeof viewer.dispose === 'function') {
+                try {
+                    viewer.dispose();
+                } catch (err) {
+                    log('Errore dispose viewer', err);
+                }
+            }
+            stopPortalBackground(name);
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (overlayClosed) return;
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try {
+                warpSound.pause();
+                warpSound.currentTime = 0;
+                warpSound.play();
+            } catch (err) { /* noop */ }
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        if (exitBtn) {
+            exitBtn.addEventListener('click', handleExit);
+        }
+
+        overlay.addEventListener('click', handleOverlayClick);
+        window.addEventListener('resize', onResize);
+        window.addEventListener('keydown', handleKeydown);
+        updateStageMetrics();
+
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
+
+        return { close: handleExit };
+    }
 
     const flareMat = new THREE.ShaderMaterial({
         transparent: true,
@@ -937,6 +1675,13 @@ const wormholeReturnEase = (t) => {
         try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
 
         const deckConfig = CARD_LIBRARY[name];
+        if (!deckConfig) return;
+
+        if (deckConfig?.splineSrc) {
+            showSplineExperience(name, deckConfig);
+            return;
+        }
+
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
@@ -967,6 +1712,7 @@ const wormholeReturnEase = (t) => {
           <div class="card-carousel"></div>
         </div>`;
         document.body.appendChild(overlay);
+        playPortalBackground(name);
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1530,6 +2276,7 @@ const wormholeReturnEase = (t) => {
             stage.removeEventListener('touchend', onPointerUp);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            stopPortalBackground(name);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
