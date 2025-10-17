@@ -124,7 +124,7 @@ const wormholeReturnEase = (t) => {
     clickSound.crossOrigin = 'anonymous';
     clickSound.volume = 0.8;
 
-    function createLoopingAudio(src) {
+    function createPortalLoopingAudio(src) {
         const audio = new Audio(src);
         audio.loop = true;
         audio.preload = 'auto';
@@ -135,84 +135,14 @@ const wormholeReturnEase = (t) => {
 
     const portalBackgroundMusic = {
         'Chi Siamo': {
-            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
+            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
             baseVolume: 0.38,
             title: '"Deep Ambient" by Olexy (Pixabay)'
         },
         Portfolio: {
-            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
+            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
             baseVolume: 0.34,
             title: '"Future Technology Ambient" by Alex-Productions (Pixabay)'
-        }
-    };
-
-    function stopPortalBackground(name, { immediate = false } = {}) {
-        const track = portalBackgroundMusic[name];
-        if (!track) return;
-        const { audio } = track;
-        gsap.killTweensOf(audio);
-        const finish = () => {
-            audio.pause();
-            audio.currentTime = 0;
-            audio.volume = 0;
-        };
-        log('Portal music ⏹', name);
-        if (immediate) {
-            finish();
-            return;
-        }
-        gsap.to(audio, {
-            volume: 0,
-            duration: 0.9,
-            ease: 'sine.in',
-            onComplete: finish
-        });
-    }
-
-    function playPortalBackground(name) {
-        const track = portalBackgroundMusic[name];
-        Object.keys(portalBackgroundMusic).forEach((key) => {
-            if (key !== name) {
-                stopPortalBackground(key);
-            }
-        });
-        if (!track) return;
-        const { audio, baseVolume, title } = track;
-        log('Portal music ▶', name, title || '');
-        gsap.killTweensOf(audio);
-        if (audio.paused) {
-            audio.currentTime = 0;
-            audio.volume = 0;
-            const playPromise = audio.play();
-            if (playPromise && typeof playPromise.then === 'function') {
-                playPromise.catch(() => {});
-            }
-        }
-        gsap.to(audio, {
-            volume: baseVolume,
-            duration: 1.6,
-            ease: 'sine.out'
-        });
-    }
-
-    function createLoopingAudio(src) {
-        const audio = new Audio(src);
-        audio.loop = true;
-        audio.preload = 'auto';
-        audio.crossOrigin = 'anonymous';
-        audio.volume = 0;
-        return audio;
-    }
-
-    const portalBackgroundMusic = {
-        'Chi Siamo': {
-            audio: createLoopingAudio('./assets/audio/ambient1.mp3'),
-            baseVolume: 0.38,
-
-        },
-        Portfolio: {
-            audio: createLoopingAudio('./assets/audio/ambient2.mp3'),
-            baseVolume: 0.34,
         }
     };
 
