@@ -1335,14 +1335,67 @@ const wormholeReturnEase = (t) => {
         };
         const isCarousel = () => state.layoutMode === 'carousel';
 
+        return warpReturnTimeline;
+    }
+
+    function createSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
-        overlay.className = 'warp-card';
+        overlay.className = 'warp-card warp-card--spline';
+        overlay.dataset.deck = deckName;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+
+        const hintMarkup = config?.spline?.hint
+            ? `<div class="spline-hint">${config.spline.hint}</div>`
+            : '';
+
         overlay.innerHTML = `
         <div class="card-stage" data-deck="${name}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
         </div>`;
+
         document.body.appendChild(overlay);
+        document.body.classList.add('is-spline-open');
+        document.documentElement.classList.add('is-spline-open');
+
+        const stage = overlay.querySelector('.card-stage');
+        const sceneHost = overlay.querySelector('.spline-scene');
+        const exitButton = overlay.querySelector('[data-action="exit"]');
+
+        const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        stageTimeline.fromTo(stage, {
+            opacity: 0,
+            scale: 0.95
+        }, {
+            opacity: 1,
+            scale: 1,
+            duration: 1.05,
+            clearProps: 'transform'
+        });
+        stageTimeline.fromTo(sceneHost, {
+            filter: 'blur(24px)',
+            opacity: 0
+        }, {
+            filter: 'blur(0px)',
+            opacity: 1,
+            duration: 1.1
+        }, 0.1);
+
+        const cleanup = [];
+        let closed = false;
+
+        const setSceneStatus = (busy) => {
+            if (!sceneHost) return;
+            if (busy) {
+                sceneHost.setAttribute('aria-busy', 'true');
+                sceneHost.classList.remove('is-ready');
+            } else {
+                sceneHost.setAttribute('aria-busy', 'false');
+                sceneHost.classList.add('is-ready');
+            }
+        };
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1455,6 +1508,36 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        };
+
+        const performExit = () => {
+            if (closed) return;
+            exitButton.disabled = true;
+            exitButton.setAttribute('aria-disabled', 'true');
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
+            stopTravelTween();
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            if (!exitButton.classList.contains('is-expanded')) {
+                exitButton.classList.add('is-expanded');
+                exitButton.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => requestAnimationFrame(performExit));
+                return;
+            }
+            performExit();
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
+        };
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
