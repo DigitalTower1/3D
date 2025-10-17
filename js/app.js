@@ -3,121 +3,25 @@
     //   Portale dorato attorno al pulsante + Warp postprocess
     //   (tutti gli effetti, click robusto, nessuna rimozione)
     // ========================================================
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
-import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
-import { RGBELoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/RGBELoader.js';
-import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/EffectComposer.js';
-import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/SSAOPass.js';
-import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
-import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
-import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
-import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+    import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
+    import { RGBELoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/RGBELoader.js';
+    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+    import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/SSAOPass.js';
+    import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
+    import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
+    import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
+    import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
     // -------------------------
 const DEBUG_LOG = false;
 const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
-
-const reduceMotionMedia = window.matchMedia('(prefers-reduced-motion: reduce)');
-const mobileMedia = window.matchMedia('(max-width: 900px)');
-const qualityState = {
-    reduceMotion: reduceMotionMedia.matches,
-    isMobile: mobileMedia.matches
-};
-
-const disposableResources = {
-    geometries: new Set(),
-    materials: new Set(),
-    textures: new Set()
-};
-
-function scheduleDeferred(task) {
-    if (typeof window === 'undefined') {
-        task();
-        return;
-    }
-    if ('requestIdleCallback' in window) {
-        window.requestIdleCallback(() => task(), { timeout: 2000 });
-    } else {
-        requestAnimationFrame(() => task());
-    }
-}
-
-function trackGeometry(geometry) {
-    if (!geometry) return;
-    disposableResources.geometries.add(geometry);
-}
-
-function trackMaterial(material) {
-    if (!material) return;
-    if (Array.isArray(material)) {
-        material.forEach(trackMaterial);
-        return;
-    }
-    disposableResources.materials.add(material);
-    if (material.map) trackTexture(material.map);
-    if (material.emissiveMap) trackTexture(material.emissiveMap);
-    if (material.normalMap) trackTexture(material.normalMap);
-    if (material.roughnessMap) trackTexture(material.roughnessMap);
-    if (material.metalnessMap) trackTexture(material.metalnessMap);
-}
-
-function trackTexture(texture) {
-    if (!texture) return;
-    disposableResources.textures.add(texture);
-}
-
-const teardownCallbacks = [];
-
-function trackMeshResources(mesh) {
-    if (!mesh) return;
-    if (mesh.geometry) trackGeometry(mesh.geometry);
-    if (mesh.material) trackMaterial(mesh.material);
-}
-
-function addEventListenerWithTeardown(target, type, handler, options) {
-    if (!target || !target.addEventListener) return;
-    target.addEventListener(type, handler, options);
-    teardownCallbacks.push(() => {
-        try {
-            target.removeEventListener(type, handler, options);
-        } catch (err) {
-            /* noop */
-        }
-    });
-}
-
-let animationFrameId = null;
-let contextLost = false;
-let visibilityPaused = false;
-let environmentTarget = null;
-let environmentTexture = null;
-
-function bindMediaListener(media, handler) {
-    if (!media) return;
-    if (typeof media.addEventListener === 'function') {
-        media.addEventListener('change', handler);
-    } else if (typeof media.addListener === 'function') {
-        media.addListener(handler);
-    }
-}
-
-bindMediaListener(reduceMotionMedia, (event) => {
-    qualityState.reduceMotion = event.matches;
-    applyQualityProfile();
-    document.dispatchEvent(new CustomEvent('quality-change', { detail: { ...qualityState } }));
-});
-
-bindMediaListener(mobileMedia, (event) => {
-    qualityState.isMobile = event.matches;
-    applyQualityProfile();
-    document.dispatchEvent(new CustomEvent('quality-change', { detail: { ...qualityState } }));
-});
 
 // easing personalizzati per i movimenti "wormhole"
 const wormholeEase = (t) => {
@@ -133,16 +37,14 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  RENDERER + SCENA
     // --------------------------------------------------------
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 2.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    const maxPixelRatio = typeof window.devicePixelRatio === 'number' ? Math.min(window.devicePixelRatio, 1.75) : 1;
-    renderer.setPixelRatio(maxPixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    const maxAnisotropy = renderer.capabilities?.getMaxAnisotropy?.() ?? 1;
     window.renderer = renderer;
 
     // Assicura che il canvas riceva i click
@@ -155,12 +57,10 @@ const wormholeReturnEase = (t) => {
 
     let sceneInteractive = false;
 
-    function handleSceneReady() {
+    window.addEventListener('scene-ready', () => {
         sceneInteractive = true;
         container.style.pointerEvents = 'auto';
-    }
-
-    addEventListenerWithTeardown(window, 'scene-ready', handleSceneReady);
+    });
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0a0a0a, 0.00025);
@@ -198,21 +98,11 @@ const wormholeReturnEase = (t) => {
     const rgbeLoader = new RGBELoader();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-
-    scheduleDeferred(() => {
-        rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
-            tex.mapping = THREE.EquirectangularReflectionMapping;
-            trackTexture(tex);
-            const pmremTarget = pmremGenerator.fromEquirectangular(tex);
-            environmentTarget = pmremTarget;
-            environmentTexture = pmremTarget.texture;
-            trackTexture(environmentTexture);
-            scene.environment = environmentTexture;
-            scene.background = environmentTexture;
-            tex.dispose?.();
-        }, undefined, (err) => {
-            console.warn('HDR environment failed to load', err);
-        });
+    rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
+        tex.mapping = THREE.EquirectangularReflectionMapping;
+        const envMap = pmremGenerator.fromEquirectangular(tex).texture;
+        scene.environment = envMap;
+        scene.background = envMap;
     });
 
     // --------------------------------------------------------
@@ -222,28 +112,6 @@ const wormholeReturnEase = (t) => {
     const portalSound = new Audio('./assets/audio/portal-open.mp3'); portalSound.volume = 0.9;
     const clickSound  = new Audio('./assets/audio/click.mp3');       clickSound.volume = 0.8;
 
-    let splineViewerLoader = null;
-    function ensureSplineViewer() {
-        if (typeof window === 'undefined') return Promise.resolve();
-        if (customElements?.get?.('spline-viewer')) return Promise.resolve();
-        if (!splineViewerLoader) {
-            splineViewerLoader = new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.type = 'module';
-                script.crossOrigin = 'anonymous';
-                script.referrerPolicy = 'no-referrer';
-                script.src = 'https://cdn.jsdelivr.net/npm/@splinetool/viewer@1.9.85/build/spline-viewer.js';
-                script.onload = () => resolve();
-                script.onerror = (event) => {
-                    splineViewerLoader = null;
-                    reject(new Error('Impossibile caricare lo Spline Viewer'));
-                };
-                document.head.appendChild(script);
-            });
-        }
-        return splineViewerLoader;
-    }
-
     // --------------------------------------------------------
     //  MODELLO PRINCIPALE
     // --------------------------------------------------------
@@ -251,35 +119,18 @@ const wormholeReturnEase = (t) => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.161.0/examples/jsm/libs/draco/');
     gltfLoader.setDRACOLoader(dracoLoader);
-    scheduleDeferred(() => {
-        gltfLoader.load('./assets/3d/scene.gltf', (gltf) => {
-            const model = gltf.scene;
-            model.traverse(o => {
-                if (o.isMesh && o.material) {
-                    o.castShadow = true;
-                    o.receiveShadow = true;
-                    const mats = Array.isArray(o.material) ? o.material : [o.material];
-                    mats.forEach((mat) => {
-                        mat.envMapIntensity = 1.2;
-                        mat.metalness = 0.8;
-                        mat.roughness = 0.3;
-                        if (mat.map) {
-                            mat.map.anisotropy = maxAnisotropy;
-                            mat.map.encoding = THREE.sRGBEncoding;
-                        }
-                        if (mat.emissiveMap) {
-                            mat.emissiveMap.anisotropy = maxAnisotropy;
-                            mat.emissiveMap.encoding = THREE.sRGBEncoding;
-                        }
-                        trackMaterial(mat);
-                    });
-                    trackGeometry(o.geometry);
-                }
-            });
-            scene.add(model);
-        }, undefined, (error) => {
-            console.warn('GLTF principale non caricato', error);
+    gltfLoader.load('./assets/3d/scene.gltf', (gltf) => {
+        const model = gltf.scene;
+        model.traverse(o => {
+            if (o.isMesh && o.material) {
+                o.castShadow = true;
+                o.receiveShadow = true;
+                o.material.envMapIntensity = 1.2;
+                o.material.metalness = 0.8;
+                o.material.roughness = 0.3;
+            }
         });
+        scene.add(model);
     });
 
     // --------------------------------------------------------
@@ -392,7 +243,6 @@ const wormholeReturnEase = (t) => {
         }
       `
     });
-    trackMaterial(flareMat);
 
     function collectMeshes(node, out) {
         node.traverse(n=>{
@@ -416,11 +266,7 @@ const wormholeReturnEase = (t) => {
             });
 
             // flare interstellare orizzontale
-            const flareGeometry = new THREE.PlaneGeometry(400, 15);
-            trackGeometry(flareGeometry);
-            const flareMaterial = flareMat.clone();
-            trackMaterial(flareMaterial);
-            const flare = new THREE.Mesh(flareGeometry, flareMaterial);
+            const flare = new THREE.Mesh(new THREE.PlaneGeometry(400, 15), flareMat.clone());
             flare.rotation.x = Math.PI / 2;
             flare.position.set(0, 150, 0);
             root.add(flare);
@@ -460,8 +306,7 @@ const wormholeReturnEase = (t) => {
     //  POST-PROCESSING (manteniamo tutto) + WARP SHADER PASS
     // --------------------------------------------------------
     const composer = new EffectComposer(renderer);
-    const renderPass = new RenderPass(scene, camera);
-    composer.addPass(renderPass);
+    composer.addPass(new RenderPass(scene, camera));
     const ssao = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
     ssao.kernelRadius = 16;
     composer.addPass(ssao);
@@ -531,188 +376,10 @@ const wormholeReturnEase = (t) => {
     const warpPass = new ShaderPass(WarpShader);
     composer.addPass(warpPass);
 
-    function applyQualityProfile() {
-        const width = window.innerWidth || 1920;
-        const reduce = qualityState.reduceMotion;
-        const mobile = qualityState.isMobile;
-        const exposureBase = width >= 1600 ? 2.05 : width >= 1280 ? 1.92 : width >= 768 ? 1.8 : 1.6;
-        const exposure = exposureBase * (reduce ? 0.7 : 1) * (mobile ? 0.92 : 1);
-        renderer.toneMappingExposure = exposure;
-
-        ssao.enabled = !reduce && !mobile;
-        ssao.kernelRadius = mobile ? 10 : 16;
-        bloom.enabled = !reduce;
-        bloom.strength = (mobile ? 0.32 : 0.45) * (reduce ? 0.6 : 1);
-        bloom.radius = mobile ? 0.75 : 0.9;
-        bokeh.enabled = !mobile && !reduce;
-        if (bokeh.materialBokeh && bokeh.materialBokeh.uniforms?.maxblur) {
-            bokeh.materialBokeh.uniforms.maxblur.value = mobile ? 0.0012 : 0.002;
-        }
-        film.enabled = !reduce;
-    }
-
-    applyQualityProfile();
-
     // --------------------------------------------------------
     //  PORTALE DORATO ATTORNO AL PULSANTE (mesh/shader 3D)
     // --------------------------------------------------------
     const portalGroups = new Set(); // per pulire al termine
-    const groundCircleGeometry = new THREE.PlaneGeometry(1, 1, 64, 1);
-    trackGeometry(groundCircleGeometry);
-    const groundCircleMaterialTemplate = new THREE.ShaderMaterial({
-        transparent: true,
-        depthWrite: false,
-        depthTest: false,
-        blending: THREE.AdditiveBlending,
-        side: THREE.DoubleSide,
-        uniforms: {
-            time: { value: 0 },
-            opacity: { value: 0 },
-            inner: { value: 0.35 },
-            outer: { value: 0.82 },
-            color: { value: new THREE.Color(0xffffff) }
-        },
-        vertexShader: `
-      varying vec2 vUv;
-      void main(){
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-        fragmentShader: `
-      varying vec2 vUv;
-      uniform float time, opacity, inner, outer;
-      uniform vec3 color;
-      void main(){
-        vec2 uv = vUv - 0.5;
-        float dist = length(uv) * 2.0;
-        float ring = smoothstep(inner, inner - 0.12, dist) * smoothstep(outer + 0.18, outer, dist);
-        float glow = smoothstep(outer + 0.48, outer - 0.06, dist);
-        float pulse = 0.6 + 0.4 * sin(time * 2.4 + dist * 6.283);
-        float alpha = (ring * 0.85 + glow * 0.35 * pulse) * opacity;
-        if (alpha <= 0.001) discard;
-        vec3 tint = color * (1.0 + 0.3 * sin(time * 1.7));
-        gl_FragColor = vec4(tint, alpha);
-      }`
-    });
-    trackMaterial(groundCircleMaterialTemplate);
-
-    const groundTmp = new THREE.Vector3();
-
-    function spawnGroundHalo(target) {
-        if (!target) return null;
-        target.getWorldPosition(groundTmp);
-        const haloGroup = new THREE.Group();
-        haloGroup.position.copy(groundTmp);
-        haloGroup.position.y -= 110;
-        haloGroup.rotation.x = 0;
-        haloGroup.rotation.z = 0;
-        scene.add(haloGroup);
-
-        const haloConfigs = [
-            { size: 320, inner: 0.24, outer: 0.72, color: '#ffdca8', float: 12, opacity: 0.92, delay: 0.0 },
-            { size: 420, inner: 0.32, outer: 0.88, color: '#9bdcff', float: 16, opacity: 0.78, delay: 0.18 },
-            { size: 540, inner: 0.42, outer: 1.02, color: '#ffbaf2', float: 20, opacity: 0.68, delay: 0.32 }
-        ];
-
-        const circles = haloConfigs.map((cfg, idx) => {
-            const material = groundCircleMaterialTemplate.clone();
-            trackMaterial(material);
-            material.uniforms.inner.value = cfg.inner;
-            material.uniforms.outer.value = cfg.outer;
-            material.uniforms.color.value = new THREE.Color(cfg.color);
-            material.uniforms.opacity.value = 0.0;
-
-            const mesh = new THREE.Mesh(groundCircleGeometry, material);
-            trackMeshResources(mesh);
-            mesh.rotation.x = Math.PI / 2;
-            mesh.renderOrder = 5;
-            mesh.scale.setScalar(cfg.size);
-            mesh.position.y = idx * 4;
-            haloGroup.add(mesh);
-
-            const floatTween = gsap.to(mesh.position, {
-                y: mesh.position.y + cfg.float,
-                duration: 2.6 + idx * 0.55,
-                ease: 'sine.inOut',
-                yoyo: true,
-                repeat: -1,
-                delay: cfg.delay
-            });
-
-            const opacityTween = gsap.to(material.uniforms.opacity, {
-                value: cfg.opacity,
-                duration: 1.35,
-                ease: 'power2.out',
-                delay: 0.22 + cfg.delay
-            });
-
-            return { mesh, material, floatTween, opacityTween };
-        });
-
-        const wobbleTween = gsap.fromTo(haloGroup.position, {
-            y: haloGroup.position.y - 35
-        }, {
-            y: haloGroup.position.y,
-            duration: 1.25,
-            ease: 'expo.out'
-        });
-
-        const scaleTween = gsap.fromTo(haloGroup.scale, {
-            x: 0.65,
-            y: 0.65,
-            z: 0.65
-        }, {
-            x: 1,
-            y: 1,
-            z: 1,
-            duration: 1.1,
-            ease: 'expo.out'
-        });
-
-        const spinTween = gsap.to(haloGroup.rotation, {
-            y: '+=1.8',
-            duration: 24,
-            ease: 'none',
-            repeat: -1
-        });
-
-        let disposed = false;
-
-        return {
-            update(dt) {
-                if (disposed) return;
-                circles.forEach(entry => {
-                    entry.material.uniforms.time.value += dt;
-                });
-            },
-            fadeAndRemove(onDone) {
-                if (disposed) return;
-                disposed = true;
-                spinTween.kill();
-                wobbleTween.kill();
-                scaleTween.kill();
-                circles.forEach((entry, idx) => {
-                    entry.floatTween?.kill();
-                    entry.opacityTween?.kill();
-                    gsap.to(entry.material.uniforms.opacity, {
-                        value: 0,
-                        duration: 0.75,
-                        ease: 'power2.in',
-                        delay: idx * 0.08
-                    });
-                });
-                gsap.to(haloGroup.position, {
-                    y: haloGroup.position.y - 50,
-                    duration: 0.8,
-                    ease: 'sine.in',
-                    onComplete: () => {
-                        haloGroup.parent?.remove(haloGroup);
-                        if (onDone) onDone();
-                    }
-                });
-            }
-        };
-    }
 
     function spawnPortalAt(target) {
         const g = new THREE.Group();
@@ -721,7 +388,6 @@ const wormholeReturnEase = (t) => {
         g.position.set(0, 0, -250);
 
         const ringGeo = new THREE.RingGeometry(0, 1, 96);
-        trackGeometry(ringGeo);
         const ringMat = new THREE.ShaderMaterial({
             transparent: true,
             blending: THREE.AdditiveBlending,
@@ -753,15 +419,12 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(col, alpha * glow);
       }`
         });
-        trackMaterial(ringMat);
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        trackMeshResources(ring);
         ring.rotation.x = -Math.PI / 2;
         g.add(ring);
 
         // tunnel interno
         const cylGeo = new THREE.CylinderGeometry(100, 100, 800, 64, 1, true);
-        trackGeometry(cylGeo);
         const cylMat = new THREE.ShaderMaterial({
             transparent: true,
             side: THREE.BackSide,
@@ -793,9 +456,7 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(col, alpha * mask);
       }`
         });
-        trackMaterial(cylMat);
         const cyl = new THREE.Mesh(cylGeo, cylMat);
-        trackMeshResources(cyl);
         cyl.rotation.x = Math.PI / 2;
         cyl.position.z = -400;
         cyl.scale.set(1, 1, 0.25);
@@ -806,7 +467,6 @@ const wormholeReturnEase = (t) => {
 
         const streakCount = 360;
         const streakGeo = new THREE.BufferGeometry();
-        trackGeometry(streakGeo);
         const streakPos = new Float32Array(streakCount * 3);
         const streakPhase = new Float32Array(streakCount);
         for (let i = 0; i < streakCount; i++) {
@@ -857,9 +517,7 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(tint, alpha);
       }`
         });
-        trackMaterial(streakMat);
         const streaks = new THREE.Points(streakGeo, streakMat);
-        trackMeshResources(streaks);
         streaks.rotation.x = Math.PI / 2;
         g.add(streaks);
 
@@ -878,21 +536,17 @@ const wormholeReturnEase = (t) => {
         const streaksFade = gsap.to(streakMat.uniforms.opacity, { value: 1.0, duration: 1.6, ease: "sine.inOut" });
         const streakStretch = gsap.to(streakMat.uniforms.stretch, { value: 2100, duration: 3.2, ease: "sine.inOut" });
 
-        const groundHalo = spawnGroundHalo(target);
-
         return {
             update(dt) {
                 ringMat.uniforms.time.value += dt;
                 cylMat.uniforms.time.value += dt;
                 streakMat.uniforms.time.value = (streakMat.uniforms.time.value + dt * 0.9) % 1.0;
                 light.intensity = 2.1 + cylMat.uniforms.glow.value * 0.9 + Math.sin(performance.now() / 480) * 0.6;
-                if (groundHalo) groundHalo.update(dt);
             },
             fadeAndRemove(onDone) {
                 glowTween.pause();
                 swirlTween.pause();
                 streakStretch.pause();
-                if (groundHalo) groundHalo.fadeAndRemove();
                 gsap.to(cylMat.uniforms.glow, { value: 0.4, duration: 0.6, ease: "sine.in" });
                 gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
                     value: 0.0, duration: 1.2, ease: "power2.inOut",
@@ -926,40 +580,18 @@ const wormholeReturnEase = (t) => {
     let portalTarget = null;       // root pulsante corrente
     let warpTimer = 0;             // per animare pass e portal
     let warpReturnTimeline = null; // gestisce l'animazione di rientro
-    let activeTravelTween = null;  // tween di andata verso il portale
 
-    const fadeOutActivePortal = () => {
-        if (!activePortal) return;
-        const portalRef = activePortal;
-        portalRef.fadeAndRemove(() => {
-            if (activePortal === portalRef) {
-                activePortal = null;
-            }
-        });
-    };
-
-    const stopTravelTween = () => {
-        if (activeTravelTween) {
-            activeTravelTween.kill();
-            activeTravelTween = null;
-        }
-        fadeOutActivePortal();
-    };
-
-    function handleSceneClick(event) {
+    window.addEventListener('click', (event) => {
         // evita i click sulla card
         const topEl = document.elementFromPoint(event.clientX, event.clientY);
         if (topEl && topEl.closest && topEl.closest('.warp-card')) return;
 
-        if (contextLost) return;
         if (!sceneInteractive) return;
 
         if (clickableMeshes.length === 0) return;
 
-        const rect = renderer.domElement.getBoundingClientRect();
-        const normalizedX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-        const normalizedY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
-        mouse.set(normalizedX, normalizedY);
+        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
         raycaster.setFromCamera(mouse, camera);
 
         const hits = raycaster.intersectObjects(clickableMeshes, true);
@@ -971,30 +603,16 @@ const wormholeReturnEase = (t) => {
                 triggerWarp(root, root.userData.name);
             }
         }
-    }
-
-    addEventListenerWithTeardown(window, 'click', handleSceneClick);
+    });
 
     // --------------------------------------------------------
     //  WARP + CARD (portale attorno al pulsante)
     // --------------------------------------------------------
     function triggerWarp(target, name) {
-        stopTravelTween();
-
         warpActive = true;
         portalTarget = target;
         warpTimer = 0;
         controls.enabled = false;
-
-        const reduceMotion = qualityState.reduceMotion;
-        const mobileDevice = qualityState.isMobile;
-        const duration = reduceMotion ? 3.6 : 5.2;
-        const entryBloom = reduceMotion ? 0.35 : (mobileDevice ? 0.5 : 0.55);
-        const peakBloom = reduceMotion ? 0.5 : (mobileDevice ? 0.75 : 1.15);
-        const warpStrengthCap = reduceMotion ? 0.85 : 1.35;
-        const chromaCap = reduceMotion ? 0.05 : 0.09;
-        const jitterMultiplier = reduceMotion ? 0.3 : 1;
-        const exposurePeak = reduceMotion ? 2.2 : 3.2;
 
         try {
             warpSound.currentTime = 0;
@@ -1003,7 +621,7 @@ const wormholeReturnEase = (t) => {
 
         activePortal = spawnPortalAt(target);
 
-        gsap.to(bloom, { strength: entryBloom, duration: 1.0, ease: 'power1.inOut' });
+        gsap.to(bloom, { strength: 0.55, duration: 1.2, ease: 'power1.inOut' });
 
         const wp = new THREE.Vector3();
         target.getWorldPosition(wp);
@@ -1015,6 +633,7 @@ const wormholeReturnEase = (t) => {
         const camEnd = wp.clone().addScaledVector(worldDir, -220);
         const focus = wp.clone();
         const travel = { t: 0 };
+        const duration = 5.2;
         const entryFov = Math.max(camera.fov, DEFAULT_FOV);
         camera.up.set(0, 1, 0);
         controls.target.copy(focus);
@@ -1040,7 +659,7 @@ const wormholeReturnEase = (t) => {
         });
 
         gsap.to(exposureTarget, {
-            value: exposurePeak,
+            value: 3.2,
             duration: duration * 0.48,
             ease: 'power2.inOut',
             yoyo: true,
@@ -1050,7 +669,7 @@ const wormholeReturnEase = (t) => {
             }
         });
 
-        activeTravelTween = gsap.to(travel, {
+        gsap.to(travel, {
             t: 1,
             duration,
             ease: 'sine.inOut',
@@ -1058,7 +677,7 @@ const wormholeReturnEase = (t) => {
                 const phase = wormholeEase(travel.t);
                 lerpPos.lerpVectors(camStart, camEnd, phase);
                 const turbulence = Math.sin(phase * Math.PI) ** 1.2;
-                const wobble = THREE.MathUtils.lerp(0, 18, turbulence) * jitterMultiplier;
+                const wobble = THREE.MathUtils.lerp(0, 18, turbulence);
                 jitterVec.copy(lateralAxis).multiplyScalar(Math.sin(phase * Math.PI * 4.0) * wobble);
                 jitterVec.addScaledVector(verticalAxis, Math.cos(phase * Math.PI * 3.0) * wobble * 0.6);
                 lerpPos.add(jitterVec);
@@ -1067,21 +686,20 @@ const wormholeReturnEase = (t) => {
                 camera.updateMatrixWorld();
                 controls.target.copy(focus);
 
-                const strengthTarget = THREE.MathUtils.lerp(0.35, warpStrengthCap, phase);
+                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.35, phase);
                 warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.2;
-                const chromaTarget = THREE.MathUtils.lerp(0.02, chromaCap, phase);
+                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.09, phase);
                 warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.2;
                 const radiusTarget = THREE.MathUtils.lerp(0.3, 0.1, phase);
                 warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.22;
-                const streakTarget = THREE.MathUtils.lerp(0.25, reduceMotion ? 0.8 : 1.2, phase);
+                const streakTarget = THREE.MathUtils.lerp(0.25, 1.2, phase);
                 warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.18;
                 warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
-                bloom.strength = THREE.MathUtils.lerp(entryBloom, peakBloom, phase);
+                bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
 
                 if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
-                activeTravelTween = null;
                 camera.position.copy(camEnd);
                 camera.quaternion.copy(endQuat);
                 camera.updateMatrixWorld();
@@ -1090,7 +708,7 @@ const wormholeReturnEase = (t) => {
                 gsap.to(warpPass.uniforms.chroma, { value: 0.045, duration: 1.0, ease: 'sine.out' });
                 gsap.to(warpPass.uniforms.radius, { value: 0.2, duration: 1.0, ease: 'sine.out' });
                 gsap.to(warpPass.uniforms.streaks, { value: 0.55, duration: 1.2, ease: 'power1.out' });
-                gsap.to(bloom, { strength: reduceMotion ? 0.4 : 0.65, duration: 1.0, ease: 'sine.out' });
+                gsap.to(bloom, { strength: 0.65, duration: 1.0, ease: 'sine.out' });
                 gsap.to(camera, {
                     fov: DEFAULT_FOV + 2,
                     duration: 1.2,
@@ -1098,7 +716,7 @@ const wormholeReturnEase = (t) => {
                     onUpdate: () => camera.updateProjectionMatrix()
                 });
                 renderer.toneMappingExposure = 2.0;
-                fadeOutActivePortal();
+                if (activePortal) activePortal.fadeAndRemove(() => activePortal = null);
             }
         });
     }
@@ -1106,9 +724,6 @@ const wormholeReturnEase = (t) => {
     function animateReturnHome() {
         if (warpReturnTimeline) return warpReturnTimeline;
 
-        stopTravelTween();
-
-        const reduceMotion = qualityState.reduceMotion;
         const startPos = camera.position.clone();
         const startQuat = camera.quaternion.clone();
         const startFocus = controls.target.clone();
@@ -1125,15 +740,7 @@ const wormholeReturnEase = (t) => {
         if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0); else lateral.normalize();
         const vertical = new THREE.Vector3().crossVectors(lateral, forward).normalize();
         const exposureProxy = { value: renderer.toneMappingExposure };
-        const duration = reduceMotion ? 3.4 : 4.8;
-        const jitterScale = reduceMotion ? 0.25 : 1;
-        const warpStrengthPeak = reduceMotion ? 0.8 : 1.2;
-        const chromaPeak = reduceMotion ? 0.045 : 0.075;
-        const streakPeak = reduceMotion ? 0.65 : 1.0;
-        const bloomPeak = reduceMotion ? 0.55 : 0.95;
-        const bloomRest = reduceMotion ? 0.22 : 0.3;
-        const exposurePeak = reduceMotion ? 2.0 : 2.35;
-        const exposureRest = reduceMotion ? 1.35 : 1.6;
+        const duration = 4.8;
 
         gsap.killTweensOf(warpPass.uniforms.strength);
         gsap.killTweensOf(warpPass.uniforms.chroma);
@@ -1151,8 +758,8 @@ const wormholeReturnEase = (t) => {
                 warpPass.uniforms.chroma.value = 0.0;
                 warpPass.uniforms.streaks.value = 0.0;
                 warpPass.uniforms.radius.value = 0.25;
-                bloom.strength = bloomRest;
-                applyQualityProfile();
+                bloom.strength = 0.3;
+                renderer.toneMappingExposure = 2.0;
                 warpActive = false;
                 portalTarget = null;
                 controls.enabled = true;
@@ -1168,14 +775,14 @@ const wormholeReturnEase = (t) => {
             }
         });
 
-        warpReturnTimeline.to(warpPass.uniforms.strength, { value: warpStrengthPeak, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: chromaPeak, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: streakPeak, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(bloom, { strength: bloomPeak, duration: 0.45, ease: 'sine.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 1.2, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.075, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 1.0, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(bloom, { strength: 0.95, duration: 0.45, ease: 'sine.in' }, 0);
 
         warpReturnTimeline.to(exposureProxy, {
-            value: exposurePeak,
-            duration: duration * 0.45,
+            value: 2.35,
+            duration: 1.8,
             ease: 'power2.inOut',
             yoyo: true,
             repeat: 1,
@@ -1186,7 +793,7 @@ const wormholeReturnEase = (t) => {
 
         warpReturnTimeline.to(camera, {
             fov: DEFAULT_FOV + 8,
-            duration: duration * 0.32,
+            duration: 1.4,
             ease: 'sine.inOut',
             yoyo: true,
             repeat: 1,
@@ -1201,7 +808,7 @@ const wormholeReturnEase = (t) => {
                 const phase = wormholeReturnEase(retreat.t);
                 returnPos.lerpVectors(startPos, HOME_POSITION, phase);
                 const shake = Math.sin(phase * Math.PI) ** 1.3;
-                const wobble = THREE.MathUtils.lerp(0, 14, shake) * jitterScale;
+                const wobble = THREE.MathUtils.lerp(0, 14, shake);
                 returnJitter.copy(lateral).multiplyScalar(Math.sin(phase * Math.PI * 3.15) * wobble);
                 returnJitter.addScaledVector(vertical, Math.cos(phase * Math.PI * 2.45) * wobble * 0.55);
                 returnPos.add(returnJitter);
@@ -1210,19 +817,19 @@ const wormholeReturnEase = (t) => {
                 camera.updateMatrixWorld();
                 controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
 
-                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(warpStrengthPeak, 0.0, phase);
-                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(chromaPeak, 0.0, phase);
+                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.2, 0.0, phase);
+                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.075, 0.0, phase);
                 warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
-                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(streakPeak, 0.05, phase);
-                bloom.strength = THREE.MathUtils.lerp(bloomPeak, bloomRest, phase);
+                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(1.0, 0.05, phase);
+                bloom.strength = THREE.MathUtils.lerp(0.95, 0.3, phase);
             }
         }, 0.15);
 
-        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
-        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
-        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
-        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.2, ease: 'sine.out' }, '-=1.0');
-        warpReturnTimeline.to(bloom, { strength: bloomRest, duration: 1.2, ease: 'sine.out' }, '-=1.0');
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(bloom, { strength: 0.3, duration: 1.4, ease: 'sine.out' }, '-=1.15');
 
         return warpReturnTimeline;
     }
@@ -1425,13 +1032,6 @@ const wormholeReturnEase = (t) => {
         try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
 
         const deckConfig = CARD_LIBRARY[name];
-        if (!deckConfig) return;
-
-        if (deckConfig.layout === 'spline') {
-            mountSplineDeck(name, deckConfig);
-            return;
-        }
-
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
@@ -1478,7 +1078,7 @@ const wormholeReturnEase = (t) => {
         <div class="card-stage" data-deck="${deckName}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
-        </div>`;
+        </div>${hintMarkup}`;
 
         document.body.appendChild(overlay);
 
@@ -1503,10 +1103,10 @@ const wormholeReturnEase = (t) => {
             const marginX = Math.max(18, Math.min(150, vw * 0.065));
             const marginY = Math.max(70, Math.min(220, vh * 0.16));
             const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
-            const stageHeight = isCarousel
+            const stageHeight = isCarousel()
                 ? Math.max(420, Math.min(vh - marginY, 760))
                 : Math.max(360, Math.min(vh - marginY, 640));
-            const panelHeight = isCarousel
+            const panelHeight = isCarousel()
                 ? Math.max(420, Math.min(stageHeight - 24, 660))
                 : Math.max(340, stageHeight - 36);
             const baseWidth = Math.max(320, Math.min(stageWidth * 0.9, 840));
@@ -1528,17 +1128,6 @@ const wormholeReturnEase = (t) => {
         window.addEventListener('resize', updateStageMetrics);
         updateStageMetrics();
 
-        const handleQualityChange = (event) => {
-            const reduce = Boolean(event.detail?.reduceMotion);
-            if (reduce) {
-                stopAutoRotate();
-            } else if (!state.overlayClosed) {
-                startAutoRotate();
-            }
-            requestAnimationFrame(updateStageMetrics);
-        };
-        document.addEventListener('quality-change', handleQualityChange);
-
         const stopAutoRotate = () => {
             if (state.autoRotateTimer) {
                 clearInterval(state.autoRotateTimer);
@@ -1547,8 +1136,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const startAutoRotate = () => {
-            if (qualityState.reduceMotion) return;
-            if (!isCarousel || !state.autoRotateSeconds || state.totalCards <= 1) return;
+            if (!isCarousel() || !state.autoRotateSeconds || state.totalCards <= 1) return;
             stopAutoRotate();
             state.autoRotateTimer = setInterval(() => {
                 if (state.overlayClosed || state.navAnimating) return;
@@ -1558,7 +1146,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const layoutFor = (index) => {
-            if (!isCarousel) {
+            if (!isCarousel()) {
                 return deck.map((card, idx) => ({
                     role: deck.length === 1 ? 'center' : (idx === 0 ? 'left' : 'right'),
                     card
@@ -1647,7 +1235,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const renderActions = (role) => {
-            if (isCarousel) {
+            if (isCarousel()) {
                 if (role !== 'center') return '';
                 const showNav = state.totalCards > 1;
                 const prevButton = showNav ? `<button type="button" class="card-actions__nav is-prev" data-action="nav" data-direction="left" aria-label="Mostra precedente"><span class="chevron"></span></button>` : '';
@@ -1739,7 +1327,7 @@ const wormholeReturnEase = (t) => {
         }
 
         function bindPanelEvents() {
-            if (!isCarousel) return;
+            if (!isCarousel()) return;
             carouselEl.querySelectorAll('.card-panel').forEach(panel => {
                 panel.addEventListener('click', (ev) => {
                     if (isInteractiveTarget(ev.target)) return;
@@ -1759,7 +1347,6 @@ const wormholeReturnEase = (t) => {
                 warpSound.currentTime = 0;
                 warpSound.play();
             } catch (err) { /* noop */ }
-            stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
         };
@@ -1778,7 +1365,7 @@ const wormholeReturnEase = (t) => {
 
         const handleNav = (direction, options = {}) => {
             if (state.overlayClosed || state.navAnimating) return;
-            if (!isCarousel || state.totalCards <= 1) return;
+            if (!isCarousel() || state.totalCards <= 1) return;
             state.navAnimating = true;
             stopAutoRotate();
             const nextIndex = direction === 'left'
@@ -1826,7 +1413,7 @@ const wormholeReturnEase = (t) => {
         };
 
         function render(direction = 'intro') {
-            if (!isCarousel) {
+            if (!isCarousel()) {
                 const layout = layoutFor(state.activeIndex);
                 stage.style.setProperty('--active-accent', layout[0]?.card.accent ?? '#ffd58a');
                 carouselEl.innerHTML = layout.map(cardMarkup).join('');
@@ -1949,7 +1536,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const handleWheel = (ev) => {
-            if (!isCarousel || state.totalCards <= 1) return;
+            if (!isCarousel() || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const scrollable = ev.target.closest('.card-holo');
             if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) return;
@@ -1962,14 +1549,14 @@ const wormholeReturnEase = (t) => {
             gsap.delayedCall(0.65, () => { state.wheelLock = false; });
         };
 
-        if (isCarousel) {
+        if (isCarousel()) {
             stage.addEventListener('pointermove', handlePointer);
             stage.addEventListener('pointerleave', handleLeave);
             stage.addEventListener('wheel', handleWheel, { passive: false });
         }
 
         const onPointerDown = (ev) => {
-            if (!isCarousel) return;
+            if (!isCarousel()) return;
             if (isInteractiveTarget(ev.target)) return;
             state.swipeStartX = ev.clientX;
             state.swipeLock = false;
@@ -1987,7 +1574,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const onPointerMove = (ev) => {
-            if (!isCarousel || state.swipeStartX === null || state.totalCards <= 1) return;
+            if (!isCarousel() || state.swipeStartX === null || state.totalCards <= 1) return;
             if (isInteractiveTarget(ev.target)) return;
             const delta = ev.clientX - (state.dragActive ? state.dragStartX : state.swipeStartX);
             if (state.dragActive && state.dragCard) {
@@ -2048,7 +1635,7 @@ const wormholeReturnEase = (t) => {
 
         gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
         render('intro');
-        if (isCarousel) {
+        if (isCarousel()) {
             startAutoRotate();
         }
 
@@ -2062,7 +1649,6 @@ const wormholeReturnEase = (t) => {
                 state.stageResizeObserver.disconnect();
                 state.stageResizeObserver = null;
             }
-            document.removeEventListener('quality-change', handleQualityChange);
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
             stage.removeEventListener('wheel', handleWheel);
@@ -2099,160 +1685,43 @@ const wormholeReturnEase = (t) => {
         warpPass.uniforms.center.value.set(u, v);
     }
 
-    function handleContextLost(event) {
-        event.preventDefault();
-        contextLost = true;
-        if (animationFrameId !== null) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-    }
-
-    function handleContextRestored() {
-        contextLost = false;
-        renderer.info?.reset?.();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
-        composer.reset();
-        applyQualityProfile();
-        scene.traverse((obj) => {
-            if (!obj.isMesh) return;
-            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
-            mats.forEach(mat => { if (mat) mat.needsUpdate = true; });
-        });
-        clock.getDelta();
-        animate();
-    }
-
-    addEventListenerWithTeardown(renderer.domElement, 'webglcontextlost', handleContextLost, false);
-    addEventListenerWithTeardown(renderer.domElement, 'webglcontextrestored', handleContextRestored, false);
-
     function animate() {
-        if (contextLost) {
-            animationFrameId = null;
-            return;
-        }
-
-        const delta = clock.getDelta();
-        const reduced = qualityState.reduceMotion && !warpActive;
-        const dt = reduced ? delta * 0.35 : delta;
+        const dt = clock.getDelta();
         const t  = clock.elapsedTime;
 
+        // animazioni fiamme GLTF
         mixers.forEach(m => m.update(dt));
 
+        // aggiorna portal meshes / light
         if (activePortal) activePortal.update(dt);
 
+        // aggiorna warp shader time & center (segue il pulsante mentre zoommi)
         if (warpActive) {
             warpTimer += dt;
             warpPass.uniforms.time.value = warpTimer;
             warpPass.uniforms.pulse.value = 0.5 + 0.5 * Math.sin(warpTimer * 2.4);
             updateWarpCenterUniform();
         } else {
-            const targetPulse = reduced ? 0.0 : 0.1;
-            warpPass.uniforms.pulse.value += (targetPulse - warpPass.uniforms.pulse.value) * 0.1;
+            warpPass.uniforms.pulse.value += (0.0 - warpPass.uniforms.pulse.value) * 0.12;
         }
 
+        // anima flare sui pulsanti
         clickableRoots.forEach(b => {
             const f = b.userData.flare;
-            if (f) {
-                const mat = f.material;
-                if (mat?.uniforms?.time) {
-                    mat.uniforms.time.value = reduced ? t * 0.3 : t;
-                }
-            }
+            if (f) f.material.uniforms.time.value = t;
         });
 
         composer.render();
-        animationFrameId = requestAnimationFrame(animate);
+        requestAnimationFrame(animate);
     }
-
     animate();
-
-    function handleVisibilityChange() {
-        if (document.hidden) {
-            visibilityPaused = true;
-            if (animationFrameId !== null) {
-                cancelAnimationFrame(animationFrameId);
-                animationFrameId = null;
-            }
-        } else if (visibilityPaused && !animationFrameId && !contextLost) {
-            visibilityPaused = false;
-            clock.getDelta();
-            animate();
-        }
-    }
-
-    addEventListenerWithTeardown(document, 'visibilitychange', handleVisibilityChange);
 
     // --------------------------------------------------------
     //  RESPONSIVE
     // --------------------------------------------------------
-    let resizeRaf = null;
-    function handleResize() {
-        if (resizeRaf) cancelAnimationFrame(resizeRaf);
-        resizeRaf = requestAnimationFrame(() => {
-            const width = window.innerWidth;
-            const height = window.innerHeight;
-            camera.aspect = width / height;
-            camera.updateProjectionMatrix();
-            renderer.setSize(width, height);
-            composer.setSize(width, height);
-            applyQualityProfile();
-            updateWarpCenterUniform();
-        });
-    }
-
-    addEventListenerWithTeardown(window, 'resize', handleResize);
-
-    function disposeTrackedResources() {
-        disposableResources.geometries.forEach((geo) => {
-            try { geo.dispose?.(); } catch (err) { log('dispose geometry error', err); }
-        });
-        disposableResources.materials.forEach((mat) => {
-            try { mat.dispose?.(); } catch (err) { log('dispose material error', err); }
-        });
-        disposableResources.textures.forEach((tex) => {
-            try { tex.dispose?.(); } catch (err) { log('dispose texture error', err); }
-        });
-        disposableResources.geometries.clear();
-        disposableResources.materials.clear();
-        disposableResources.textures.clear();
-    }
-
-    let sceneDisposed = false;
-    function teardownScene() {
-        if (sceneDisposed) return;
-        sceneDisposed = true;
-
-        try { stopTravelTween(); } catch (err) { /* noop */ }
-        try { fadeOutActivePortal(); } catch (err) { /* noop */ }
-        if (warpReturnTimeline) {
-            warpReturnTimeline.kill();
-            warpReturnTimeline = null;
-        }
-
-        if (animationFrameId !== null) {
-            cancelAnimationFrame(animationFrameId);
-            animationFrameId = null;
-        }
-
-        teardownCallbacks.splice(0).forEach((fn) => {
-            try { fn(); } catch (err) { /* noop */ }
-        });
-
-        disposeTrackedResources();
-
-        if (environmentTarget) {
-            try { environmentTarget.dispose?.(); } catch (err) { /* noop */ }
-            environmentTarget = null;
-        }
-        environmentTexture = null;
-
-        try { pmremGenerator.dispose(); } catch (err) { /* noop */ }
-        try { composer.dispose(); } catch (err) { /* noop */ }
-        try { renderer.dispose(); } catch (err) { /* noop */ }
-        try { controls.dispose?.(); } catch (err) { /* noop */ }
-    }
-
-    addEventListenerWithTeardown(window, 'beforeunload', teardownScene);
-    addEventListenerWithTeardown(window, 'pagehide', teardownScene);
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+    });
