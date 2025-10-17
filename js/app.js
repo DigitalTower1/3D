@@ -3,18 +3,18 @@
     //   Portale dorato attorno al pulsante + Warp postprocess
     //   (tutti gli effetti, click robusto, nessuna rimozione)
     // ========================================================
-    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
-    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
-    import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
-    import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
-    import { RGBELoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/RGBELoader.js';
-    import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/EffectComposer.js';
-    import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/RenderPass.js';
-    import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/UnrealBloomPass.js';
-    import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/SSAOPass.js';
-    import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
-    import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
-    import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/DRACOLoader.js';
+import { RGBELoader } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/RGBELoader.js';
+import { EffectComposer } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/SSAOPass.js';
+import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
+import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
+import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
     import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
     // -------------------------
@@ -22,6 +22,102 @@
     // -------------------------
 const DEBUG_LOG = false;
 const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
+
+const reduceMotionMedia = window.matchMedia('(prefers-reduced-motion: reduce)');
+const mobileMedia = window.matchMedia('(max-width: 900px)');
+const qualityState = {
+    reduceMotion: reduceMotionMedia.matches,
+    isMobile: mobileMedia.matches
+};
+
+const disposableResources = {
+    geometries: new Set(),
+    materials: new Set(),
+    textures: new Set()
+};
+
+function scheduleDeferred(task) {
+    if (typeof window === 'undefined') {
+        task();
+        return;
+    }
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => task(), { timeout: 2000 });
+    } else {
+        requestAnimationFrame(() => task());
+    }
+}
+
+function trackGeometry(geometry) {
+    if (!geometry) return;
+    disposableResources.geometries.add(geometry);
+}
+
+function trackMaterial(material) {
+    if (!material) return;
+    if (Array.isArray(material)) {
+        material.forEach(trackMaterial);
+        return;
+    }
+    disposableResources.materials.add(material);
+    if (material.map) trackTexture(material.map);
+    if (material.emissiveMap) trackTexture(material.emissiveMap);
+    if (material.normalMap) trackTexture(material.normalMap);
+    if (material.roughnessMap) trackTexture(material.roughnessMap);
+    if (material.metalnessMap) trackTexture(material.metalnessMap);
+}
+
+function trackTexture(texture) {
+    if (!texture) return;
+    disposableResources.textures.add(texture);
+}
+
+const teardownCallbacks = [];
+
+function trackMeshResources(mesh) {
+    if (!mesh) return;
+    if (mesh.geometry) trackGeometry(mesh.geometry);
+    if (mesh.material) trackMaterial(mesh.material);
+}
+
+function addEventListenerWithTeardown(target, type, handler, options) {
+    if (!target || !target.addEventListener) return;
+    target.addEventListener(type, handler, options);
+    teardownCallbacks.push(() => {
+        try {
+            target.removeEventListener(type, handler, options);
+        } catch (err) {
+            /* noop */
+        }
+    });
+}
+
+let animationFrameId = null;
+let contextLost = false;
+let visibilityPaused = false;
+let environmentTarget = null;
+let environmentTexture = null;
+
+function bindMediaListener(media, handler) {
+    if (!media) return;
+    if (typeof media.addEventListener === 'function') {
+        media.addEventListener('change', handler);
+    } else if (typeof media.addListener === 'function') {
+        media.addListener(handler);
+    }
+}
+
+bindMediaListener(reduceMotionMedia, (event) => {
+    qualityState.reduceMotion = event.matches;
+    applyQualityProfile();
+    document.dispatchEvent(new CustomEvent('quality-change', { detail: { ...qualityState } }));
+});
+
+bindMediaListener(mobileMedia, (event) => {
+    qualityState.isMobile = event.matches;
+    applyQualityProfile();
+    document.dispatchEvent(new CustomEvent('quality-change', { detail: { ...qualityState } }));
+});
 
 // easing personalizzati per i movimenti "wormhole"
 const wormholeEase = (t) => {
@@ -37,14 +133,16 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  RENDERER + SCENA
     // --------------------------------------------------------
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 2.0;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    const maxPixelRatio = typeof window.devicePixelRatio === 'number' ? Math.min(window.devicePixelRatio, 1.75) : 1;
+    renderer.setPixelRatio(maxPixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    const maxAnisotropy = renderer.capabilities?.getMaxAnisotropy?.() ?? 1;
     window.renderer = renderer;
 
     // Assicura che il canvas riceva i click
@@ -57,10 +155,12 @@ const wormholeReturnEase = (t) => {
 
     let sceneInteractive = false;
 
-    window.addEventListener('scene-ready', () => {
+    function handleSceneReady() {
         sceneInteractive = true;
         container.style.pointerEvents = 'auto';
-    });
+    }
+
+    addEventListenerWithTeardown(window, 'scene-ready', handleSceneReady);
 
     const scene = new THREE.Scene();
     scene.fog = new THREE.FogExp2(0x0a0a0a, 0.00025);
@@ -98,11 +198,21 @@ const wormholeReturnEase = (t) => {
     const rgbeLoader = new RGBELoader();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-    rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
-        tex.mapping = THREE.EquirectangularReflectionMapping;
-        const envMap = pmremGenerator.fromEquirectangular(tex).texture;
-        scene.environment = envMap;
-        scene.background = envMap;
+
+    scheduleDeferred(() => {
+        rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
+            tex.mapping = THREE.EquirectangularReflectionMapping;
+            trackTexture(tex);
+            const pmremTarget = pmremGenerator.fromEquirectangular(tex);
+            environmentTarget = pmremTarget;
+            environmentTexture = pmremTarget.texture;
+            trackTexture(environmentTexture);
+            scene.environment = environmentTexture;
+            scene.background = environmentTexture;
+            tex.dispose?.();
+        }, undefined, (err) => {
+            console.warn('HDR environment failed to load', err);
+        });
     });
 
     // --------------------------------------------------------
@@ -141,18 +251,35 @@ const wormholeReturnEase = (t) => {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://unpkg.com/three@0.161.0/examples/jsm/libs/draco/');
     gltfLoader.setDRACOLoader(dracoLoader);
-    gltfLoader.load('./assets/3d/scene.gltf', (gltf) => {
-        const model = gltf.scene;
-        model.traverse(o => {
-            if (o.isMesh && o.material) {
-                o.castShadow = true;
-                o.receiveShadow = true;
-                o.material.envMapIntensity = 1.2;
-                o.material.metalness = 0.8;
-                o.material.roughness = 0.3;
-            }
+    scheduleDeferred(() => {
+        gltfLoader.load('./assets/3d/scene.gltf', (gltf) => {
+            const model = gltf.scene;
+            model.traverse(o => {
+                if (o.isMesh && o.material) {
+                    o.castShadow = true;
+                    o.receiveShadow = true;
+                    const mats = Array.isArray(o.material) ? o.material : [o.material];
+                    mats.forEach((mat) => {
+                        mat.envMapIntensity = 1.2;
+                        mat.metalness = 0.8;
+                        mat.roughness = 0.3;
+                        if (mat.map) {
+                            mat.map.anisotropy = maxAnisotropy;
+                            mat.map.encoding = THREE.sRGBEncoding;
+                        }
+                        if (mat.emissiveMap) {
+                            mat.emissiveMap.anisotropy = maxAnisotropy;
+                            mat.emissiveMap.encoding = THREE.sRGBEncoding;
+                        }
+                        trackMaterial(mat);
+                    });
+                    trackGeometry(o.geometry);
+                }
+            });
+            scene.add(model);
+        }, undefined, (error) => {
+            console.warn('GLTF principale non caricato', error);
         });
-        scene.add(model);
     });
 
     // --------------------------------------------------------
@@ -342,6 +469,7 @@ const wormholeReturnEase = (t) => {
         }
       `
     });
+    trackMaterial(flareMat);
 
     function collectMeshes(node, out) {
         node.traverse(n=>{
@@ -365,7 +493,11 @@ const wormholeReturnEase = (t) => {
             });
 
             // flare interstellare orizzontale
-            const flare = new THREE.Mesh(new THREE.PlaneGeometry(400, 15), flareMat.clone());
+            const flareGeometry = new THREE.PlaneGeometry(400, 15);
+            trackGeometry(flareGeometry);
+            const flareMaterial = flareMat.clone();
+            trackMaterial(flareMaterial);
+            const flare = new THREE.Mesh(flareGeometry, flareMaterial);
             flare.rotation.x = Math.PI / 2;
             flare.position.set(0, 150, 0);
             root.add(flare);
@@ -405,7 +537,8 @@ const wormholeReturnEase = (t) => {
     //  POST-PROCESSING (manteniamo tutto) + WARP SHADER PASS
     // --------------------------------------------------------
     const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
     const ssao = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
     ssao.kernelRadius = 16;
     composer.addPass(ssao);
@@ -475,11 +608,34 @@ const wormholeReturnEase = (t) => {
     const warpPass = new ShaderPass(WarpShader);
     composer.addPass(warpPass);
 
+    function applyQualityProfile() {
+        const width = window.innerWidth || 1920;
+        const reduce = qualityState.reduceMotion;
+        const mobile = qualityState.isMobile;
+        const exposureBase = width >= 1600 ? 2.05 : width >= 1280 ? 1.92 : width >= 768 ? 1.8 : 1.6;
+        const exposure = exposureBase * (reduce ? 0.7 : 1) * (mobile ? 0.92 : 1);
+        renderer.toneMappingExposure = exposure;
+
+        ssao.enabled = !reduce && !mobile;
+        ssao.kernelRadius = mobile ? 10 : 16;
+        bloom.enabled = !reduce;
+        bloom.strength = (mobile ? 0.32 : 0.45) * (reduce ? 0.6 : 1);
+        bloom.radius = mobile ? 0.75 : 0.9;
+        bokeh.enabled = !mobile && !reduce;
+        if (bokeh.materialBokeh && bokeh.materialBokeh.uniforms?.maxblur) {
+            bokeh.materialBokeh.uniforms.maxblur.value = mobile ? 0.0012 : 0.002;
+        }
+        film.enabled = !reduce;
+    }
+
+    applyQualityProfile();
+
     // --------------------------------------------------------
     //  PORTALE DORATO ATTORNO AL PULSANTE (mesh/shader 3D)
     // --------------------------------------------------------
     const portalGroups = new Set(); // per pulire al termine
     const groundCircleGeometry = new THREE.PlaneGeometry(1, 1, 64, 1);
+    trackGeometry(groundCircleGeometry);
     const groundCircleMaterialTemplate = new THREE.ShaderMaterial({
         transparent: true,
         depthWrite: false,
@@ -515,6 +671,7 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(tint, alpha);
       }`
     });
+    trackMaterial(groundCircleMaterialTemplate);
 
     const groundTmp = new THREE.Vector3();
 
@@ -536,12 +693,14 @@ const wormholeReturnEase = (t) => {
 
         const circles = haloConfigs.map((cfg, idx) => {
             const material = groundCircleMaterialTemplate.clone();
+            trackMaterial(material);
             material.uniforms.inner.value = cfg.inner;
             material.uniforms.outer.value = cfg.outer;
             material.uniforms.color.value = new THREE.Color(cfg.color);
             material.uniforms.opacity.value = 0.0;
 
             const mesh = new THREE.Mesh(groundCircleGeometry, material);
+            trackMeshResources(mesh);
             mesh.rotation.x = Math.PI / 2;
             mesh.renderOrder = 5;
             mesh.scale.setScalar(cfg.size);
@@ -639,6 +798,7 @@ const wormholeReturnEase = (t) => {
         g.position.set(0, 0, -250);
 
         const ringGeo = new THREE.RingGeometry(0, 1, 96);
+        trackGeometry(ringGeo);
         const ringMat = new THREE.ShaderMaterial({
             transparent: true,
             blending: THREE.AdditiveBlending,
@@ -670,12 +830,15 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(col, alpha * glow);
       }`
         });
+        trackMaterial(ringMat);
         const ring = new THREE.Mesh(ringGeo, ringMat);
+        trackMeshResources(ring);
         ring.rotation.x = -Math.PI / 2;
         g.add(ring);
 
         // tunnel interno
         const cylGeo = new THREE.CylinderGeometry(100, 100, 800, 64, 1, true);
+        trackGeometry(cylGeo);
         const cylMat = new THREE.ShaderMaterial({
             transparent: true,
             side: THREE.BackSide,
@@ -707,7 +870,9 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(col, alpha * mask);
       }`
         });
+        trackMaterial(cylMat);
         const cyl = new THREE.Mesh(cylGeo, cylMat);
+        trackMeshResources(cyl);
         cyl.rotation.x = Math.PI / 2;
         cyl.position.z = -400;
         cyl.scale.set(1, 1, 0.25);
@@ -718,6 +883,7 @@ const wormholeReturnEase = (t) => {
 
         const streakCount = 360;
         const streakGeo = new THREE.BufferGeometry();
+        trackGeometry(streakGeo);
         const streakPos = new Float32Array(streakCount * 3);
         const streakPhase = new Float32Array(streakCount);
         for (let i = 0; i < streakCount; i++) {
@@ -768,7 +934,9 @@ const wormholeReturnEase = (t) => {
         gl_FragColor = vec4(tint, alpha);
       }`
         });
+        trackMaterial(streakMat);
         const streaks = new THREE.Points(streakGeo, streakMat);
+        trackMeshResources(streaks);
         streaks.rotation.x = Math.PI / 2;
         g.add(streaks);
 
@@ -855,17 +1023,20 @@ const wormholeReturnEase = (t) => {
         fadeOutActivePortal();
     };
 
-    window.addEventListener('click', (event) => {
+    function handleSceneClick(event) {
         // evita i click sulla card
         const topEl = document.elementFromPoint(event.clientX, event.clientY);
         if (topEl && topEl.closest && topEl.closest('.warp-card')) return;
 
+        if (contextLost) return;
         if (!sceneInteractive) return;
 
         if (clickableMeshes.length === 0) return;
 
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        const rect = renderer.domElement.getBoundingClientRect();
+        const normalizedX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        const normalizedY = -(((event.clientY - rect.top) / rect.height) * 2 - 1);
+        mouse.set(normalizedX, normalizedY);
         raycaster.setFromCamera(mouse, camera);
 
         const hits = raycaster.intersectObjects(clickableMeshes, true);
@@ -877,7 +1048,9 @@ const wormholeReturnEase = (t) => {
                 triggerWarp(root, root.userData.name);
             }
         }
-    });
+    }
+
+    addEventListenerWithTeardown(window, 'click', handleSceneClick);
 
     // --------------------------------------------------------
     //  WARP + CARD (portale attorno al pulsante)
@@ -890,6 +1063,16 @@ const wormholeReturnEase = (t) => {
         warpTimer = 0;
         controls.enabled = false;
 
+        const reduceMotion = qualityState.reduceMotion;
+        const mobileDevice = qualityState.isMobile;
+        const duration = reduceMotion ? 3.6 : 5.2;
+        const entryBloom = reduceMotion ? 0.35 : (mobileDevice ? 0.5 : 0.55);
+        const peakBloom = reduceMotion ? 0.5 : (mobileDevice ? 0.75 : 1.15);
+        const warpStrengthCap = reduceMotion ? 0.85 : 1.35;
+        const chromaCap = reduceMotion ? 0.05 : 0.09;
+        const jitterMultiplier = reduceMotion ? 0.3 : 1;
+        const exposurePeak = reduceMotion ? 2.2 : 3.2;
+
         try {
             warpSound.currentTime = 0;
             warpSound.play();
@@ -897,7 +1080,7 @@ const wormholeReturnEase = (t) => {
 
         activePortal = spawnPortalAt(target);
 
-        gsap.to(bloom, { strength: 0.55, duration: 1.2, ease: 'power1.inOut' });
+        gsap.to(bloom, { strength: entryBloom, duration: 1.0, ease: 'power1.inOut' });
 
         const wp = new THREE.Vector3();
         target.getWorldPosition(wp);
@@ -909,7 +1092,6 @@ const wormholeReturnEase = (t) => {
         const camEnd = wp.clone().addScaledVector(worldDir, -220);
         const focus = wp.clone();
         const travel = { t: 0 };
-        const duration = 5.2;
         const entryFov = Math.max(camera.fov, DEFAULT_FOV);
         camera.up.set(0, 1, 0);
         controls.target.copy(focus);
@@ -935,7 +1117,7 @@ const wormholeReturnEase = (t) => {
         });
 
         gsap.to(exposureTarget, {
-            value: 3.2,
+            value: exposurePeak,
             duration: duration * 0.48,
             ease: 'power2.inOut',
             yoyo: true,
@@ -953,7 +1135,7 @@ const wormholeReturnEase = (t) => {
                 const phase = wormholeEase(travel.t);
                 lerpPos.lerpVectors(camStart, camEnd, phase);
                 const turbulence = Math.sin(phase * Math.PI) ** 1.2;
-                const wobble = THREE.MathUtils.lerp(0, 18, turbulence);
+                const wobble = THREE.MathUtils.lerp(0, 18, turbulence) * jitterMultiplier;
                 jitterVec.copy(lateralAxis).multiplyScalar(Math.sin(phase * Math.PI * 4.0) * wobble);
                 jitterVec.addScaledVector(verticalAxis, Math.cos(phase * Math.PI * 3.0) * wobble * 0.6);
                 lerpPos.add(jitterVec);
@@ -962,16 +1144,16 @@ const wormholeReturnEase = (t) => {
                 camera.updateMatrixWorld();
                 controls.target.copy(focus);
 
-                const strengthTarget = THREE.MathUtils.lerp(0.35, 1.35, phase);
+                const strengthTarget = THREE.MathUtils.lerp(0.35, warpStrengthCap, phase);
                 warpPass.uniforms.strength.value += (strengthTarget - warpPass.uniforms.strength.value) * 0.2;
-                const chromaTarget = THREE.MathUtils.lerp(0.02, 0.09, phase);
+                const chromaTarget = THREE.MathUtils.lerp(0.02, chromaCap, phase);
                 warpPass.uniforms.chroma.value += (chromaTarget - warpPass.uniforms.chroma.value) * 0.2;
                 const radiusTarget = THREE.MathUtils.lerp(0.3, 0.1, phase);
                 warpPass.uniforms.radius.value += (radiusTarget - warpPass.uniforms.radius.value) * 0.22;
-                const streakTarget = THREE.MathUtils.lerp(0.25, 1.2, phase);
+                const streakTarget = THREE.MathUtils.lerp(0.25, reduceMotion ? 0.8 : 1.2, phase);
                 warpPass.uniforms.streaks.value += (streakTarget - warpPass.uniforms.streaks.value) * 0.18;
                 warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
-                bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
+                bloom.strength = THREE.MathUtils.lerp(entryBloom, peakBloom, phase);
 
                 if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
             },
@@ -985,7 +1167,7 @@ const wormholeReturnEase = (t) => {
                 gsap.to(warpPass.uniforms.chroma, { value: 0.045, duration: 1.0, ease: 'sine.out' });
                 gsap.to(warpPass.uniforms.radius, { value: 0.2, duration: 1.0, ease: 'sine.out' });
                 gsap.to(warpPass.uniforms.streaks, { value: 0.55, duration: 1.2, ease: 'power1.out' });
-                gsap.to(bloom, { strength: 0.65, duration: 1.0, ease: 'sine.out' });
+                gsap.to(bloom, { strength: reduceMotion ? 0.4 : 0.65, duration: 1.0, ease: 'sine.out' });
                 gsap.to(camera, {
                     fov: DEFAULT_FOV + 2,
                     duration: 1.2,
@@ -1003,6 +1185,7 @@ const wormholeReturnEase = (t) => {
 
         stopTravelTween();
 
+        const reduceMotion = qualityState.reduceMotion;
         const startPos = camera.position.clone();
         const startQuat = camera.quaternion.clone();
         const startFocus = controls.target.clone();
@@ -1019,7 +1202,15 @@ const wormholeReturnEase = (t) => {
         if (lateral.lengthSq() < 1e-6) lateral.set(1, 0, 0); else lateral.normalize();
         const vertical = new THREE.Vector3().crossVectors(lateral, forward).normalize();
         const exposureProxy = { value: renderer.toneMappingExposure };
-        const duration = 4.8;
+        const duration = reduceMotion ? 3.4 : 4.8;
+        const jitterScale = reduceMotion ? 0.25 : 1;
+        const warpStrengthPeak = reduceMotion ? 0.8 : 1.2;
+        const chromaPeak = reduceMotion ? 0.045 : 0.075;
+        const streakPeak = reduceMotion ? 0.65 : 1.0;
+        const bloomPeak = reduceMotion ? 0.55 : 0.95;
+        const bloomRest = reduceMotion ? 0.22 : 0.3;
+        const exposurePeak = reduceMotion ? 2.0 : 2.35;
+        const exposureRest = reduceMotion ? 1.35 : 1.6;
 
         gsap.killTweensOf(warpPass.uniforms.strength);
         gsap.killTweensOf(warpPass.uniforms.chroma);
@@ -1037,8 +1228,8 @@ const wormholeReturnEase = (t) => {
                 warpPass.uniforms.chroma.value = 0.0;
                 warpPass.uniforms.streaks.value = 0.0;
                 warpPass.uniforms.radius.value = 0.25;
-                bloom.strength = 0.3;
-                renderer.toneMappingExposure = 2.0;
+                bloom.strength = bloomRest;
+                applyQualityProfile();
                 warpActive = false;
                 portalTarget = null;
                 controls.enabled = true;
@@ -1054,14 +1245,14 @@ const wormholeReturnEase = (t) => {
             }
         });
 
-        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 1.2, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.075, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 1.0, duration: 0.45, ease: 'power2.in' }, 0);
-        warpReturnTimeline.to(bloom, { strength: 0.95, duration: 0.45, ease: 'sine.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: warpStrengthPeak, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: chromaPeak, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: streakPeak, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(bloom, { strength: bloomPeak, duration: 0.45, ease: 'sine.in' }, 0);
 
         warpReturnTimeline.to(exposureProxy, {
-            value: 2.35,
-            duration: 1.8,
+            value: exposurePeak,
+            duration: duration * 0.45,
             ease: 'power2.inOut',
             yoyo: true,
             repeat: 1,
@@ -1072,7 +1263,7 @@ const wormholeReturnEase = (t) => {
 
         warpReturnTimeline.to(camera, {
             fov: DEFAULT_FOV + 8,
-            duration: 1.4,
+            duration: duration * 0.32,
             ease: 'sine.inOut',
             yoyo: true,
             repeat: 1,
@@ -1087,7 +1278,7 @@ const wormholeReturnEase = (t) => {
                 const phase = wormholeReturnEase(retreat.t);
                 returnPos.lerpVectors(startPos, HOME_POSITION, phase);
                 const shake = Math.sin(phase * Math.PI) ** 1.3;
-                const wobble = THREE.MathUtils.lerp(0, 14, shake);
+                const wobble = THREE.MathUtils.lerp(0, 14, shake) * jitterScale;
                 returnJitter.copy(lateral).multiplyScalar(Math.sin(phase * Math.PI * 3.15) * wobble);
                 returnJitter.addScaledVector(vertical, Math.cos(phase * Math.PI * 2.45) * wobble * 0.55);
                 returnPos.add(returnJitter);
@@ -1096,19 +1287,19 @@ const wormholeReturnEase = (t) => {
                 camera.updateMatrixWorld();
                 controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
 
-                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.2, 0.0, phase);
-                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.075, 0.0, phase);
+                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(warpStrengthPeak, 0.0, phase);
+                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(chromaPeak, 0.0, phase);
                 warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
-                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(1.0, 0.05, phase);
-                bloom.strength = THREE.MathUtils.lerp(0.95, 0.3, phase);
+                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(streakPeak, 0.05, phase);
+                bloom.strength = THREE.MathUtils.lerp(bloomPeak, bloomRest, phase);
             }
         }, 0.15);
 
-        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(bloom, { strength: 0.3, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.2, ease: 'sine.out' }, '-=1.0');
+        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.2, ease: 'sine.out' }, '-=1.0');
+        warpReturnTimeline.to(bloom, { strength: bloomRest, duration: 1.2, ease: 'sine.out' }, '-=1.0');
 
         return warpReturnTimeline;
     }
@@ -1360,12 +1551,12 @@ const wormholeReturnEase = (t) => {
         document.body.classList.add('is-spline-open');
         document.documentElement.classList.add('is-spline-open');
 
-        const stage = overlay.querySelector('.card-stage');
+        const stageEl = overlay.querySelector('.card-stage');
         const sceneHost = overlay.querySelector('.spline-scene');
         const exitButton = overlay.querySelector('[data-action="exit"]');
 
         const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
-        stageTimeline.fromTo(stage, {
+        stageTimeline.fromTo(stageEl, {
             opacity: 0,
             scale: 0.95
         }, {
@@ -1443,6 +1634,17 @@ const wormholeReturnEase = (t) => {
         window.addEventListener('resize', updateStageMetrics);
         updateStageMetrics();
 
+        const handleQualityChange = (event) => {
+            const reduce = Boolean(event.detail?.reduceMotion);
+            if (reduce) {
+                stopAutoRotate();
+            } else if (!state.overlayClosed) {
+                startAutoRotate();
+            }
+            requestAnimationFrame(updateStageMetrics);
+        };
+        document.addEventListener('quality-change', handleQualityChange);
+
         const stopAutoRotate = () => {
             if (state.autoRotateTimer) {
                 clearInterval(state.autoRotateTimer);
@@ -1451,6 +1653,7 @@ const wormholeReturnEase = (t) => {
         };
 
         const startAutoRotate = () => {
+            if (qualityState.reduceMotion) return;
             if (!isCarousel() || !state.autoRotateSeconds || state.totalCards <= 1) return;
             stopAutoRotate();
             state.autoRotateTimer = setInterval(() => {
@@ -1508,6 +1711,12 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.75,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
         };
 
         const performExit = () => {
@@ -1519,24 +1728,6 @@ const wormholeReturnEase = (t) => {
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
-        };
-
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
-            if (closed) return;
-            if (!exitButton.classList.contains('is-expanded')) {
-                exitButton.classList.add('is-expanded');
-                exitButton.setAttribute('aria-expanded', 'true');
-                requestAnimationFrame(() => requestAnimationFrame(performExit));
-                return;
-            }
-            performExit();
-        };
-
-        const overlayClickHandler = (event) => {
-            if (event.target === overlay) {
-                handleExit(event);
-            }
         };
 
             const ungrouped = [];
@@ -1980,6 +2171,7 @@ const wormholeReturnEase = (t) => {
                 state.stageResizeObserver.disconnect();
                 state.stageResizeObserver = null;
             }
+            document.removeEventListener('quality-change', handleQualityChange);
             stage.removeEventListener('pointermove', handlePointer);
             stage.removeEventListener('pointerleave', handleLeave);
             stage.removeEventListener('wheel', handleWheel);
@@ -2014,43 +2206,160 @@ const wormholeReturnEase = (t) => {
         warpPass.uniforms.center.value.set(u, v);
     }
 
+    function handleContextLost(event) {
+        event.preventDefault();
+        contextLost = true;
+        if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+    }
+
+    function handleContextRestored() {
+        contextLost = false;
+        renderer.info?.reset?.();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        composer.setSize(window.innerWidth, window.innerHeight);
+        composer.reset();
+        applyQualityProfile();
+        scene.traverse((obj) => {
+            if (!obj.isMesh) return;
+            const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+            mats.forEach(mat => { if (mat) mat.needsUpdate = true; });
+        });
+        clock.getDelta();
+        animate();
+    }
+
+    addEventListenerWithTeardown(renderer.domElement, 'webglcontextlost', handleContextLost, false);
+    addEventListenerWithTeardown(renderer.domElement, 'webglcontextrestored', handleContextRestored, false);
+
     function animate() {
-        const dt = clock.getDelta();
+        if (contextLost) {
+            animationFrameId = null;
+            return;
+        }
+
+        const delta = clock.getDelta();
+        const reduced = qualityState.reduceMotion && !warpActive;
+        const dt = reduced ? delta * 0.35 : delta;
         const t  = clock.elapsedTime;
 
-        // animazioni fiamme GLTF
         mixers.forEach(m => m.update(dt));
 
-        // aggiorna portal meshes / light
         if (activePortal) activePortal.update(dt);
 
-        // aggiorna warp shader time & center (segue il pulsante mentre zoommi)
         if (warpActive) {
             warpTimer += dt;
             warpPass.uniforms.time.value = warpTimer;
             warpPass.uniforms.pulse.value = 0.5 + 0.5 * Math.sin(warpTimer * 2.4);
             updateWarpCenterUniform();
         } else {
-            warpPass.uniforms.pulse.value += (0.0 - warpPass.uniforms.pulse.value) * 0.12;
+            const targetPulse = reduced ? 0.0 : 0.1;
+            warpPass.uniforms.pulse.value += (targetPulse - warpPass.uniforms.pulse.value) * 0.1;
         }
 
-        // anima flare sui pulsanti
         clickableRoots.forEach(b => {
             const f = b.userData.flare;
-            if (f) f.material.uniforms.time.value = t;
+            if (f) {
+                const mat = f.material;
+                if (mat?.uniforms?.time) {
+                    mat.uniforms.time.value = reduced ? t * 0.3 : t;
+                }
+            }
         });
 
         composer.render();
-        requestAnimationFrame(animate);
+        animationFrameId = requestAnimationFrame(animate);
     }
+
     animate();
+
+    function handleVisibilityChange() {
+        if (document.hidden) {
+            visibilityPaused = true;
+            if (animationFrameId !== null) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
+        } else if (visibilityPaused && !animationFrameId && !contextLost) {
+            visibilityPaused = false;
+            clock.getDelta();
+            animate();
+        }
+    }
+
+    addEventListenerWithTeardown(document, 'visibilitychange', handleVisibilityChange);
 
     // --------------------------------------------------------
     //  RESPONSIVE
     // --------------------------------------------------------
-    window.addEventListener('resize', () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        composer.setSize(window.innerWidth, window.innerHeight);
-    });
+    let resizeRaf = null;
+    function handleResize() {
+        if (resizeRaf) cancelAnimationFrame(resizeRaf);
+        resizeRaf = requestAnimationFrame(() => {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+            composer.setSize(width, height);
+            applyQualityProfile();
+            updateWarpCenterUniform();
+        });
+    }
+
+    addEventListenerWithTeardown(window, 'resize', handleResize);
+
+    function disposeTrackedResources() {
+        disposableResources.geometries.forEach((geo) => {
+            try { geo.dispose?.(); } catch (err) { log('dispose geometry error', err); }
+        });
+        disposableResources.materials.forEach((mat) => {
+            try { mat.dispose?.(); } catch (err) { log('dispose material error', err); }
+        });
+        disposableResources.textures.forEach((tex) => {
+            try { tex.dispose?.(); } catch (err) { log('dispose texture error', err); }
+        });
+        disposableResources.geometries.clear();
+        disposableResources.materials.clear();
+        disposableResources.textures.clear();
+    }
+
+    let sceneDisposed = false;
+    function teardownScene() {
+        if (sceneDisposed) return;
+        sceneDisposed = true;
+
+        try { stopTravelTween(); } catch (err) { /* noop */ }
+        try { fadeOutActivePortal(); } catch (err) { /* noop */ }
+        if (warpReturnTimeline) {
+            warpReturnTimeline.kill();
+            warpReturnTimeline = null;
+        }
+
+        if (animationFrameId !== null) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
+        teardownCallbacks.splice(0).forEach((fn) => {
+            try { fn(); } catch (err) { /* noop */ }
+        });
+
+        disposeTrackedResources();
+
+        if (environmentTarget) {
+            try { environmentTarget.dispose?.(); } catch (err) { /* noop */ }
+            environmentTarget = null;
+        }
+        environmentTexture = null;
+
+        try { pmremGenerator.dispose(); } catch (err) { /* noop */ }
+        try { composer.dispose(); } catch (err) { /* noop */ }
+        try { renderer.dispose(); } catch (err) { /* noop */ }
+        try { controls.dispose?.(); } catch (err) { /* noop */ }
+    }
+
+    addEventListenerWithTeardown(window, 'beforeunload', teardownScene);
+    addEventListenerWithTeardown(window, 'pagehide', teardownScene);
