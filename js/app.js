@@ -1121,111 +1121,54 @@ const wormholeReturnEase = (t) => {
         overlay.setAttribute('aria-modal', 'true');
         overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
 
-        const meta = config?.meta ?? {};
-        const sections = Array.isArray(meta?.sections) ? meta.sections : [];
-        const sectionMarkup = sections.map((section) => {
-            const accent = section?.accent ? ` style="--spline-accent:${section.accent}"` : '';
-            const details = Array.isArray(section?.items) && section.items.length
-                ? `<ul class="spline-meta__list">${section.items.map(item => `<li>${item}</li>`).join('')}</ul>`
-                : (section?.body ? `<p>${section.body}</p>` : '');
-            const heading = section?.heading ? `<h3>${section.heading}</h3>` : '';
-            return `<section class="spline-meta__section"${accent}>${heading}${details}</section>`;
-        }).join('');
-
-        const hasMetaAside = Boolean(sectionMarkup || meta?.description);
-        const shellClass = hasMetaAside ? 'spline-shell' : 'spline-shell spline-shell--full';
-        const eyebrow = meta?.subtitle ? `<span class="spline-meta__eyebrow">${meta.subtitle}</span>` : '';
-        const description = meta?.description ? `<p class="spline-meta__description">${meta.description}</p>` : '';
-        const hint = config?.spline?.hint ? `<p class="spline-meta__hint">${config.spline.hint}</p>` : '';
-        const metaAside = hasMetaAside
-            ? `<aside class="spline-meta">
-              <header class="spline-meta__header">
-                ${eyebrow}
-                <h2 class="spline-meta__title">${meta?.title ?? deckName}</h2>
-              </header>
-              ${description}
-              ${sectionMarkup}
-              ${hint}
-            </aside>`
+        const hintMarkup = config?.spline?.hint
+            ? `<div class="spline-hint">${config.spline.hint}</div>`
             : '';
-        const inlineInfo = hasMetaAside ? '' : `
-            <div class="spline-inline-info">
-              ${eyebrow || meta?.title ? `<div class="spline-inline-info__heading">${eyebrow}<h2>${meta?.title ?? deckName}</h2></div>` : ''}
-              ${hint ? `<div class="spline-inline-info__hint">${config.spline.hint}</div>` : ''}
-            </div>`;
 
         overlay.innerHTML = `
+        <button type="button" class="warp-card__close" data-action="exit" aria-label="Esci dal portale">
+          <span class="warp-card__close-icon" aria-hidden="true">✕</span>
+          <span class="warp-card__close-text">Esci dal portale</span>
+        </button>
         <div class="card-stage" data-layout="spline">
-          <div class="spline-backdrop"></div>
-          <div class="${shellClass}">
+          <div class="spline-frame">
+            <div class="spline-frame__vignette"></div>
             <div class="spline-scene" aria-live="polite" aria-busy="true">
               <div class="spline-loading">
                 <span class="spline-loading__orb"></span>
                 <span class="spline-loading__label">Caricamento scena...</span>
               </div>
-              ${inlineInfo}
             </div>
-            ${metaAside}
-          </div>
-          <div class="card-actions" data-actions="spline">
-            <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
+            ${hintMarkup}
           </div>
         </div>`;
 
         document.body.appendChild(overlay);
+        document.body.classList.add('is-spline-open');
+        document.documentElement.classList.add('is-spline-open');
 
         const stage = overlay.querySelector('.card-stage');
         const sceneHost = overlay.querySelector('.spline-scene');
         const exitButton = overlay.querySelector('[data-action="exit"]');
-        const metaSections = overlay.querySelectorAll('.spline-meta__section');
-        const inlineInfoEl = overlay.querySelector('.spline-inline-info');
 
         const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
         stageTimeline.fromTo(stage, {
             opacity: 0,
-            y: 80,
-            rotateX: -12,
-            scale: 0.92
+            scale: 0.95
         }, {
             opacity: 1,
-            y: 0,
-            rotateX: 0,
             scale: 1,
             duration: 1.05,
             clearProps: 'transform'
         });
         stageTimeline.fromTo(sceneHost, {
-            opacity: 0,
-            filter: 'blur(20px)'
+            filter: 'blur(24px)',
+            opacity: 0
         }, {
-            opacity: 1,
             filter: 'blur(0px)',
+            opacity: 1,
             duration: 1.1
-        }, 0.2);
-        if (inlineInfoEl) {
-            stageTimeline.fromTo(inlineInfoEl, {
-                opacity: 0,
-                y: 24,
-                filter: 'blur(12px)'
-            }, {
-                opacity: 1,
-                y: 0,
-                filter: 'blur(0px)',
-                duration: 0.8,
-                ease: 'power3.out'
-            }, 0.25);
-        }
-        if (metaSections.length) {
-            stageTimeline.fromTo(metaSections, {
-                opacity: 0,
-                y: 28
-            }, {
-                opacity: 1,
-                y: 0,
-                duration: 0.55,
-                stagger: 0.08
-            }, 0.35);
-        }
+        }, 0.1);
 
         const cleanup = [];
         let closed = false;
@@ -1251,29 +1194,42 @@ const wormholeReturnEase = (t) => {
                 const fn = cleanup.pop();
                 try { fn(); } catch (err) { /* noop */ }
             }
+            document.body.classList.remove('is-spline-open');
+            document.documentElement.classList.remove('is-spline-open');
             gsap.to(stage, {
                 opacity: 0,
-                y: 120,
-                rotateX: -16,
-                duration: 0.75,
+                duration: 0.65,
                 ease: 'power2.in'
             });
             gsap.to(overlay, {
                 opacity: 0,
-                duration: 0.8,
+                duration: 0.75,
                 ease: 'power2.in',
                 onComplete: () => overlay.remove()
             });
         };
 
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
+        const performExit = () => {
             if (closed) return;
+            exitButton.disabled = true;
+            exitButton.setAttribute('aria-disabled', 'true');
             try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
             try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            if (!exitButton.classList.contains('is-expanded')) {
+                exitButton.classList.add('is-expanded');
+                exitButton.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => requestAnimationFrame(performExit));
+                return;
+            }
+            performExit();
         };
 
         const overlayClickHandler = (event) => {
@@ -1335,9 +1291,6 @@ const wormholeReturnEase = (t) => {
             const loadingEl = sceneHost.querySelector('.spline-loading');
             if (loadingEl) loadingEl.remove();
             sceneHost.prepend(viewer);
-            if (inlineInfoEl) {
-                sceneHost.appendChild(inlineInfoEl);
-            }
             setTimeout(() => setSceneStatus(false), 600);
         }).catch((error) => {
             if (assetIssue === 'placeholder') {
@@ -1381,6 +1334,65 @@ const wormholeReturnEase = (t) => {
             stageResizeObserver: null
         };
         const isCarousel = () => state.layoutMode === 'carousel';
+
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 1.2, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.075, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 1.0, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(bloom, { strength: 0.95, duration: 0.45, ease: 'sine.in' }, 0);
+
+        warpReturnTimeline.to(exposureProxy, {
+            value: 2.35,
+            duration: 1.8,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => {
+                renderer.toneMappingExposure += (exposureProxy.value - renderer.toneMappingExposure) * 0.25;
+            }
+        }, 0.15);
+
+        warpReturnTimeline.to(camera, {
+            fov: DEFAULT_FOV + 8,
+            duration: 1.4,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => camera.updateProjectionMatrix()
+        }, 0.15);
+
+        warpReturnTimeline.to(retreat, {
+            t: 1,
+            duration,
+            ease: 'none',
+            onUpdate: () => {
+                const phase = wormholeReturnEase(retreat.t);
+                returnPos.lerpVectors(startPos, HOME_POSITION, phase);
+                const shake = Math.sin(phase * Math.PI) ** 1.3;
+                const wobble = THREE.MathUtils.lerp(0, 14, shake);
+                returnJitter.copy(lateral).multiplyScalar(Math.sin(phase * Math.PI * 3.15) * wobble);
+                returnJitter.addScaledVector(vertical, Math.cos(phase * Math.PI * 2.45) * wobble * 0.55);
+                returnPos.add(returnJitter);
+                camera.position.copy(returnPos);
+                camera.quaternion.slerpQuaternions(startQuat, returnQuat, phase);
+                camera.updateMatrixWorld();
+                controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
+
+                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.2, 0.0, phase);
+                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.075, 0.0, phase);
+                warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
+                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(1.0, 0.05, phase);
+                bloom.strength = THREE.MathUtils.lerp(0.95, 0.3, phase);
+            }
+        }, 0.15);
+
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(bloom, { strength: 0.3, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+
+        return warpReturnTimeline;
+    }
 
     function openSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
@@ -1542,6 +1554,12 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
         };
 
         const handleExit = (event) => {
@@ -1552,6 +1570,31 @@ const wormholeReturnEase = (t) => {
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
+        };
+
+        exitButton.addEventListener('click', handleExit);
+        overlay.addEventListener('click', overlayClickHandler);
+        const keyHandler = (event) => {
+            if (event.key === 'Escape') handleExit(event);
+        };
+        document.addEventListener('keydown', keyHandler);
+
+        cleanup.push(() => exitButton.removeEventListener('click', handleExit));
+        cleanup.push(() => overlay.removeEventListener('click', overlayClickHandler));
+        cleanup.push(() => document.removeEventListener('keydown', keyHandler));
+
+        setTimeout(() => exitButton?.focus({ preventScroll: true }), 520);
+
+        const setFallback = (message) => {
+            if (closed || !sceneHost) return;
+            setSceneStatus(false);
+            sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
         };
 
             const ungrouped = [];

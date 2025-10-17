@@ -22,6 +22,11 @@ html, body {
     color: #f6d89f;
 }
 
+html.is-spline-open,
+body.is-spline-open {
+    overflow: hidden !important;
+}
+
 /* CANVAS */
 #canvas-container {
     position: fixed;
@@ -67,16 +72,75 @@ html, body {
 }
 
 .warp-card--spline {
-    overflow-y: auto;
+    padding: clamp(0.8rem, 2vw, 2.4rem);
+    align-items: stretch;
+    justify-content: stretch;
+    background: radial-gradient(circle at 50% 50%, rgba(4, 6, 14, 0.78) 0%, rgba(1, 1, 5, 0.92) 78%);
+    overflow: hidden;
+}
+
+.warp-card__close {
+    position: absolute;
+    top: clamp(0.9rem, 2vw, 1.8rem);
+    right: clamp(0.9rem, 2vw, 1.8rem);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.6rem clamp(0.85rem, 1.8vw, 1.2rem);
+    border-radius: 999px;
+    border: 1px solid rgba(255, 245, 230, 0.25);
+    background: rgba(12, 14, 28, 0.68);
+    color: rgba(255, 245, 230, 0.92);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+    transition: transform 0.35s ease, border-color 0.35s ease, background 0.35s ease;
+    z-index: 3;
+}
+
+.warp-card__close:hover,
+.warp-card__close:focus-visible {
+    transform: translateY(-2px) scale(1.02);
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(20, 22, 45, 0.85);
+    outline: none;
+}
+
+.warp-card__close-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.warp-card__close-text {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-10px);
+    white-space: nowrap;
+    overflow: hidden;
+    transition: max-width 0.35s ease, opacity 0.3s ease, transform 0.35s ease;
+}
+
+.warp-card__close.is-expanded .warp-card__close-text {
+    max-width: 200px;
+    opacity: 1;
+    transform: translateX(0);
 }
 
 .card-stage[data-layout="spline"] {
-    width: min(96vw, 1320px);
-    min-height: clamp(560px, 82vh, 920px);
-    padding: clamp(1.8rem, 4vw, 3.4rem);
-    grid-template-rows: minmax(0, 1fr) auto;
-    align-content: stretch;
-    gap: clamp(1.8rem, 4vw, 2.8rem);
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: clamp(0.8rem, 2vw, 1.6rem);
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
 }
 
 .card-stage[data-layout="spline"] .card-carousel,
@@ -84,51 +148,48 @@ html, body {
     display: none;
 }
 
-.spline-backdrop {
+.spline-frame {
+    position: relative;
+    flex: 1;
+    border-radius: clamp(1.6rem, 4vw, 3.6rem);
+    overflow: hidden;
+    background: rgba(8, 10, 24, 0.18);
+    backdrop-filter: blur(28px) saturate(140%);
+    -webkit-backdrop-filter: blur(28px) saturate(140%);
+    box-shadow: inset 0 0 120px rgba(8, 10, 24, 0.55), 0 45px 120px rgba(0, 0, 0, 0.55);
+    isolation: isolate;
+}
+
+.spline-frame::after {
+    content: '';
     position: absolute;
-    inset: clamp(1.4rem, 6vw, 3.5rem);
-    border-radius: 38px;
-    background:
-        radial-gradient(circle at 30% 20%, rgba(255, 210, 160, 0.45), transparent 60%),
-        radial-gradient(circle at 70% 80%, rgba(155, 220, 255, 0.35), transparent 70%),
-        radial-gradient(circle at 50% 50%, rgba(255, 120, 230, 0.18), transparent 80%);
-    filter: blur(95px);
-    opacity: 0.75;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 220px rgba(6, 8, 18, 0.72);
     pointer-events: none;
 }
 
-.spline-shell {
-    position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(260px, 28%, 340px);
-    gap: clamp(1.6rem, 3.8vw, 2.6rem);
-    width: 100%;
-    border-radius: 28px;
-    padding: clamp(1.8rem, 4vw, 2.6rem);
-    background: linear-gradient(145deg, rgba(12, 10, 20, 0.85), rgba(5, 5, 10, 0.94));
-    border: 1px solid rgba(255, 220, 160, 0.22);
-    box-shadow: 0 35px 120px rgba(0, 0, 0, 0.55), inset 0 0 80px rgba(255, 200, 140, 0.16);
-    backdrop-filter: blur(20px) saturate(160%);
-    -webkit-backdrop-filter: blur(20px) saturate(160%);
-    overflow: hidden;
-}
-
-.spline-shell--full {
-    grid-template-columns: minmax(0, 1fr);
-    padding: clamp(2rem, 5vw, 3.6rem);
+.spline-frame__vignette {
+    position: absolute;
+    inset: -12%;
+    border-radius: inherit;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 240, 220, 0.04) 0%, rgba(120, 180, 255, 0.1) 45%, rgba(10, 12, 30, 0.82) 85%);
+    filter: blur(42px);
+    opacity: 0.85;
+    pointer-events: none;
+    mix-blend-mode: screen;
 }
 
 .spline-scene {
     position: relative;
-    border-radius: 24px;
-    min-height: clamp(360px, 52vh, 620px);
-    background:
-        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18), transparent 65%),
-        radial-gradient(circle at 80% 40%, rgba(150, 200, 255, 0.2), transparent 70%),
-        linear-gradient(160deg, rgba(18, 18, 30, 0.95), rgba(6, 6, 12, 0.92));
-    box-shadow: 0 28px 65px rgba(0, 0, 0, 0.48), inset 0 0 90px rgba(110, 90, 255, 0.18);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
     overflow: hidden;
-    isolation: isolate;
 }
 
 .spline-scene.is-ready .spline-loading {
@@ -137,20 +198,22 @@ html, body {
     pointer-events: none;
 }
 
-.spline-inline-info {
+.spline-hint {
     position: absolute;
-    inset: auto clamp(1.2rem, 3vw, 2rem) clamp(1.2rem, 3vw, 2rem) clamp(1.2rem, 3vw, 2rem);
-    display: grid;
-    gap: 0.5rem;
-    padding: clamp(1rem, 2.6vw, 1.4rem);
-    border-radius: 18px;
-    background: linear-gradient(145deg, rgba(15, 12, 25, 0.72), rgba(10, 10, 20, 0.82));
-    border: 1px solid rgba(255, 220, 160, 0.22);
+    left: clamp(1.2rem, 3vw, 2.4rem);
+    bottom: clamp(1.2rem, 3vw, 2.4rem);
+    padding: 0.75rem 1.1rem;
+    border-radius: 14px;
+    background: rgba(12, 14, 26, 0.62);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 245, 230, 0.82);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.82rem;
+    letter-spacing: 0.02em;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
-    backdrop-filter: blur(22px);
-    -webkit-backdrop-filter: blur(22px);
-    color: rgba(255, 240, 225, 0.88);
-    pointer-events: auto;
+    pointer-events: none;
 }
 
 .spline-inline-info__heading {
@@ -854,26 +917,26 @@ html, body {
     .card-stage[data-layout="twin"] .card-carousel {
         grid-template-columns: 1fr;
     }
-    .spline-shell {
-        grid-template-columns: 1fr;
-        grid-template-rows: minmax(0, 1fr) auto;
-        padding: clamp(1.3rem, 6vw, 1.9rem);
+    .warp-card--spline {
+        padding: clamp(0.6rem, 3vw, 1.6rem);
     }
-    .spline-shell--full {
-        padding: clamp(1.6rem, 7vw, 2.4rem);
+    .card-stage[data-layout="spline"] {
+        padding: clamp(0.6rem, 3vw, 1.4rem);
     }
-    .spline-meta {
-        max-height: none;
-        padding: clamp(1rem, 5vw, 1.5rem);
+    .spline-frame {
+        border-radius: clamp(1.2rem, 5vw, 2.6rem);
+        box-shadow: inset 0 0 120px rgba(8, 10, 24, 0.45), 0 30px 90px rgba(0, 0, 0, 0.55);
     }
-    .spline-inline-info {
-        position: relative;
-        inset: auto;
-        margin-top: clamp(1.2rem, 5vw, 1.8rem);
+    .warp-card__close {
+        top: clamp(0.8rem, 4vw, 1.4rem);
+        right: clamp(0.8rem, 4vw, 1.4rem);
+        padding: 0.55rem clamp(0.75rem, 2.8vw, 1rem);
+        font-size: 0.78rem;
     }
-    .card-stage[data-layout="spline"] .card-actions {
-        justify-content: center;
-        padding-top: 1.2rem;
+    .spline-hint {
+        left: clamp(1rem, 4vw, 2rem);
+        bottom: clamp(1rem, 4vw, 2rem);
+        font-size: 0.78rem;
     }
 }
 
@@ -894,14 +957,32 @@ html, body {
         min-width: 100%;
         flex: 1 1 auto;
     }
-    .spline-meta {
-        gap: 1rem;
+    .warp-card--spline {
+        padding: clamp(0.5rem, 5vw, 1rem);
     }
-    .spline-meta__title {
-        font-size: clamp(1.45rem, 5vw, 1.85rem);
+    .card-stage[data-layout="spline"] {
+        padding: clamp(0.5rem, 5vw, 1rem);
     }
-    .spline-meta__section {
-        padding: clamp(0.95rem, 5vw, 1.3rem);
+    .warp-card__close {
+        padding: 0.48rem 0.85rem;
+        font-size: 0.7rem;
+        gap: 0.4rem;
+    }
+    .warp-card__close-icon {
+        font-size: 1rem;
+    }
+    .warp-card__close.is-expanded .warp-card__close-text {
+        max-width: 160px;
+    }
+    .spline-frame {
+        border-radius: clamp(1rem, 8vw, 1.8rem);
+    }
+    .spline-hint {
+        left: clamp(0.8rem, 5vw, 1.2rem);
+        bottom: clamp(0.8rem, 5vw, 1.2rem);
+        max-width: min(86vw, 360px);
+        padding: 0.65rem 0.9rem;
+        font-size: 0.76rem;
     }
 }
 
@@ -929,29 +1010,22 @@ html, body {
         padding: 0.7rem 1.4rem;
         letter-spacing: 0.1em;
     }
-    .spline-shell {
-        padding: clamp(1.1rem, 7vw, 1.6rem);
-        border-radius: 22px;
+    .warp-card__close {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.68rem;
     }
-    .spline-shell--full {
-        padding: clamp(1.3rem, 8vw, 1.8rem);
+    .warp-card__close-icon {
+        font-size: 0.95rem;
     }
-    .spline-scene {
-        min-height: clamp(240px, 52vh, 360px);
+    .warp-card__close.is-expanded .warp-card__close-text {
+        max-width: 140px;
     }
-    .spline-meta {
-        padding: clamp(0.9rem, 6vw, 1.3rem);
-        border-radius: 18px;
+    .spline-frame {
+        border-radius: clamp(0.9rem, 10vw, 1.6rem);
     }
-    .spline-inline-info {
-        padding: clamp(0.9rem, 7vw, 1.3rem);
-        gap: 0.6rem;
-    }
-    .spline-inline-info__heading h2 {
-        font-size: clamp(1.05rem, 5.6vw, 1.3rem);
-    }
-    .spline-meta__hint {
-        letter-spacing: 0.12em;
+    .spline-hint {
+        font-size: 0.72rem;
+        padding: 0.6rem 0.8rem;
     }
 }
 
