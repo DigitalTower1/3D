@@ -311,30 +311,11 @@ const wormholeReturnEase = (t) => {
             layout: 'spline',
             spline: {
                 url: './3d/menu/chi_siamo.spline',
-                hint: 'Trascina per orbitare nella scena e usa lo scroll per scoprire gli hotspot olografici.'
+                hint: 'Interagisci con la scena tridimensionale trascinando o toccando lo schermo.'
             },
             meta: {
                 title: 'Chi Siamo',
-                subtitle: 'Biografia immersiva',
-                description: 'Un hub tridimensionale dove design, tecnologia e storytelling si fondono per raccontare l’identità dello studio.',
-                sections: [
-                    {
-                        heading: 'Biografia',
-                        body: 'Dal 2012 intrecciamo regia digitale, sviluppo realtime e art direction per costruire esperienze che evolvono insieme alle community.',
-                        accent: '#ff9ad6'
-                    },
-                    {
-                        heading: 'I nostri valori',
-                        items: ['Centralità delle persone e dell’accessibilità', 'Processi carbon neutral e supply chain responsabile', 'Ricerca continua con università e laboratori creativi'],
-                        accent: '#9be7ff'
-                    },
-                    {
-                        heading: 'La nostra missione',
-                        body: 'Apriamo wormhole tra brand e pubblico, orchestrando ecosistemi immersivi misurabili che uniscono emozione, dati e performance.',
-                        items: ['Esperienze cross-device con contenuti sincronizzati', 'Strategie data-driven a ciclo continuo', 'Partnership di lungo periodo orientate alla crescita'],
-                        accent: '#ffd58a'
-                    }
-                ]
+                subtitle: 'Experience Hub'
             }
         }
     };
@@ -504,6 +485,7 @@ const wormholeReturnEase = (t) => {
         depthWrite: false,
         depthTest: false,
         blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
         uniforms: {
             time: { value: 0 },
             opacity: { value: 0 },
@@ -560,7 +542,8 @@ const wormholeReturnEase = (t) => {
             material.uniforms.opacity.value = 0.0;
 
             const mesh = new THREE.Mesh(groundCircleGeometry, material);
-            mesh.rotation.x = -Math.PI / 2;
+            mesh.rotation.x = Math.PI / 2;
+            mesh.renderOrder = 5;
             mesh.scale.setScalar(cfg.size);
             mesh.position.y = idx * 4;
             haloGroup.add(mesh);
@@ -852,6 +835,14 @@ const wormholeReturnEase = (t) => {
     let portalTarget = null;       // root pulsante corrente
     let warpTimer = 0;             // per animare pass e portal
     let warpReturnTimeline = null; // gestisce l'animazione di rientro
+    let activeTravelTween = null;  // tween di andata verso il portale
+
+    const stopTravelTween = () => {
+        if (activeTravelTween) {
+            activeTravelTween.kill();
+            activeTravelTween = null;
+        }
+    };
 
     window.addEventListener('click', (event) => {
         // evita i click sulla card
@@ -881,6 +872,8 @@ const wormholeReturnEase = (t) => {
     //  WARP + CARD (portale attorno al pulsante)
     // --------------------------------------------------------
     function triggerWarp(target, name) {
+        stopTravelTween();
+
         warpActive = true;
         portalTarget = target;
         warpTimer = 0;
@@ -941,7 +934,7 @@ const wormholeReturnEase = (t) => {
             }
         });
 
-        gsap.to(travel, {
+        activeTravelTween = gsap.to(travel, {
             t: 1,
             duration,
             ease: 'sine.inOut',
@@ -972,6 +965,7 @@ const wormholeReturnEase = (t) => {
                 if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
+                activeTravelTween = null;
                 camera.position.copy(camEnd);
                 camera.quaternion.copy(endQuat);
                 camera.updateMatrixWorld();
@@ -995,6 +989,8 @@ const wormholeReturnEase = (t) => {
 
     function animateReturnHome() {
         if (warpReturnTimeline) return warpReturnTimeline;
+
+        stopTravelTween();
 
         const startPos = camera.position.clone();
         const startQuat = camera.quaternion.clone();
@@ -1114,7 +1110,8 @@ const wormholeReturnEase = (t) => {
         overlay.setAttribute('aria-modal', 'true');
         overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
 
-        const sections = Array.isArray(config?.meta?.sections) ? config.meta.sections : [];
+        const meta = config?.meta ?? {};
+        const sections = Array.isArray(meta?.sections) ? meta.sections : [];
         const sectionMarkup = sections.map((section) => {
             const accent = section?.accent ? ` style="--spline-accent:${section.accent}"` : '';
             const details = Array.isArray(section?.items) && section.items.length
@@ -1124,29 +1121,40 @@ const wormholeReturnEase = (t) => {
             return `<section class="spline-meta__section"${accent}>${heading}${details}</section>`;
         }).join('');
 
-        const eyebrow = config?.meta?.subtitle ? `<span class="spline-meta__eyebrow">${config.meta.subtitle}</span>` : '';
-        const description = config?.meta?.description ? `<p class="spline-meta__description">${config.meta.description}</p>` : '';
+        const hasMetaAside = Boolean(sectionMarkup || meta?.description);
+        const shellClass = hasMetaAside ? 'spline-shell' : 'spline-shell spline-shell--full';
+        const eyebrow = meta?.subtitle ? `<span class="spline-meta__eyebrow">${meta.subtitle}</span>` : '';
+        const description = meta?.description ? `<p class="spline-meta__description">${meta.description}</p>` : '';
         const hint = config?.spline?.hint ? `<p class="spline-meta__hint">${config.spline.hint}</p>` : '';
+        const metaAside = hasMetaAside
+            ? `<aside class="spline-meta">
+              <header class="spline-meta__header">
+                ${eyebrow}
+                <h2 class="spline-meta__title">${meta?.title ?? deckName}</h2>
+              </header>
+              ${description}
+              ${sectionMarkup}
+              ${hint}
+            </aside>`
+            : '';
+        const inlineInfo = hasMetaAside ? '' : `
+            <div class="spline-inline-info">
+              ${eyebrow || meta?.title ? `<div class="spline-inline-info__heading">${eyebrow}<h2>${meta?.title ?? deckName}</h2></div>` : ''}
+              ${hint ? `<div class="spline-inline-info__hint">${config.spline.hint}</div>` : ''}
+            </div>`;
 
         overlay.innerHTML = `
         <div class="card-stage" data-layout="spline">
           <div class="spline-backdrop"></div>
-          <div class="spline-shell">
+          <div class="${shellClass}">
             <div class="spline-scene" aria-live="polite" aria-busy="true">
               <div class="spline-loading">
                 <span class="spline-loading__orb"></span>
                 <span class="spline-loading__label">Caricamento scena...</span>
               </div>
+              ${inlineInfo}
             </div>
-            <aside class="spline-meta">
-              <header class="spline-meta__header">
-                ${eyebrow}
-                <h2 class="spline-meta__title">${config?.meta?.title ?? deckName}</h2>
-              </header>
-              ${description}
-              ${sectionMarkup}
-              ${hint}
-            </aside>
+            ${metaAside}
           </div>
           <div class="card-actions" data-actions="spline">
             <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
@@ -1159,6 +1167,7 @@ const wormholeReturnEase = (t) => {
         const sceneHost = overlay.querySelector('.spline-scene');
         const exitButton = overlay.querySelector('[data-action="exit"]');
         const metaSections = overlay.querySelectorAll('.spline-meta__section');
+        const inlineInfoEl = overlay.querySelector('.spline-inline-info');
 
         const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
         stageTimeline.fromTo(stage, {
@@ -1182,6 +1191,19 @@ const wormholeReturnEase = (t) => {
             filter: 'blur(0px)',
             duration: 1.1
         }, 0.2);
+        if (inlineInfoEl) {
+            stageTimeline.fromTo(inlineInfoEl, {
+                opacity: 0,
+                y: 24,
+                filter: 'blur(12px)'
+            }, {
+                opacity: 1,
+                y: 0,
+                filter: 'blur(0px)',
+                duration: 0.8,
+                ease: 'power3.out'
+            }, 0.25);
+        }
         if (metaSections.length) {
             stageTimeline.fromTo(metaSections, {
                 opacity: 0,
@@ -1238,6 +1260,7 @@ const wormholeReturnEase = (t) => {
             if (closed) return;
             try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
             try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
+            stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
         };
@@ -1268,27 +1291,50 @@ const wormholeReturnEase = (t) => {
         };
 
         const splineUrl = config?.spline?.url ?? './3d/menu/chi_siamo.spline';
-        const assetCheck = fetch(splineUrl, { method: 'HEAD' })
+        const resolvedSplineUrl = (() => {
+            try {
+                return new URL(splineUrl, window.location.href).toString();
+            } catch (err) {
+                return splineUrl;
+            }
+        })();
+
+        let assetIssue = null;
+        const assetCheck = fetch(resolvedSplineUrl, { method: 'HEAD' })
             .then((response) => {
                 if (!response.ok) throw new Error('missing');
+                const size = Number(response.headers.get('content-length') || '0');
+                if (size > 0 && size < 2048) {
+                    assetIssue = 'placeholder';
+                    throw new Error('placeholder');
+                }
             })
-            .catch(() => { throw new Error('missing'); });
+            .catch((error) => { throw error; });
 
         Promise.all([ensureSplineViewer(), assetCheck]).then(() => {
             if (closed || !sceneHost) return;
             const viewer = document.createElement('spline-viewer');
             viewer.className = 'spline-canvas';
-            viewer.setAttribute('url', splineUrl);
+            viewer.setAttribute('url', resolvedSplineUrl);
             viewer.setAttribute('loading', 'lazy');
             viewer.setAttribute('events-target', 'global');
             viewer.setAttribute('aria-label', config?.meta?.title ?? deckName);
             viewer.addEventListener('load', () => setSceneStatus(false));
             viewer.addEventListener('error', () => setFallback('Impossibile caricare la scena interattiva.'));
-            sceneHost.innerHTML = '';
-            sceneHost.appendChild(viewer);
+            const loadingEl = sceneHost.querySelector('.spline-loading');
+            if (loadingEl) loadingEl.remove();
+            sceneHost.prepend(viewer);
+            if (inlineInfoEl) {
+                sceneHost.appendChild(inlineInfoEl);
+            }
             setTimeout(() => setSceneStatus(false), 600);
-        }).catch(() => {
-            setFallback('Impossibile caricare la scena interattiva.');
+        }).catch((error) => {
+            if (assetIssue === 'placeholder') {
+                setFallback('Il file Spline fornito è un segnaposto. Esporta la scena da Spline e sostituisci 3d/menu/chi_siamo.spline.');
+            } else {
+                setFallback('Impossibile caricare la scena interattiva.');
+            }
+            if (error && DEBUG_LOG) console.warn('[Spline]', error);
         });
     }
 
@@ -1598,6 +1644,7 @@ const wormholeReturnEase = (t) => {
                 warpSound.currentTime = 0;
                 warpSound.play();
             } catch (err) { /* noop */ }
+            stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
         };
