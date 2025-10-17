@@ -1113,7 +1113,7 @@ const wormholeReturnEase = (t) => {
         return warpReturnTimeline;
     }
 
-    function openSplineOverlay(deckName, config = {}) {
+    function mountSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
@@ -1309,7 +1309,7 @@ const wormholeReturnEase = (t) => {
         if (!deckConfig) return;
 
         if (deckConfig.layout === 'spline') {
-            openSplineOverlay(name, deckConfig);
+            mountSplineOverlay(name, deckConfig);
             return;
         }
 
