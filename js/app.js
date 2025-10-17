@@ -112,6 +112,77 @@ const wormholeReturnEase = (t) => {
     const portalSound = new Audio('./assets/audio/portal-open.mp3'); portalSound.volume = 0.9;
     const clickSound  = new Audio('./assets/audio/click.mp3');       clickSound.volume = 0.8;
 
+    function createLoopingAudio(src) {
+        const audio = new Audio(src);
+        audio.loop = true;
+        audio.preload = 'auto';
+        audio.crossOrigin = 'anonymous';
+        audio.volume = 0;
+        return audio;
+    }
+
+    const portalBackgroundMusic = {
+        'Chi Siamo': {
+            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
+            baseVolume: 0.38,
+            title: '"Deep Ambient" by Olexy (Pixabay)'
+        },
+        Portfolio: {
+            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
+            baseVolume: 0.34,
+            title: '"Future Technology Ambient" by Alex-Productions (Pixabay)'
+        }
+    };
+
+    function stopPortalBackground(name, { immediate = false } = {}) {
+        const track = portalBackgroundMusic[name];
+        if (!track) return;
+        const { audio } = track;
+        gsap.killTweensOf(audio);
+        const finish = () => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.volume = 0;
+        };
+        log('Portal music ⏹', name);
+        if (immediate) {
+            finish();
+            return;
+        }
+        gsap.to(audio, {
+            volume: 0,
+            duration: 0.9,
+            ease: 'sine.in',
+            onComplete: finish
+        });
+    }
+
+    function playPortalBackground(name) {
+        const track = portalBackgroundMusic[name];
+        Object.keys(portalBackgroundMusic).forEach((key) => {
+            if (key !== name) {
+                stopPortalBackground(key);
+            }
+        });
+        if (!track) return;
+        const { audio, baseVolume, title } = track;
+        log('Portal music ▶', name, title || '');
+        gsap.killTweensOf(audio);
+        if (audio.paused) {
+            audio.currentTime = 0;
+            audio.volume = 0;
+            const playPromise = audio.play();
+            if (playPromise && typeof playPromise.then === 'function') {
+                playPromise.catch(() => {});
+            }
+        }
+        gsap.to(audio, {
+            volume: baseVolume,
+            duration: 1.6,
+            ease: 'sine.out'
+        });
+    }
+
     // --------------------------------------------------------
     //  MODELLO PRINCIPALE
     // --------------------------------------------------------
@@ -286,39 +357,162 @@ const wormholeReturnEase = (t) => {
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
-            layout: 'carousel',
-            dragReveal: true,
-            cards: [
-                {
-                    key: 'Chi-1',
-                    title: 'Chi Siamo',
-                    subtitle: 'Biografia',
-                    tagline: 'Una crew visionaria',
-                    description: 'Siamo designer, sviluppatori e registi digitali con background in cinema, gaming e architettura immersiva.',
-                    highlights: ['Oltre 40 professionisti interni', 'Partnership con studi creativi europei', 'Premi Red Dot & ADCI'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Chi-2',
-                    title: 'I nostri valori',
-                    subtitle: 'Etica & innovazione',
-                    tagline: 'Human first',
-                    description: 'Creiamo esperienze che amplificano le persone: inclusione, accessibilità e sostenibilità guidano ogni scelta.',
-                    highlights: ['Processi carbon neutral', 'Design inclusivo by default', 'Ricerca continua con università'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Chi-3',
-                    title: 'La nostra missione',
-                    subtitle: 'Visione condivisa',
-                    tagline: 'Aprire wormhole',
-                    description: 'Connettiamo brand e community attraverso portali digitali dove tecnologia e storytelling si fondono senza attriti.',
-                    highlights: ['Esperienze cross-device', 'Strategie data driven', 'Relazioni di lungo periodo'],
-                    accent: '#ffd58a'
-                }
-            ]
+            layout: 'spline',
+            splineSrc: './3d/menu/chi_siamo.spline',
+            title: 'Chi Siamo — Esperienza 3D',
+            description: 'Esplora il nostro spazio immersivo e incontra il team direttamente all’interno del portale.'
         }
     };
+
+    let splineViewerLoaderPromise = null;
+
+    function ensureSplineViewerModule() {
+        if (typeof window === 'undefined') {
+            return Promise.reject(new Error('Viewer non disponibile in questo contesto.'));
+        }
+        const registry = window.customElements;
+        if (registry && typeof registry.get === 'function' && registry.get('spline-viewer')) {
+            return Promise.resolve();
+        }
+        if (!splineViewerLoaderPromise) {
+            splineViewerLoaderPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.src = 'https://unpkg.com/@splinetool/viewer@1.9.52/build/spline-viewer.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Impossibile caricare il visualizzatore Spline.'));
+                document.head.appendChild(script);
+            }).catch((err) => {
+                splineViewerLoaderPromise = null;
+                throw err;
+            });
+        }
+        return splineViewerLoaderPromise;
+    }
+
+    function showSplineExperience(name, config) {
+        const overlay = document.createElement('div');
+        overlay.className = 'warp-card';
+        overlay.dataset.mode = 'spline';
+        overlay.innerHTML = `
+        <div class="card-stage" data-layout="spline" data-deck="${name}">
+          <div class="card-backdrop"></div>
+          ${config.title ? `<header class="spline-header"><h2>${config.title}</h2>${config.description ? `<p>${config.description}</p>` : ''}</header>` : ''}
+          <div class="spline-frame">
+            <div class="spline-loader">Caricamento esperienza 3D…</div>
+          </div>
+          <div class="card-actions" data-actions="spline" data-has-nav="false">
+            <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
+          </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        playPortalBackground(name);
+
+        const stage = overlay.querySelector('.card-stage');
+        const frame = overlay.querySelector('.spline-frame');
+        const loaderEl = overlay.querySelector('.spline-loader');
+        const exitBtn = overlay.querySelector('[data-action="exit"]');
+
+        const viewer = document.createElement('spline-viewer');
+        viewer.setAttribute('url', config.splineSrc);
+        viewer.setAttribute('loading', 'eager');
+        viewer.setAttribute('events-target', 'document');
+        frame.insertBefore(viewer, loaderEl);
+
+        let overlayClosed = false;
+
+        const updateStageMetrics = () => {
+            const vw = window.innerWidth;
+            const vh = window.innerHeight;
+            const marginX = Math.max(18, Math.min(150, vw * 0.065));
+            const marginY = Math.max(70, Math.min(220, vh * 0.16));
+            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
+            const stageHeight = Math.max(420, Math.min(vh - marginY, 760));
+            const stagePadding = Math.max(20, Math.min(52, stageWidth * 0.042));
+            const baseWidth = Math.max(320, Math.min(stageWidth * 0.92, 900));
+            const frameHeight = Math.max(320, Math.min(stageHeight - 140, vh - marginY * 2 - 80));
+
+            stage.style.setProperty('--stage-width', `${stageWidth}px`);
+            stage.style.setProperty('--stage-height', `${stageHeight}px`);
+            stage.style.setProperty('--stage-padding', `${stagePadding}px`);
+            stage.style.setProperty('--panel-base-width', `${baseWidth}px`);
+            stage.style.setProperty('--frame-width', `${baseWidth}px`);
+            stage.style.setProperty('--frame-height', `${frameHeight}px`);
+        };
+
+        const onResize = () => updateStageMetrics();
+
+        const handleKeydown = (ev) => {
+            if (ev.key === 'Escape') {
+                ev.preventDefault();
+                handleExit(ev);
+            }
+        };
+
+        const handleOverlayClick = (ev) => {
+            if (ev.target === overlay) {
+                handleExit(ev);
+            }
+        };
+
+        const closeOverlay = () => {
+            if (overlayClosed) return;
+            overlayClosed = true;
+            if (exitBtn) {
+                exitBtn.removeEventListener('click', handleExit);
+            }
+            window.removeEventListener('resize', onResize);
+            window.removeEventListener('keydown', handleKeydown);
+            overlay.removeEventListener('click', handleOverlayClick);
+            stopPortalBackground(name);
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (overlayClosed) return;
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try {
+                warpSound.pause();
+                warpSound.currentTime = 0;
+                warpSound.play();
+            } catch (err) { /* noop */ }
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        if (exitBtn) {
+            exitBtn.addEventListener('click', handleExit);
+        }
+
+        overlay.addEventListener('click', handleOverlayClick);
+        window.addEventListener('resize', onResize);
+        window.addEventListener('keydown', handleKeydown);
+        updateStageMetrics();
+
+        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
+
+        ensureSplineViewerModule()
+            .then(() => {
+                if (loaderEl) {
+                    loaderEl.classList.add('is-hidden');
+                }
+            })
+            .catch((error) => {
+                log('Spline viewer load failed', error);
+                if (loaderEl) {
+                    loaderEl.classList.add('has-error');
+                    loaderEl.textContent = 'Impossibile caricare l’esperienza 3D.';
+                }
+            });
+
+        return { close: handleExit };
+    }
 
     const flareMat = new THREE.ShaderMaterial({
         transparent: true,
@@ -937,6 +1131,13 @@ const wormholeReturnEase = (t) => {
         try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
 
         const deckConfig = CARD_LIBRARY[name];
+        if (!deckConfig) return;
+
+        if (deckConfig?.splineSrc) {
+            showSplineExperience(name, deckConfig);
+            return;
+        }
+
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
@@ -967,6 +1168,7 @@ const wormholeReturnEase = (t) => {
           <div class="card-carousel"></div>
         </div>`;
         document.body.appendChild(overlay);
+        playPortalBackground(name);
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1530,6 +1732,7 @@ const wormholeReturnEase = (t) => {
             stage.removeEventListener('touchend', onPointerUp);
             window.removeEventListener('pointerup', onPointerUp);
             window.removeEventListener('pointercancel', onPointerUp);
+            stopPortalBackground(name);
             gsap.to(overlay, {
                 opacity: 0,
                 duration: 0.8,
