@@ -1467,7 +1467,10 @@ const wormholeReturnEase = (t) => {
                     throw new Error('placeholder');
                 }
             })
-            .catch((error) => { throw error; });
+            .catch((error) => {
+                if (assetIssue === 'placeholder') throw error;
+                if (DEBUG_LOG) console.warn('[Spline] HEAD probe skipped', error);
+            });
 
         Promise.all([ensureSplineViewer(), assetCheck]).then(() => {
             if (closed || !sceneHost) return;
