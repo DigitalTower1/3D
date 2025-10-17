@@ -1527,28 +1527,37 @@ const wormholeReturnEase = (t) => {
             overlayClosed: false,
             stageResizeObserver: null
         };
-        const isCarousel = state.layoutMode === 'carousel';
+
+        createCardOverlay({
+            deckName: name,
+            deckConfig,
+            deck,
+            state
+        });
 
         return warpReturnTimeline;
     }
 
-    function createSplineOverlay(deckName, config = {}) {
+    function createCardOverlay({ deckName, deckConfig = {}, deck = [], state }) {
+        if (!deck || !state) return;
+        const isCarousel = state.layoutMode === 'carousel';
+
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
-        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+        overlay.setAttribute('aria-label', deckConfig?.meta?.title ?? deckName);
 
-        const hintMarkup = config?.spline?.hint
-            ? `<div class="spline-hint">${config.spline.hint}</div>`
+        const hintMarkup = deckConfig?.spline?.hint
+            ? `<div class="spline-hint">${deckConfig.spline.hint}</div>`
             : '';
 
         overlay.innerHTML = `
-        <div class="card-stage" data-deck="${name}">
+        <div class="card-stage" data-deck="${deckName}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
-        </div>`;
+        </div>${hintMarkup}`;
 
         document.body.appendChild(overlay);
         document.body.classList.add('is-spline-open');
