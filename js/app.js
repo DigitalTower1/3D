@@ -123,14 +123,13 @@ const wormholeReturnEase = (t) => {
 
     const portalBackgroundMusic = {
         'Chi Siamo': {
-            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
+            audio: createLoopingAudio('./assets/audio/ambient1.mp3'),
             baseVolume: 0.38,
-            title: '"Deep Ambient" by Olexy (Pixabay)'
+
         },
         Portfolio: {
-            audio: createLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
+            audio: createLoopingAudio('./assets/audio/ambient2.mp3'),
             baseVolume: 0.34,
-            title: '"Future Technology Ambient" by Alex-Productions (Pixabay)'
         }
     };
 
@@ -268,17 +267,15 @@ const wormholeReturnEase = (t) => {
     const CARD_LIBRARY = {
         Portfolio: {
             layout: 'spline',
-            splineSrc: './3d/menu/portfolio_fullscreen.spline',
-            title: 'Portfolio — Esperienza 3D',
-            description: 'Sfoglia i nostri progetti in un ambiente immersivo creato per raccontare ogni dettaglio visivo.'
+            splineSrc: './assets/3d/menu/portfolio.spline',
+            title: 'Portfolio',
         },
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
             layout: 'spline',
-            splineSrc: './3d/menu/chi_siamo.spline',
-            title: 'Chi Siamo — Esperienza 3D',
-            description: 'Esplora il nostro spazio immersivo e incontra il team direttamente all’interno del portale.'
+            splineSrc: './assets/3d/menu/chi_siamo.spline',
+            title: 'Chi Siamo',
         }
     };
 
