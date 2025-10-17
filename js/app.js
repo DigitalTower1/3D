@@ -1113,7 +1113,7 @@ const wormholeReturnEase = (t) => {
         return warpReturnTimeline;
     }
 
-    function mountSplineOverlay(deckName, config = {}) {
+    function createSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
@@ -1309,7 +1309,7 @@ const wormholeReturnEase = (t) => {
         if (!deckConfig) return;
 
         if (deckConfig.layout === 'spline') {
-            mountSplineOverlay(name, deckConfig);
+            createSplineOverlay(name, deckConfig);
             return;
         }
 
@@ -1334,12 +1334,6 @@ const wormholeReturnEase = (t) => {
             stageResizeObserver: null
         };
         const isCarousel = () => state.layoutMode === 'carousel';
-
-        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.4, ease: 'sine.out' }, '-=1.15');
-        warpReturnTimeline.to(bloom, { strength: 0.3, duration: 1.4, ease: 'sine.out' }, '-=1.15');
 
         return warpReturnTimeline;
     }
@@ -1514,6 +1508,12 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.75,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
         };
 
         const performExit = () => {
@@ -1525,24 +1525,6 @@ const wormholeReturnEase = (t) => {
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
-        };
-
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
-            if (closed) return;
-            if (!exitButton.classList.contains('is-expanded')) {
-                exitButton.classList.add('is-expanded');
-                exitButton.setAttribute('aria-expanded', 'true');
-                requestAnimationFrame(() => requestAnimationFrame(performExit));
-                return;
-            }
-            performExit();
-        };
-
-        const overlayClickHandler = (event) => {
-            if (event.target === overlay) {
-                handleExit(event);
-            }
         };
 
             const ungrouped = [];
