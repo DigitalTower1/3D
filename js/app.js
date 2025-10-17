@@ -112,6 +112,28 @@ const wormholeReturnEase = (t) => {
     const portalSound = new Audio('./assets/audio/portal-open.mp3'); portalSound.volume = 0.9;
     const clickSound  = new Audio('./assets/audio/click.mp3');       clickSound.volume = 0.8;
 
+    let splineViewerLoader = null;
+    function ensureSplineViewer() {
+        if (typeof window === 'undefined') return Promise.resolve();
+        if (customElements?.get?.('spline-viewer')) return Promise.resolve();
+        if (!splineViewerLoader) {
+            splineViewerLoader = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.type = 'module';
+                script.crossOrigin = 'anonymous';
+                script.referrerPolicy = 'no-referrer';
+                script.src = 'https://cdn.jsdelivr.net/npm/@splinetool/viewer@1.9.85/build/spline-viewer.js';
+                script.onload = () => resolve();
+                script.onerror = (event) => {
+                    splineViewerLoader = null;
+                    reject(new Error('Impossibile caricare lo Spline Viewer'));
+                };
+                document.head.appendChild(script);
+            });
+        }
+        return splineViewerLoader;
+    }
+
     // --------------------------------------------------------
     //  MODELLO PRINCIPALE
     // --------------------------------------------------------
@@ -286,37 +308,34 @@ const wormholeReturnEase = (t) => {
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
-            layout: 'carousel',
-            dragReveal: true,
-            cards: [
-                {
-                    key: 'Chi-1',
-                    title: 'Chi Siamo',
-                    subtitle: 'Biografia',
-                    tagline: 'Una crew visionaria',
-                    description: 'Siamo designer, sviluppatori e registi digitali con background in cinema, gaming e architettura immersiva.',
-                    highlights: ['Oltre 40 professionisti interni', 'Partnership con studi creativi europei', 'Premi Red Dot & ADCI'],
-                    accent: '#ff9ad6'
-                },
-                {
-                    key: 'Chi-2',
-                    title: 'I nostri valori',
-                    subtitle: 'Etica & innovazione',
-                    tagline: 'Human first',
-                    description: 'Creiamo esperienze che amplificano le persone: inclusione, accessibilità e sostenibilità guidano ogni scelta.',
-                    highlights: ['Processi carbon neutral', 'Design inclusivo by default', 'Ricerca continua con università'],
-                    accent: '#9be7ff'
-                },
-                {
-                    key: 'Chi-3',
-                    title: 'La nostra missione',
-                    subtitle: 'Visione condivisa',
-                    tagline: 'Aprire wormhole',
-                    description: 'Connettiamo brand e community attraverso portali digitali dove tecnologia e storytelling si fondono senza attriti.',
-                    highlights: ['Esperienze cross-device', 'Strategie data driven', 'Relazioni di lungo periodo'],
-                    accent: '#ffd58a'
-                }
-            ]
+            layout: 'spline',
+            spline: {
+                url: './3d/menu/chi_siamo.spline',
+                hint: 'Trascina per orbitare nella scena e usa lo scroll per scoprire gli hotspot olografici.'
+            },
+            meta: {
+                title: 'Chi Siamo',
+                subtitle: 'Biografia immersiva',
+                description: 'Un hub tridimensionale dove design, tecnologia e storytelling si fondono per raccontare l’identità dello studio.',
+                sections: [
+                    {
+                        heading: 'Biografia',
+                        body: 'Dal 2012 intrecciamo regia digitale, sviluppo realtime e art direction per costruire esperienze che evolvono insieme alle community.',
+                        accent: '#ff9ad6'
+                    },
+                    {
+                        heading: 'I nostri valori',
+                        items: ['Centralità delle persone e dell’accessibilità', 'Processi carbon neutral e supply chain responsabile', 'Ricerca continua con università e laboratori creativi'],
+                        accent: '#9be7ff'
+                    },
+                    {
+                        heading: 'La nostra missione',
+                        body: 'Apriamo wormhole tra brand e pubblico, orchestrando ecosistemi immersivi misurabili che uniscono emozione, dati e performance.',
+                        items: ['Esperienze cross-device con contenuti sincronizzati', 'Strategie data-driven a ciclo continuo', 'Partnership di lungo periodo orientate alla crescita'],
+                        accent: '#ffd58a'
+                    }
+                ]
+            }
         }
     };
 
@@ -479,6 +498,156 @@ const wormholeReturnEase = (t) => {
     //  PORTALE DORATO ATTORNO AL PULSANTE (mesh/shader 3D)
     // --------------------------------------------------------
     const portalGroups = new Set(); // per pulire al termine
+    const groundCircleGeometry = new THREE.PlaneGeometry(1, 1, 64, 1);
+    const groundCircleMaterialTemplate = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        depthTest: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: {
+            time: { value: 0 },
+            opacity: { value: 0 },
+            inner: { value: 0.35 },
+            outer: { value: 0.82 },
+            color: { value: new THREE.Color(0xffffff) }
+        },
+        vertexShader: `
+      varying vec2 vUv;
+      void main(){
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+        fragmentShader: `
+      varying vec2 vUv;
+      uniform float time, opacity, inner, outer;
+      uniform vec3 color;
+      void main(){
+        vec2 uv = vUv - 0.5;
+        float dist = length(uv) * 2.0;
+        float ring = smoothstep(inner, inner - 0.12, dist) * smoothstep(outer + 0.18, outer, dist);
+        float glow = smoothstep(outer + 0.48, outer - 0.06, dist);
+        float pulse = 0.6 + 0.4 * sin(time * 2.4 + dist * 6.283);
+        float alpha = (ring * 0.85 + glow * 0.35 * pulse) * opacity;
+        if (alpha <= 0.001) discard;
+        vec3 tint = color * (1.0 + 0.3 * sin(time * 1.7));
+        gl_FragColor = vec4(tint, alpha);
+      }`
+    });
+
+    const groundTmp = new THREE.Vector3();
+
+    function spawnGroundHalo(target) {
+        if (!target) return null;
+        target.getWorldPosition(groundTmp);
+        const haloGroup = new THREE.Group();
+        haloGroup.position.copy(groundTmp);
+        haloGroup.position.y -= 110;
+        haloGroup.rotation.x = 0;
+        haloGroup.rotation.z = 0;
+        scene.add(haloGroup);
+
+        const haloConfigs = [
+            { size: 320, inner: 0.24, outer: 0.72, color: '#ffdca8', float: 12, opacity: 0.92, delay: 0.0 },
+            { size: 420, inner: 0.32, outer: 0.88, color: '#9bdcff', float: 16, opacity: 0.78, delay: 0.18 },
+            { size: 540, inner: 0.42, outer: 1.02, color: '#ffbaf2', float: 20, opacity: 0.68, delay: 0.32 }
+        ];
+
+        const circles = haloConfigs.map((cfg, idx) => {
+            const material = groundCircleMaterialTemplate.clone();
+            material.uniforms.inner.value = cfg.inner;
+            material.uniforms.outer.value = cfg.outer;
+            material.uniforms.color.value = new THREE.Color(cfg.color);
+            material.uniforms.opacity.value = 0.0;
+
+            const mesh = new THREE.Mesh(groundCircleGeometry, material);
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.scale.setScalar(cfg.size);
+            mesh.position.y = idx * 4;
+            haloGroup.add(mesh);
+
+            const floatTween = gsap.to(mesh.position, {
+                y: mesh.position.y + cfg.float,
+                duration: 2.6 + idx * 0.55,
+                ease: 'sine.inOut',
+                yoyo: true,
+                repeat: -1,
+                delay: cfg.delay
+            });
+
+            const opacityTween = gsap.to(material.uniforms.opacity, {
+                value: cfg.opacity,
+                duration: 1.35,
+                ease: 'power2.out',
+                delay: 0.22 + cfg.delay
+            });
+
+            return { mesh, material, floatTween, opacityTween };
+        });
+
+        const wobbleTween = gsap.fromTo(haloGroup.position, {
+            y: haloGroup.position.y - 35
+        }, {
+            y: haloGroup.position.y,
+            duration: 1.25,
+            ease: 'expo.out'
+        });
+
+        const scaleTween = gsap.fromTo(haloGroup.scale, {
+            x: 0.65,
+            y: 0.65,
+            z: 0.65
+        }, {
+            x: 1,
+            y: 1,
+            z: 1,
+            duration: 1.1,
+            ease: 'expo.out'
+        });
+
+        const spinTween = gsap.to(haloGroup.rotation, {
+            y: '+=1.8',
+            duration: 24,
+            ease: 'none',
+            repeat: -1
+        });
+
+        let disposed = false;
+
+        return {
+            update(dt) {
+                if (disposed) return;
+                circles.forEach(entry => {
+                    entry.material.uniforms.time.value += dt;
+                });
+            },
+            fadeAndRemove(onDone) {
+                if (disposed) return;
+                disposed = true;
+                spinTween.kill();
+                wobbleTween.kill();
+                scaleTween.kill();
+                circles.forEach((entry, idx) => {
+                    entry.floatTween?.kill();
+                    entry.opacityTween?.kill();
+                    gsap.to(entry.material.uniforms.opacity, {
+                        value: 0,
+                        duration: 0.75,
+                        ease: 'power2.in',
+                        delay: idx * 0.08
+                    });
+                });
+                gsap.to(haloGroup.position, {
+                    y: haloGroup.position.y - 50,
+                    duration: 0.8,
+                    ease: 'sine.in',
+                    onComplete: () => {
+                        haloGroup.parent?.remove(haloGroup);
+                        if (onDone) onDone();
+                    }
+                });
+            }
+        };
+    }
 
     function spawnPortalAt(target) {
         const g = new THREE.Group();
@@ -635,17 +804,21 @@ const wormholeReturnEase = (t) => {
         const streaksFade = gsap.to(streakMat.uniforms.opacity, { value: 1.0, duration: 1.6, ease: "sine.inOut" });
         const streakStretch = gsap.to(streakMat.uniforms.stretch, { value: 2100, duration: 3.2, ease: "sine.inOut" });
 
+        const groundHalo = spawnGroundHalo(target);
+
         return {
             update(dt) {
                 ringMat.uniforms.time.value += dt;
                 cylMat.uniforms.time.value += dt;
                 streakMat.uniforms.time.value = (streakMat.uniforms.time.value + dt * 0.9) % 1.0;
                 light.intensity = 2.1 + cylMat.uniforms.glow.value * 0.9 + Math.sin(performance.now() / 480) * 0.6;
+                if (groundHalo) groundHalo.update(dt);
             },
             fadeAndRemove(onDone) {
                 glowTween.pause();
                 swirlTween.pause();
                 streakStretch.pause();
+                if (groundHalo) groundHalo.fadeAndRemove();
                 gsap.to(cylMat.uniforms.glow, { value: 0.4, duration: 0.6, ease: "sine.in" });
                 gsap.to([ringMat.uniforms.alpha, cylMat.uniforms.alpha], {
                     value: 0.0, duration: 1.2, ease: "power2.inOut",
@@ -933,10 +1106,203 @@ const wormholeReturnEase = (t) => {
         return warpReturnTimeline;
     }
 
+    function openSplineOverlay(deckName, config = {}) {
+        const overlay = document.createElement('div');
+        overlay.className = 'warp-card warp-card--spline';
+        overlay.dataset.deck = deckName;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+
+        const sections = Array.isArray(config?.meta?.sections) ? config.meta.sections : [];
+        const sectionMarkup = sections.map((section) => {
+            const accent = section?.accent ? ` style="--spline-accent:${section.accent}"` : '';
+            const details = Array.isArray(section?.items) && section.items.length
+                ? `<ul class="spline-meta__list">${section.items.map(item => `<li>${item}</li>`).join('')}</ul>`
+                : (section?.body ? `<p>${section.body}</p>` : '');
+            const heading = section?.heading ? `<h3>${section.heading}</h3>` : '';
+            return `<section class="spline-meta__section"${accent}>${heading}${details}</section>`;
+        }).join('');
+
+        const eyebrow = config?.meta?.subtitle ? `<span class="spline-meta__eyebrow">${config.meta.subtitle}</span>` : '';
+        const description = config?.meta?.description ? `<p class="spline-meta__description">${config.meta.description}</p>` : '';
+        const hint = config?.spline?.hint ? `<p class="spline-meta__hint">${config.spline.hint}</p>` : '';
+
+        overlay.innerHTML = `
+        <div class="card-stage" data-layout="spline">
+          <div class="spline-backdrop"></div>
+          <div class="spline-shell">
+            <div class="spline-scene" aria-live="polite" aria-busy="true">
+              <div class="spline-loading">
+                <span class="spline-loading__orb"></span>
+                <span class="spline-loading__label">Caricamento scena...</span>
+              </div>
+            </div>
+            <aside class="spline-meta">
+              <header class="spline-meta__header">
+                ${eyebrow}
+                <h2 class="spline-meta__title">${config?.meta?.title ?? deckName}</h2>
+              </header>
+              ${description}
+              ${sectionMarkup}
+              ${hint}
+            </aside>
+          </div>
+          <div class="card-actions" data-actions="spline">
+            <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
+          </div>
+        </div>`;
+
+        document.body.appendChild(overlay);
+
+        const stage = overlay.querySelector('.card-stage');
+        const sceneHost = overlay.querySelector('.spline-scene');
+        const exitButton = overlay.querySelector('[data-action="exit"]');
+        const metaSections = overlay.querySelectorAll('.spline-meta__section');
+
+        const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        stageTimeline.fromTo(stage, {
+            opacity: 0,
+            y: 80,
+            rotateX: -12,
+            scale: 0.92
+        }, {
+            opacity: 1,
+            y: 0,
+            rotateX: 0,
+            scale: 1,
+            duration: 1.05,
+            clearProps: 'transform'
+        });
+        stageTimeline.fromTo(sceneHost, {
+            opacity: 0,
+            filter: 'blur(20px)'
+        }, {
+            opacity: 1,
+            filter: 'blur(0px)',
+            duration: 1.1
+        }, 0.2);
+        if (metaSections.length) {
+            stageTimeline.fromTo(metaSections, {
+                opacity: 0,
+                y: 28
+            }, {
+                opacity: 1,
+                y: 0,
+                duration: 0.55,
+                stagger: 0.08
+            }, 0.35);
+        }
+
+        const cleanup = [];
+        let closed = false;
+
+        const setSceneStatus = (busy) => {
+            if (!sceneHost) return;
+            if (busy) {
+                sceneHost.setAttribute('aria-busy', 'true');
+                sceneHost.classList.remove('is-ready');
+            } else {
+                sceneHost.setAttribute('aria-busy', 'false');
+                sceneHost.classList.add('is-ready');
+            }
+        };
+
+        setSceneStatus(true);
+
+        const closeOverlay = () => {
+            if (closed) return;
+            closed = true;
+            stageTimeline.kill();
+            while (cleanup.length) {
+                const fn = cleanup.pop();
+                try { fn(); } catch (err) { /* noop */ }
+            }
+            gsap.to(stage, {
+                opacity: 0,
+                y: 120,
+                rotateX: -16,
+                duration: 0.75,
+                ease: 'power2.in'
+            });
+            gsap.to(overlay, {
+                opacity: 0,
+                duration: 0.8,
+                ease: 'power2.in',
+                onComplete: () => overlay.remove()
+            });
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
+        };
+
+        exitButton.addEventListener('click', handleExit);
+        overlay.addEventListener('click', overlayClickHandler);
+        const keyHandler = (event) => {
+            if (event.key === 'Escape') handleExit(event);
+        };
+        document.addEventListener('keydown', keyHandler);
+
+        cleanup.push(() => exitButton.removeEventListener('click', handleExit));
+        cleanup.push(() => overlay.removeEventListener('click', overlayClickHandler));
+        cleanup.push(() => document.removeEventListener('keydown', keyHandler));
+
+        setTimeout(() => exitButton?.focus({ preventScroll: true }), 520);
+
+        const setFallback = (message) => {
+            if (closed || !sceneHost) return;
+            setSceneStatus(false);
+            sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
+        };
+
+        const splineUrl = config?.spline?.url ?? './3d/menu/chi_siamo.spline';
+        const assetCheck = fetch(splineUrl, { method: 'HEAD' })
+            .then((response) => {
+                if (!response.ok) throw new Error('missing');
+            })
+            .catch(() => { throw new Error('missing'); });
+
+        Promise.all([ensureSplineViewer(), assetCheck]).then(() => {
+            if (closed || !sceneHost) return;
+            const viewer = document.createElement('spline-viewer');
+            viewer.className = 'spline-canvas';
+            viewer.setAttribute('url', splineUrl);
+            viewer.setAttribute('loading', 'lazy');
+            viewer.setAttribute('events-target', 'global');
+            viewer.setAttribute('aria-label', config?.meta?.title ?? deckName);
+            viewer.addEventListener('load', () => setSceneStatus(false));
+            viewer.addEventListener('error', () => setFallback('Impossibile caricare la scena interattiva.'));
+            sceneHost.innerHTML = '';
+            sceneHost.appendChild(viewer);
+            setTimeout(() => setSceneStatus(false), 600);
+        }).catch(() => {
+            setFallback('Impossibile caricare la scena interattiva.');
+        });
+    }
+
     function showCard(name) {
         try { portalSound.currentTime = 0; portalSound.play(); } catch (err) { /* noop */ }
 
         const deckConfig = CARD_LIBRARY[name];
+        if (!deckConfig) return;
+
+        if (deckConfig.layout === 'spline') {
+            openSplineOverlay(name, deckConfig);
+            return;
+        }
+
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
         if (!deck.length) return;
 
