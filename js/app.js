@@ -1335,14 +1335,123 @@ const wormholeReturnEase = (t) => {
         };
         const isCarousel = () => state.layoutMode === 'carousel';
 
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 1.2, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.075, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 1.0, duration: 0.45, ease: 'power2.in' }, 0);
+        warpReturnTimeline.to(bloom, { strength: 0.95, duration: 0.45, ease: 'sine.in' }, 0);
+
+        warpReturnTimeline.to(exposureProxy, {
+            value: 2.35,
+            duration: 1.8,
+            ease: 'power2.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => {
+                renderer.toneMappingExposure += (exposureProxy.value - renderer.toneMappingExposure) * 0.25;
+            }
+        }, 0.15);
+
+        warpReturnTimeline.to(camera, {
+            fov: DEFAULT_FOV + 8,
+            duration: 1.4,
+            ease: 'sine.inOut',
+            yoyo: true,
+            repeat: 1,
+            onUpdate: () => camera.updateProjectionMatrix()
+        }, 0.15);
+
+        warpReturnTimeline.to(retreat, {
+            t: 1,
+            duration,
+            ease: 'none',
+            onUpdate: () => {
+                const phase = wormholeReturnEase(retreat.t);
+                returnPos.lerpVectors(startPos, HOME_POSITION, phase);
+                const shake = Math.sin(phase * Math.PI) ** 1.3;
+                const wobble = THREE.MathUtils.lerp(0, 14, shake);
+                returnJitter.copy(lateral).multiplyScalar(Math.sin(phase * Math.PI * 3.15) * wobble);
+                returnJitter.addScaledVector(vertical, Math.cos(phase * Math.PI * 2.45) * wobble * 0.55);
+                returnPos.add(returnJitter);
+                camera.position.copy(returnPos);
+                camera.quaternion.slerpQuaternions(startQuat, returnQuat, phase);
+                camera.updateMatrixWorld();
+                controls.target.lerpVectors(startFocus, HOME_LOOK_TARGET, phase);
+
+                warpPass.uniforms.strength.value = THREE.MathUtils.lerp(1.2, 0.0, phase);
+                warpPass.uniforms.chroma.value = THREE.MathUtils.lerp(0.075, 0.0, phase);
+                warpPass.uniforms.radius.value = THREE.MathUtils.lerp(0.18, 0.28, phase);
+                warpPass.uniforms.streaks.value = THREE.MathUtils.lerp(1.0, 0.05, phase);
+                bloom.strength = THREE.MathUtils.lerp(0.95, 0.3, phase);
+            }
+        }, 0.15);
+
+        warpReturnTimeline.to(warpPass.uniforms.strength, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.chroma, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.streaks, { value: 0.0, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(warpPass.uniforms.radius, { value: 0.26, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+        warpReturnTimeline.to(bloom, { strength: 0.3, duration: 1.4, ease: 'sine.out' }, '-=1.15');
+
+        return warpReturnTimeline;
+    }
+
+    function openSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
-        overlay.className = 'warp-card';
+        overlay.className = 'warp-card warp-card--spline';
+        overlay.dataset.deck = deckName;
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
+
+        const hintMarkup = config?.spline?.hint
+            ? `<div class="spline-hint">${config.spline.hint}</div>`
+            : '';
+
         overlay.innerHTML = `
         <div class="card-stage" data-deck="${name}">
           <div class="card-backdrop"></div>
           <div class="card-carousel"></div>
         </div>`;
+
         document.body.appendChild(overlay);
+        document.body.classList.add('is-spline-open');
+        document.documentElement.classList.add('is-spline-open');
+
+        const stage = overlay.querySelector('.card-stage');
+        const sceneHost = overlay.querySelector('.spline-scene');
+        const exitButton = overlay.querySelector('[data-action="exit"]');
+
+        const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        stageTimeline.fromTo(stage, {
+            opacity: 0,
+            scale: 0.95
+        }, {
+            opacity: 1,
+            scale: 1,
+            duration: 1.05,
+            clearProps: 'transform'
+        });
+        stageTimeline.fromTo(sceneHost, {
+            filter: 'blur(24px)',
+            opacity: 0
+        }, {
+            filter: 'blur(0px)',
+            opacity: 1,
+            duration: 1.1
+        }, 0.1);
+
+        const cleanup = [];
+        let closed = false;
+
+        const setSceneStatus = (busy) => {
+            if (!sceneHost) return;
+            if (busy) {
+                sceneHost.setAttribute('aria-busy', 'true');
+                sceneHost.classList.remove('is-ready');
+            } else {
+                sceneHost.setAttribute('aria-busy', 'false');
+                sceneHost.classList.add('is-ready');
+            }
+        };
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1455,6 +1564,30 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
+        };
+
+        const performExit = () => {
+            if (closed) return;
+            exitButton.disabled = true;
+            exitButton.setAttribute('aria-disabled', 'true');
+            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+            try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
+            stopTravelTween();
+            closeOverlay();
+            requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            if (!exitButton.classList.contains('is-expanded')) {
+                exitButton.classList.add('is-expanded');
+                exitButton.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => requestAnimationFrame(performExit));
+                return;
+            }
+            performExit();
+        };
 
             const ungrouped = [];
             fields.forEach((field, idx) => {
