@@ -15,7 +15,7 @@ import { SSAOPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/js
 import { BokehPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/BokehPass.js';
 import { FilmPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/FilmPass.js';
 import { ShaderPass } from 'https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/postprocessing/ShaderPass.js';
-    import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -1304,7 +1304,7 @@ const wormholeReturnEase = (t) => {
         return warpReturnTimeline;
     }
 
-    function createSplineOverlay(deckName, config = {}) {
+    function mountSplineDeck(deckName, config = {}) {
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
@@ -1500,7 +1500,7 @@ const wormholeReturnEase = (t) => {
         if (!deckConfig) return;
 
         if (deckConfig.layout === 'spline') {
-            createSplineOverlay(name, deckConfig);
+            mountSplineDeck(name, deckConfig);
             return;
         }
 
@@ -1711,12 +1711,6 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
-            gsap.to(overlay, {
-                opacity: 0,
-                duration: 0.75,
-                ease: 'power2.in',
-                onComplete: () => overlay.remove()
-            });
         };
 
         const performExit = () => {
@@ -1728,6 +1722,43 @@ const wormholeReturnEase = (t) => {
             stopTravelTween();
             closeOverlay();
             requestAnimationFrame(() => animateReturnHome());
+        };
+
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            if (!exitButton.classList.contains('is-expanded')) {
+                exitButton.classList.add('is-expanded');
+                exitButton.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => requestAnimationFrame(performExit));
+                return;
+            }
+            performExit();
+        };
+
+        const overlayClickHandler = (event) => {
+            if (event.target === overlay) {
+                handleExit(event);
+            }
+        };
+
+        exitButton.addEventListener('click', handleExit);
+        overlay.addEventListener('click', overlayClickHandler);
+        const keyHandler = (event) => {
+            if (event.key === 'Escape') handleExit(event);
+        };
+        document.addEventListener('keydown', keyHandler);
+
+        cleanup.push(() => exitButton.removeEventListener('click', handleExit));
+        cleanup.push(() => overlay.removeEventListener('click', overlayClickHandler));
+        cleanup.push(() => document.removeEventListener('keydown', keyHandler));
+
+        setTimeout(() => exitButton?.focus({ preventScroll: true }), 520);
+
+        const setFallback = (message) => {
+            if (closed || !sceneHost) return;
+            setSceneStatus(false);
+            sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
         };
 
             const ungrouped = [];
