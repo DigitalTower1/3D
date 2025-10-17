@@ -1113,7 +1113,7 @@ const wormholeReturnEase = (t) => {
         return warpReturnTimeline;
     }
 
-    function openSplineOverlay(deckName, config = {}) {
+    function mountSplineOverlay(deckName, config = {}) {
         const overlay = document.createElement('div');
         overlay.className = 'warp-card warp-card--spline';
         overlay.dataset.deck = deckName;
@@ -1309,7 +1309,7 @@ const wormholeReturnEase = (t) => {
         if (!deckConfig) return;
 
         if (deckConfig.layout === 'spline') {
-            openSplineOverlay(name, deckConfig);
+            mountSplineOverlay(name, deckConfig);
             return;
         }
 
@@ -1402,38 +1402,9 @@ const wormholeReturnEase = (t) => {
         overlay.setAttribute('aria-modal', 'true');
         overlay.setAttribute('aria-label', config?.meta?.title ?? deckName);
 
-        const meta = config?.meta ?? {};
-        const sections = Array.isArray(meta?.sections) ? meta.sections : [];
-        const sectionMarkup = sections.map((section) => {
-            const accent = section?.accent ? ` style="--spline-accent:${section.accent}"` : '';
-            const details = Array.isArray(section?.items) && section.items.length
-                ? `<ul class="spline-meta__list">${section.items.map(item => `<li>${item}</li>`).join('')}</ul>`
-                : (section?.body ? `<p>${section.body}</p>` : '');
-            const heading = section?.heading ? `<h3>${section.heading}</h3>` : '';
-            return `<section class="spline-meta__section"${accent}>${heading}${details}</section>`;
-        }).join('');
-
-        const hasMetaAside = Boolean(sectionMarkup || meta?.description);
-        const shellClass = hasMetaAside ? 'spline-shell' : 'spline-shell spline-shell--full';
-        const eyebrow = meta?.subtitle ? `<span class="spline-meta__eyebrow">${meta.subtitle}</span>` : '';
-        const description = meta?.description ? `<p class="spline-meta__description">${meta.description}</p>` : '';
-        const hint = config?.spline?.hint ? `<p class="spline-meta__hint">${config.spline.hint}</p>` : '';
-        const metaAside = hasMetaAside
-            ? `<aside class="spline-meta">
-              <header class="spline-meta__header">
-                ${eyebrow}
-                <h2 class="spline-meta__title">${meta?.title ?? deckName}</h2>
-              </header>
-              ${description}
-              ${sectionMarkup}
-              ${hint}
-            </aside>`
+        const hintMarkup = config?.spline?.hint
+            ? `<div class="spline-hint">${config.spline.hint}</div>`
             : '';
-        const inlineInfo = hasMetaAside ? '' : `
-            <div class="spline-inline-info">
-              ${eyebrow || meta?.title ? `<div class="spline-inline-info__heading">${eyebrow}<h2>${meta?.title ?? deckName}</h2></div>` : ''}
-              ${hint ? `<div class="spline-inline-info__hint">${config.spline.hint}</div>` : ''}
-            </div>`;
 
         overlay.innerHTML = `
         <div class="card-stage" data-deck="${name}">
@@ -1442,6 +1413,45 @@ const wormholeReturnEase = (t) => {
         </div>`;
 
         document.body.appendChild(overlay);
+        document.body.classList.add('is-spline-open');
+        document.documentElement.classList.add('is-spline-open');
+
+        const stage = overlay.querySelector('.card-stage');
+        const sceneHost = overlay.querySelector('.spline-scene');
+        const exitButton = overlay.querySelector('[data-action="exit"]');
+
+        const stageTimeline = gsap.timeline({ defaults: { ease: 'power3.out' } });
+        stageTimeline.fromTo(stage, {
+            opacity: 0,
+            scale: 0.95
+        }, {
+            opacity: 1,
+            scale: 1,
+            duration: 1.05,
+            clearProps: 'transform'
+        });
+        stageTimeline.fromTo(sceneHost, {
+            filter: 'blur(24px)',
+            opacity: 0
+        }, {
+            filter: 'blur(0px)',
+            opacity: 1,
+            duration: 1.1
+        }, 0.1);
+
+        const cleanup = [];
+        let closed = false;
+
+        const setSceneStatus = (busy) => {
+            if (!sceneHost) return;
+            if (busy) {
+                sceneHost.setAttribute('aria-busy', 'true');
+                sceneHost.classList.remove('is-ready');
+            } else {
+                sceneHost.setAttribute('aria-busy', 'false');
+                sceneHost.classList.add('is-ready');
+            }
+        };
 
         const stage = overlay.querySelector('.card-stage');
         const carouselEl = overlay.querySelector('.card-carousel');
@@ -1554,17 +1564,12 @@ const wormholeReturnEase = (t) => {
             groups.forEach(group => {
                 grouped.set(group.key, { meta: group, fields: [] });
             });
-            gsap.to(overlay, {
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power2.in',
-                onComplete: () => overlay.remove()
-            });
         };
 
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
+        const performExit = () => {
             if (closed) return;
+            exitButton.disabled = true;
+            exitButton.setAttribute('aria-disabled', 'true');
             try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
             try { warpSound.pause(); warpSound.currentTime = 0; warpSound.play(); } catch (err) { /* noop */ }
             stopTravelTween();
@@ -1572,29 +1577,16 @@ const wormholeReturnEase = (t) => {
             requestAnimationFrame(() => animateReturnHome());
         };
 
-        const overlayClickHandler = (event) => {
-            if (event.target === overlay) {
-                handleExit(event);
+        const handleExit = (event) => {
+            if (event) event.preventDefault();
+            if (closed) return;
+            if (!exitButton.classList.contains('is-expanded')) {
+                exitButton.classList.add('is-expanded');
+                exitButton.setAttribute('aria-expanded', 'true');
+                requestAnimationFrame(() => requestAnimationFrame(performExit));
+                return;
             }
-        };
-
-        exitButton.addEventListener('click', handleExit);
-        overlay.addEventListener('click', overlayClickHandler);
-        const keyHandler = (event) => {
-            if (event.key === 'Escape') handleExit(event);
-        };
-        document.addEventListener('keydown', keyHandler);
-
-        cleanup.push(() => exitButton.removeEventListener('click', handleExit));
-        cleanup.push(() => overlay.removeEventListener('click', overlayClickHandler));
-        cleanup.push(() => document.removeEventListener('keydown', keyHandler));
-
-        setTimeout(() => exitButton?.focus({ preventScroll: true }), 520);
-
-        const setFallback = (message) => {
-            if (closed || !sceneHost) return;
-            setSceneStatus(false);
-            sceneHost.innerHTML = `<div class="spline-error">${message}</div>`;
+            performExit();
         };
 
             const ungrouped = [];
