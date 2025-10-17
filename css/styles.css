@@ -33,7 +33,7 @@ html, body {
 /* ===============================
    WARP CARD OVERLAY
    =============================== */
-.warp-card {
+ .warp-card {
     position: fixed;
     inset: 0;
     padding: clamp(1.6rem, 4vw, 3.2rem);
@@ -583,6 +583,108 @@ html, body {
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
+}
+
+.card-actions__nav:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.32);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.card-actions__nav:hover::after {
+    opacity: 1;
+}
+
+.card-actions__nav:active {
+    transform: scale(0.94);
+}
+
+.card-actions__nav:focus-visible {
+    box-shadow: 0 0 0 3px rgba(255, 220, 170, 0.55);
+}
+
+.card-actions__nav .chevron {
+    position: relative;
+    width: 14px;
+    height: 14px;
+}
+
+.card-actions__nav .chevron::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    border: solid currentColor;
+    border-width: 0 2px 2px 0;
+    transform-origin: center;
+    transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.card-actions__nav.is-prev .chevron::before {
+    transform: translate(-50%, -50%) rotate(225deg);
+}
+
+.card-actions__exit {
+    border: none;
+    border-radius: 999px;
+    padding: 0.65rem 1.8rem;
+    background: linear-gradient(135deg, rgba(255, 215, 150, 0.92), rgba(255, 234, 190, 0.9));
+    color: #4d2a00;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: clamp(0.82rem, 2vw, 0.92rem);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: 0 20px 50px rgba(255, 210, 150, 0.35);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    width: min(100%, 280px);
+    outline: none;
+}
+
+.card-actions__exit:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 26px 60px rgba(255, 210, 150, 0.45);
+}
+
+.card-actions__exit:focus-visible {
+    box-shadow: 0 0 0 3px rgba(255, 220, 170, 0.55);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(16px);
+    }
+}
+
+.warp-card.fade-out {
+    animation: fadeOut 0.8s forwards ease-in;
+}
+
+@keyframes fadeOut {
+    to {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+    }
+}
+
+@keyframes glowPulse {
+    0% {
+        box-shadow: 0 0 38px rgba(255, 210, 120, 0.18), inset 0 0 32px rgba(255, 210, 130, 0.12);
+    }
+    50% {
+        box-shadow: 0 16px 50px rgba(255, 210, 150, 0.32), inset 0 0 46px rgba(255, 214, 150, 0.18);
+    }
+    100% {
+        box-shadow: 0 0 38px rgba(255, 210, 120, 0.18), inset 0 0 32px rgba(255, 210, 130, 0.12);
+    }
 }
 
 .card-actions__nav:hover {
