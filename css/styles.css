@@ -129,8 +129,16 @@ html, body {
 .card-stage[data-layout="spline"] .spline-frame spline-viewer {
     width: 100%;
     height: 100%;
+    display: block;
+    position: relative;
     border: none;
     background: transparent;
+}
+
+.card-stage[data-layout="spline"] .spline-frame spline-viewer::part(canvas) {
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 .card-stage[data-layout="spline"] .spline-loader {
