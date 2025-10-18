@@ -295,7 +295,7 @@ const wormholeReturnEase = (t) => {
     const CARD_LIBRARY = {
         Portfolio: {
             layout: 'spline',
-            splineSrc: './3d/menu/portfolio_fullscreen.spline',
+            splineSrc: './assets/3d/menu/portfolio_fullscreen.spline',
             title: 'Portfolio — Esperienza 3D',
             description: 'Sfoglia i nostri progetti in un ambiente immersivo creato per raccontare ogni dettaglio visivo.'
         },
@@ -303,7 +303,7 @@ const wormholeReturnEase = (t) => {
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
             layout: 'spline',
-            splineSrc: './3d/menu/chi_siamo.spline',
+            splineSrc: './assets/3d/menu/chi_siamo.spline',
             title: 'Chi Siamo — Esperienza 3D',
             description: 'Esplora il nostro spazio immersivo e incontra il team direttamente all’interno del portale.'
         }
