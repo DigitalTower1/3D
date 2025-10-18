@@ -23,6 +23,17 @@ import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 const DEBUG_LOG = false;
 const log = (...a)=>{ if(DEBUG_LOG) console.log('[3D]',...a); };
 
+const navInfo = typeof navigator === 'undefined'
+    ? { maxTouchPoints: 0, msMaxTouchPoints: 0, userAgent: '' }
+    : navigator;
+const isTouchDevice = 'ontouchstart' in window || navInfo.maxTouchPoints > 0 || navInfo.msMaxTouchPoints > 0;
+const isMobileUserAgent = /Mobi|Android|iPhone|iPad|iPod/i.test(navInfo.userAgent);
+const isMobileViewport = window.innerWidth <= 900 || (window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+const isMobileDevice = isMobileUserAgent || isTouchDevice || isMobileViewport;
+const pixelRatioCap = isMobileDevice ? 1.25 : 1.75;
+
+log('Mobile detection', { isTouchDevice, isMobileUserAgent, isMobileViewport, isMobileDevice });
+
 // easing personalizzati per i movimenti "wormhole"
 const wormholeEase = (t) => {
     const accelerated = Math.pow(t, 1.45);
@@ -37,13 +48,17 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  RENDERER + SCENA
     // --------------------------------------------------------
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+        antialias: !isMobileDevice,
+        alpha: true,
+        powerPreference: 'high-performance'
+    });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 2.0;
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !isMobileDevice;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
     renderer.setSize(window.innerWidth, window.innerHeight);
     window.renderer = renderer;
 
@@ -1142,30 +1157,19 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  POST-PROCESSING (manteniamo tutto) + WARP SHADER PASS
     // --------------------------------------------------------
-    const composer = new EffectComposer(renderer);
-    composer.addPass(new RenderPass(scene, camera));
-    const ssao = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
-    ssao.kernelRadius = 16;
-    composer.addPass(ssao);
-    const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.4, 0.9);
-    composer.addPass(bloom);
-    const bokeh = new BokehPass(scene, camera, { focus: 800, aperture: 1.5, maxblur: 0.002 });
-    composer.addPass(bokeh);
-    const film = new FilmPass(0.2, 0.08, 648, false);
-    composer.addPass(film);
+    const createWarpUniforms = () => ({
+        tDiffuse: { value: null },
+        time: { value: 0 },
+        strength: { value: 0.0 },
+        chroma: { value: 0.0 },
+        center: { value: new THREE.Vector2(0.5, 0.5) },
+        radius: { value: 0.25 },
+        streaks: { value: 0.0 },
+        pulse: { value: 0.0 }
+    });
 
-    // Warp ripple/chroma centrato sul pulsante (screen-space)
-    const WarpShader = {
-        uniforms: {
-            tDiffuse: { value: null },
-            time: { value: 0 },
-            strength: { value: 0.0 },      // 0..1 durante il warp
-            chroma: { value: 0.0 },        // aberrazione cromatica
-            center: { value: new THREE.Vector2(0.5, 0.5) }, // centro portale in NDC [0..1]
-            radius: { value: 0.25 },       // raggio dell'effetto
-            streaks: { value: 0.0 },
-            pulse: { value: 0.0 }
-        },
+    const warpShaderConfig = {
+        uniforms: createWarpUniforms(),
         vertexShader: `
         varying vec2 vUv;
         void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
@@ -1210,8 +1214,35 @@ const wormholeReturnEase = (t) => {
     }
   `
     };
-    const warpPass = new ShaderPass(WarpShader);
-    composer.addPass(warpPass);
+
+    let composer;
+    let bloom;
+    let warpPass;
+    const useAdvancedPost = renderer.capabilities.isWebGL2 && !isMobileDevice;
+
+    if (useAdvancedPost) {
+        composer = new EffectComposer(renderer);
+        composer.addPass(new RenderPass(scene, camera));
+        const ssao = new SSAOPass(scene, camera, window.innerWidth, window.innerHeight);
+        ssao.kernelRadius = 16;
+        composer.addPass(ssao);
+        bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.25, 0.4, 0.9);
+        composer.addPass(bloom);
+        const bokeh = new BokehPass(scene, camera, { focus: 800, aperture: 1.5, maxblur: 0.002 });
+        composer.addPass(bokeh);
+        const film = new FilmPass(0.2, 0.08, 648, false);
+        composer.addPass(film);
+        warpPass = new ShaderPass(warpShaderConfig);
+        composer.addPass(warpPass);
+    } else {
+        composer = {
+            render: () => renderer.render(scene, camera),
+            setSize: () => {}
+        };
+        bloom = { strength: 0.3 };
+        warpPass = { uniforms: warpShaderConfig.uniforms };
+        log('Using simplified renderer for mobile/low-power devices');
+    }
 
     // --------------------------------------------------------
     //  PORTALE DORATO ATTORNO AL PULSANTE (mesh/shader 3D)
@@ -2338,6 +2369,7 @@ const wormholeReturnEase = (t) => {
     window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, pixelRatioCap));
         renderer.setSize(window.innerWidth, window.innerHeight);
         composer.setSize(window.innerWidth, window.innerHeight);
     });
