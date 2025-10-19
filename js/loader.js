@@ -1,16 +1,13 @@
 import { gsap } from "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm";
+import { createEmbeddedAudio } from './audio-data.js';
 
 /* ---------- AUDIO ---------- */
 const sounds = {
-    wind: new Audio('./assets/audio/wind.mp3'),
-    echo: new Audio('./assets/audio/echo.mp3'),
-    pulse: new Audio('./assets/audio/pulse.mp3'),
-    transition: new Audio('./assets/audio/transition.mp3')
+    wind: createEmbeddedAudio('./assets/audio/warp-ambient.mp3', { loop: true, volume: 0.4 }),
+    echo: createEmbeddedAudio('./assets/audio/portal-whoosh.mp3', { volume: 0.5 }),
+    pulse: createEmbeddedAudio('./assets/audio/click-select.mp3', { volume: 0.3 }),
+    transition: createEmbeddedAudio('./assets/audio/portfolio-background.mp3', { volume: 0.8 })
 };
-Object.assign(sounds.wind, { volume: 0.4, loop: true });
-Object.assign(sounds.echo, { volume: 0.5 });
-Object.assign(sounds.pulse, { volume: 0.3 });
-Object.assign(sounds.transition, { volume: 0.8 });
 
 // sblocca audio al primo gesto
 const primeAudio = () => {
