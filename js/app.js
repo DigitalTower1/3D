@@ -16,6 +16,7 @@ import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
 import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+import { createEmbeddedAudio } from './audio-data.js';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -123,41 +124,24 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  AUDIO
     // --------------------------------------------------------
-    const warpSound   = new Audio('https://cdn.pixabay.com/download/audio/2022/09/01/audio_26cc30e131.mp3?filename=cosmic-portal-118435.mp3');
-    warpSound.preload = 'auto';
-    warpSound.crossOrigin = 'anonymous';
-    warpSound.volume = 0.8;
-    warpSound.playbackRate = 0.8;
-
-    const portalSound = new Audio('https://cdn.pixabay.com/download/audio/2022/11/01/audio_9f0b62be09.mp3?filename=portal-120005.mp3');
-    portalSound.preload = 'auto';
-    portalSound.crossOrigin = 'anonymous';
-    portalSound.volume = 0.9;
-
-    const clickSound  = new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_b3843a5a6b.mp3?filename=menu-selection-111499.mp3');
-    clickSound.preload = 'auto';
-    clickSound.crossOrigin = 'anonymous';
-    clickSound.volume = 0.8;
+    const warpSound   = createEmbeddedAudio('./assets/audio/warp-ambient.mp3', { volume: 0.8, playbackRate: 0.8 });
+    const portalSound = createEmbeddedAudio('./assets/audio/portal-whoosh.mp3', { volume: 0.9 });
+    const clickSound  = createEmbeddedAudio('./assets/audio/click-select.mp3', { volume: 0.8 });
 
     function createPortalLoopingAudio(src) {
-        const audio = new Audio(src);
-        audio.loop = true;
-        audio.preload = 'auto';
-        audio.crossOrigin = 'anonymous';
-        audio.volume = 0;
-        return audio;
+        return createEmbeddedAudio(src, { loop: true, volume: 0 });
     }
 
     const portalBackgroundMusic = {
         'Chi Siamo': {
-            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/10/19/audio_86ed1ed8b5.mp3?filename=deep-ambient-125252.mp3'),
+            audio: createPortalLoopingAudio('./assets/audio/chi-siamo-background.mp3'),
             baseVolume: 0.38,
-            title: '"Deep Ambient" by Olexy (Pixabay)'
+            title: '"Blank Audio" by anars (GitHub)'
         },
         Portfolio: {
-            audio: createPortalLoopingAudio('https://cdn.pixabay.com/download/audio/2022/03/15/audio_ccb73f5564.mp3?filename=future-technology-ambient-112456.mp3'),
+            audio: createPortalLoopingAudio('./assets/audio/portfolio-background.mp3'),
             baseVolume: 0.34,
-            title: '"Future Technology Ambient" by Alex-Productions (Pixabay)'
+            title: '"Blank Audio" by anars (GitHub)'
         }
     };
 

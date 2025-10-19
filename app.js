@@ -16,6 +16,7 @@ import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
 import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
+import { createEmbeddedAudio } from './js/audio-data.js';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -123,38 +124,21 @@ const wormholeReturnEase = (t) => {
     // --------------------------------------------------------
     //  AUDIO
     // --------------------------------------------------------
-    const warpSound   = new Audio('./assets/audio/warp.mp3');
-    warpSound.preload = 'auto';
-    warpSound.crossOrigin = 'anonymous';
-    warpSound.volume = 0.8;
-    warpSound.playbackRate = 0.8;
-
-    const portalSound = new Audio('./assets/audio/portal-open.mp3');
-    portalSound.preload = 'auto';
-    portalSound.crossOrigin = 'anonymous';
-    portalSound.volume = 0.9;
-
-    const clickSound  = new Audio('./assets/audio/click.mp3');
-    clickSound.preload = 'auto';
-    clickSound.crossOrigin = 'anonymous';
-    clickSound.volume = 0.8;
+    const warpSound   = createEmbeddedAudio('./assets/audio/warp-ambient.mp3', { volume: 0.8, playbackRate: 0.8 });
+    const portalSound = createEmbeddedAudio('./assets/audio/portal-whoosh.mp3', { volume: 0.9 });
+    const clickSound  = createEmbeddedAudio('./assets/audio/click-select.mp3', { volume: 0.8 });
 
     function createPortalLoopingAudio(src) {
-        const audio = new Audio(src);
-        audio.loop = true;
-        audio.preload = 'auto';
-        audio.crossOrigin = 'anonymous';
-        audio.volume = 0;
-        return audio;
+        return createEmbeddedAudio(src, { loop: true, volume: 0 });
     }
 
     const portalBackgroundMusic = {
         'Chi Siamo': {
-            audio: createPortalLoopingAudio('./assets/audio/ambient1.mp3'),
+            audio: createPortalLoopingAudio('./assets/audio/chi-siamo-background.mp3'),
             baseVolume: 0.38,
         },
         Portfolio: {
-            audio: createPortalLoopingAudio('./assets/audio/ambient2.mp3'),
+            audio: createPortalLoopingAudio('./assets/audio/portfolio-background.mp3'),
             baseVolume: 0.34,
         }
     };
