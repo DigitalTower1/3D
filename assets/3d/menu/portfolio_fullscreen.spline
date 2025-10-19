@@ -1,0 +1,154 @@
+{
+  "background": "#050212",
+  "fog": { "color": "#050212", "density": 0.055 },
+  "camera": {
+    "position": [0, 1.54, 6.6],
+    "target": [0, 1.1, 0],
+    "fov": 48
+  },
+  "lights": [
+    { "type": "hemisphere", "sky": "#ffe6c0", "ground": "#04011a", "intensity": 0.95 },
+    { "type": "directional", "color": "#ffd59a", "position": [8.2, 9.6, 6.4], "intensity": 1.7 },
+    { "type": "directional", "color": "#7bd0ff", "position": [-7.4, 5.1, -6.2], "intensity": 1.3 },
+    { "type": "point", "color": "#ff8ad6", "position": [0, 4.6, 2.2], "intensity": 0.8, "distance": 18 }
+  ],
+  "objects": [
+    {
+      "type": "torus",
+      "radius": 3.2,
+      "tube": 0.28,
+      "radialSegments": 80,
+      "tubularSegments": 220,
+      "position": [0, 1.05, 0],
+      "rotation": [32, 18, 8],
+      "material": {
+        "color": "#ffe0b8",
+        "emissive": "#5f370a",
+        "metalness": 0.68,
+        "roughness": 0.24
+      },
+      "animation": {
+        "rotationSpeed": [0.04, 0.26, 0.08],
+        "pulse": { "amplitude": 0.07, "speed": 1.1 }
+      }
+    },
+    {
+      "type": "icosahedron",
+      "radius": 0.92,
+      "position": [0, 1.78, 0],
+      "material": {
+        "color": "#fff2d0",
+        "emissive": "#4b3211",
+        "metalness": 0.7,
+        "roughness": 0.18
+      },
+      "animation": {
+        "rotationSpeed": [0.18, 0.46, 0.22],
+        "pulse": { "amplitude": 0.16, "speed": 1.45 },
+        "float": { "amplitude": 0.25, "speed": 0.95, "axis": [0, 1, 0] }
+      }
+    },
+    {
+      "type": "sphere",
+      "radius": 0.54,
+      "position": [0, 0, 0],
+      "material": {
+        "color": "#8fd9ff",
+        "emissive": "#12395b",
+        "metalness": 0.42,
+        "roughness": 0.3
+      },
+      "animation": {
+        "orbit": { "radius": 2.5, "speed": 0.58, "height": 1.55, "offset": 0.2 },
+        "float": { "amplitude": 0.26, "speed": 2.1, "axis": [0, 1, 0] },
+        "rotationSpeed": [0.14, 0.32, 0.1]
+      }
+    },
+    {
+      "type": "sphere",
+      "radius": 0.62,
+      "position": [0, 0, 0],
+      "material": {
+        "color": "#f4a6ff",
+        "emissive": "#411153",
+        "metalness": 0.6,
+        "roughness": 0.24
+      },
+      "animation": {
+        "orbit": { "radius": 2.8, "speed": -0.46, "height": 1.2, "offset": 2.1 },
+        "float": { "amplitude": 0.32, "speed": 1.8, "axis": [0.1, 1, -0.1], "phase": 0.6 },
+        "rotationSpeed": [0.1, 0.26, 0.18]
+      }
+    },
+    {
+      "type": "octahedron",
+      "radius": 0.58,
+      "position": [0, 0, 0],
+      "material": {
+        "color": "#ffe9c4",
+        "emissive": "#5a3b0f",
+        "metalness": 0.62,
+        "roughness": 0.22
+      },
+      "animation": {
+        "orbit": { "radius": 1.55, "speed": 0.9, "height": 2.2, "offset": -1.2 },
+        "float": { "amplitude": 0.24, "speed": 1.6, "axis": [0.15, 1, 0.22] },
+        "rotationSpeed": [0.32, 0.44, 0.4]
+      }
+    }
+  ],
+  "rings": [
+    {
+      "innerRadius": 1.2,
+      "outerRadius": 1.52,
+      "position": [0, 1.05, 0],
+      "rotation": [90, 0, 0],
+      "color": "#fff0d8",
+      "opacity": 0.55,
+      "rotationSpeed": [0, 0.38, 0],
+      "pulse": { "amplitude": 0.08, "speed": 1.35 }
+    },
+    {
+      "innerRadius": 1.8,
+      "outerRadius": 2.4,
+      "position": [0, 1.02, 0],
+      "rotation": [90, 0, 0],
+      "color": "#7ed6ff",
+      "opacity": 0.3,
+      "rotationSpeed": [0, -0.22, 0],
+      "pulse": { "amplitude": 0.05, "speed": 1.6 }
+    }
+  ],
+  "particles": {
+    "count": 1250,
+    "radius": [1.4, 6.6],
+    "height": [-2.2, 2.8],
+    "colors": ["#ffe8bf", "#8fd8ff", "#f1a8ff"],
+    "size": [16, 28],
+    "opacity": 0.84,
+    "speed": 0.14
+  },
+  "trails": [
+    {
+      "count": 110,
+      "radius": 3.8,
+      "height": 0.9,
+      "color": "#ffdca6",
+      "opacity": 0.32,
+      "speed": 0.22,
+      "wave": 0.26,
+      "verticalWave": 0.38
+    },
+    {
+      "count": 110,
+      "radius": 3.8,
+      "height": 0.9,
+      "color": "#7fbfff",
+      "opacity": 0.26,
+      "speed": -0.28,
+      "wave": 0.22,
+      "verticalWave": 0.3,
+      "phase": 0.9
+    }
+  ]
+}
