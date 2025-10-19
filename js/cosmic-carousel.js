@@ -37,44 +37,179 @@ function createCardTexture(card) {
     canvas.height = height;
     const ctx = canvas.getContext('2d');
 
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#09203f');
-    gradient.addColorStop(1, '#537895');
-    ctx.fillStyle = gradient;
+    // Fondo principale con gradiente tridimensionale
+    const background = ctx.createLinearGradient(0, 0, width, height);
+    background.addColorStop(0, '#030b1f');
+    background.addColorStop(0.45, '#0b1f3d');
+    background.addColorStop(1, '#07263a');
+    ctx.fillStyle = background;
     ctx.fillRect(0, 0, width, height);
 
+    // Nebulose traslucide
+    const nebula = ctx.createRadialGradient(width * 0.2, height * 0.25, 80, width * 0.2, height * 0.25, width * 0.8);
+    nebula.addColorStop(0, 'rgba(56, 189, 248, 0.55)');
+    nebula.addColorStop(0.45, 'rgba(56, 189, 248, 0.05)');
+    nebula.addColorStop(1, 'rgba(56, 189, 248, 0)');
+    ctx.fillStyle = nebula;
+    ctx.fillRect(0, 0, width, height);
+
+    const nebula2 = ctx.createRadialGradient(width * 0.85, height * 0.7, 60, width * 0.7, height * 0.8, width * 0.7);
+    nebula2.addColorStop(0, 'rgba(249, 115, 22, 0.45)');
+    nebula2.addColorStop(0.5, 'rgba(249, 115, 22, 0.08)');
+    nebula2.addColorStop(1, 'rgba(249, 115, 22, 0)');
+    ctx.fillStyle = nebula2;
+    ctx.fillRect(0, 0, width, height);
+
+    // Cornice glassy
+    ctx.save();
     ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.fillRect(48, 48, width - 96, height - 96);
+    roundedRect(ctx, 40, 40, width - 80, height - 80, 80);
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(148, 239, 255, 0.25)';
+    ctx.stroke();
+    ctx.restore();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 72px \"Poppins\", sans-serif';
+    // Fascia superiore con accent line
+    ctx.save();
+    ctx.beginPath();
+    roundedRect(ctx, 80, 90, width - 160, 220, 60);
+    const topGradient = ctx.createLinearGradient(80, 90, width - 80, 310);
+    topGradient.addColorStop(0, 'rgba(10, 25, 64, 0.55)');
+    topGradient.addColorStop(1, 'rgba(24, 58, 92, 0.75)');
+    ctx.fillStyle = topGradient;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(125, 211, 252, 0.6)';
+    ctx.shadowColor = 'rgba(125, 211, 252, 0.75)';
+    ctx.shadowBlur = 28;
+    ctx.fillRect(110, 120, 14, 140);
+    ctx.restore();
+
+    // Titolo principale
+    ctx.fillStyle = '#f8fbff';
+    ctx.font = 'bold 84px "Poppins", sans-serif';
     ctx.textBaseline = 'top';
-    ctx.fillText(card.title.toUpperCase(), 80, 120, width - 160);
+    wrapText(ctx, card.title.toUpperCase(), 150, 132, width - 260, 86);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '48px \"Poppins\", sans-serif';
-    const subtitle = card.subtitle || '';
-    wrapText(ctx, subtitle, 80, 260, width - 160, 52);
+    // Sottotitolo
+    ctx.fillStyle = 'rgba(185, 227, 255, 0.82)';
+    ctx.font = '48px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 150, 310, width - 260, 56);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.8)';
-    ctx.font = '36px \"Poppins\", sans-serif';
-    wrapText(ctx, card.summary || '', 80, 420, width - 160, 46);
+    // Divider luminoso
+    ctx.save();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+    ctx.shadowBlur = 22;
+    ctx.shadowColor = 'rgba(56, 189, 248, 0.85)';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(140, 420);
+    ctx.lineTo(width - 140, 420);
+    ctx.stroke();
+    ctx.restore();
 
+    // Testo descrizione
+    ctx.fillStyle = 'rgba(230, 240, 255, 0.9)';
+    ctx.font = '38px "Poppins", sans-serif';
+    wrapText(ctx, card.summary || card.detail || '', 140, 470, width - 280, 52);
+
+    // Evidenzia punti chiave
+    const highlights = Array.isArray(card.highlights) ? card.highlights.slice(0, 3) : [];
+    if (highlights.length) {
+        ctx.font = '34px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(191, 219, 254, 0.9)';
+        let hy = 760;
+        highlights.forEach((item) => {
+            ctx.save();
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.65)';
+            ctx.shadowColor = 'rgba(56, 189, 248, 0.65)';
+            ctx.shadowBlur = 18;
+            ctx.beginPath();
+            ctx.arc(150, hy + 20, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            wrapText(ctx, item, 190, hy, width - 320, 48);
+            hy += 86;
+        });
+    }
+
+    // Badge finale con tag
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
-        ctx.fillStyle = 'rgba(255,255,255,0.6)';
-        ctx.font = '32px \"Poppins\", sans-serif';
-        let y = height - 280;
+        ctx.save();
+        const badgeHeight = 180;
+        const badgeY = height - badgeHeight - 120;
+        roundedRect(ctx, 120, badgeY, width - 240, badgeHeight, 60);
+        const badgeGradient = ctx.createLinearGradient(120, badgeY, width - 120, badgeY + badgeHeight);
+        badgeGradient.addColorStop(0, 'rgba(8, 47, 73, 0.8)');
+        badgeGradient.addColorStop(1, 'rgba(15, 118, 221, 0.55)');
+        ctx.fillStyle = badgeGradient;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.35)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.font = '32px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(224, 244, 255, 0.9)';
+        let x = 170;
+        const y = height - 220;
         tags.forEach((tag) => {
-            ctx.fillText(`#${tag}`, 80, y, width - 160);
-            y += 48;
+            const label = `#${tag}`;
+            const textWidth = ctx.measureText(label).width;
+            const pillWidth = textWidth + 60;
+            const pillHeight = 64;
+
+            ctx.save();
+            ctx.fillStyle = 'rgba(30, 64, 175, 0.68)';
+            roundedRect(ctx, x, y, pillWidth, pillHeight, 40);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(96, 165, 250, 0.65)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.restore();
+
+            ctx.fillText(label, x + 30, y + 18);
+            x += pillWidth + 28;
         });
+    }
+
+    // Piccoli stelle decorative
+    for (let i = 0; i < 120; i++) {
+        const sx = Math.random() * width;
+        const sy = Math.random() * height;
+        const radius = Math.random() * 1.5;
+        ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.5})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.fill();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
     return texture;
+}
+
+function roundedRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, height / 2, width / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
 }
 
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
@@ -155,14 +290,14 @@ function createDetailPanel(name) {
     panel.className = 'cosmic-carousel__detail pointer-events-auto';
     panel.setAttribute('data-portal', name);
     panel.innerHTML = `
-        <div class="bg-black/70 backdrop-blur-xl rounded-3xl border border-cyan-500/40 shadow-[0_0_30px_rgba(56,189,248,0.45)] text-white w-full max-w-xl mx-auto p-8 space-y-6">
-            <div class="space-y-2">
-                <h3 class="cosmic-carousel__detail-title text-3xl font-semibold tracking-wide"></h3>
-                <p class="cosmic-carousel__detail-subtitle text-cyan-200 text-lg"></p>
-            </div>
-            <p class="cosmic-carousel__detail-text text-base leading-relaxed text-slate-200"></p>
-            <ul class="cosmic-carousel__detail-highlights grid gap-2"></ul>
-        </div>`;
+        <article class="cosmic-carousel__detail-card">
+            <header class="cosmic-carousel__detail-header">
+                <p class="cosmic-carousel__detail-subtitle"></p>
+                <h3 class="cosmic-carousel__detail-title"></h3>
+            </header>
+            <p class="cosmic-carousel__detail-text"></p>
+            <ul class="cosmic-carousel__detail-highlights"></ul>
+        </article>`;
     panel.style.opacity = '0';
     panel.style.pointerEvents = 'none';
     return panel;
@@ -178,14 +313,13 @@ function populateDetailPanel(panel, card) {
     text.textContent = card.detail || card.summary || '';
     highlights.innerHTML = '';
     if (Array.isArray(card.highlights) && card.highlights.length) {
-        highlights.classList.add('grid-cols-1', 'md:grid-cols-2');
         card.highlights.forEach((item) => {
             const li = document.createElement('li');
-            li.className = 'flex items-center gap-2 text-sky-200 text-sm font-medium';
-            li.innerHTML = `<span class="inline-block w-2 h-2 rounded-full bg-sky-400"></span><span>${item}</span>`;
+            li.innerHTML = `<span></span><p>${item}</p>`;
             highlights.appendChild(li);
         });
     }
+    highlights.style.display = highlights.childElementCount ? 'grid' : 'none';
 }
 
 async function animatePanelIn(panel) {
@@ -224,32 +358,66 @@ export function createCosmicCarousel({
     overlay.className = 'cosmic-carousel-overlay';
     overlay.dataset.portal = name;
 
-    const hud = document.createElement('div');
-    hud.className = 'cosmic-carousel__hud pointer-events-none text-slate-100 space-y-2';
-    hud.innerHTML = `
-        <div class="flex items-center gap-3 justify-center text-sm uppercase tracking-[0.35em] text-cyan-200">
-            <span class="w-2 h-2 rounded-full bg-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.8)]"></span>
-            <span>${name}</span>
-            <span class="w-2 h-2 rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.8)]"></span>
-        </div>
-        <h2 class="text-center text-4xl md:text-5xl font-semibold text-white drop-shadow-[0_8px_30px_rgba(14,116,144,0.55)]">${title}</h2>
-        <p class="max-w-3xl mx-auto text-center text-base md:text-lg text-sky-100/80">${description || ''}</p>
-    `;
-
-    const exitButton = document.createElement('button');
-    exitButton.type = 'button';
-    exitButton.className = 'cosmic-carousel__exit absolute top-8 right-8 z-50 bg-black/40 border border-cyan-400/50 text-cyan-200 font-semibold tracking-wide rounded-full px-6 py-2 hover:bg-cyan-500/20 focus:ring-4 focus:ring-cyan-400/60 transition';
-    exitButton.textContent = 'Esci dal portale';
-
     const canvas = document.createElement('canvas');
     canvas.className = 'cosmic-carousel__canvas';
 
+    const chrome = document.createElement('div');
+    chrome.className = 'cosmic-carousel__chrome';
+
+    const hud = document.createElement('div');
+    hud.className = 'cosmic-carousel__hud';
+
+    const hudInfo = document.createElement('div');
+    hudInfo.className = 'cosmic-carousel__hud-info';
+    hudInfo.innerHTML = `
+        <span class="cosmic-carousel__hud-badge">${name}</span>
+        <h2>${title}</h2>
+        <p>${description || ''}</p>
+    `;
+    if (!description) {
+        const descriptionEl = hudInfo.querySelector('p');
+        if (descriptionEl) {
+            descriptionEl.style.display = 'none';
+        }
+    }
+
+    const hudActions = document.createElement('div');
+    hudActions.className = 'cosmic-carousel__hud-actions';
+
+    const exitButton = document.createElement('button');
+    exitButton.type = 'button';
+    exitButton.className = 'cosmic-carousel__exit';
+    exitButton.setAttribute('aria-label', 'Chiudi il portale e torna indietro');
+    exitButton.innerHTML = `
+        <span>
+            <span class="cosmic-carousel__exit-icon">↩</span>
+            <span>Torna alla scena</span>
+        </span>
+    `;
+    exitButton.style.pointerEvents = 'auto';
+
+    const instructions = document.createElement('span');
+    instructions.className = 'cosmic-carousel__hud-instructions';
+    instructions.textContent = 'Drag per orbitare • Hover per mettere in pausa • Clic per approfondire';
+    instructions.style.opacity = '0';
+
+    hudActions.appendChild(exitButton);
+    hudActions.appendChild(instructions);
+    hud.appendChild(hudInfo);
+    hud.appendChild(hudActions);
+
     const detailPanel = createDetailPanel(name);
 
+    const chromeSpacer = document.createElement('div');
+    chromeSpacer.className = 'cosmic-carousel__spacer';
+    chromeSpacer.style.pointerEvents = 'none';
+
+    chrome.appendChild(hud);
+    chrome.appendChild(chromeSpacer);
+    chrome.appendChild(detailPanel);
+
     overlay.appendChild(canvas);
-    overlay.appendChild(hud);
-    overlay.appendChild(exitButton);
-    overlay.appendChild(detailPanel);
+    overlay.appendChild(chrome);
     document.body.appendChild(overlay);
 
     if (typeof onReady === 'function') {
@@ -430,8 +598,30 @@ export function createCosmicCarousel({
 
         const angle = (index / cards.length) * Math.PI * 2;
         cardGroup.userData.baseAngle = angle;
+        const x = Math.cos(angle) * cardRadius;
+        const z = Math.sin(angle) * cardRadius;
+        const y = Math.sin(angle * 2.0) * 0.4;
+        cardGroup.position.set(x, y, z);
+        cardGroup.lookAt(0, 0, 0);
         carouselGroup.add(cardGroup);
         cardGroups.push(cardGroup);
+    });
+
+    cardGroups.forEach((group, index) => {
+        gsap.from(group.scale, {
+            x: 0.45,
+            y: 0.45,
+            z: 0.45,
+            duration: 1.05,
+            delay: 0.25 + index * 0.06,
+            ease: 'power4.out'
+        });
+        gsap.from(group.position, {
+            y: group.position.y + 1.2,
+            duration: 1.2,
+            delay: 0.25 + index * 0.06,
+            ease: 'power4.out'
+        });
     });
 
     // -----------------------------
@@ -468,7 +658,9 @@ export function createCosmicCarousel({
     function onPointerDown(event) {
         isPointerDown = true;
         autoRotate = false;
+        rotationVelocity = 0;
         dragStartX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+        overlay.classList.add('is-dragging');
     }
 
     function onPointerMoveDrag(event) {
@@ -476,13 +668,17 @@ export function createCosmicCarousel({
         const clientX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
         const deltaX = clientX - dragStartX;
         dragStartX = clientX;
-        targetRotation += deltaX * 0.005;
+        rotationVelocity = THREE.MathUtils.clamp(deltaX * 0.0035, -0.25, 0.25);
+        targetRotation += rotationVelocity;
     }
 
     function onPointerUp() {
         isPointerDown = false;
-        rotationVelocity = 0;
+        if (Math.abs(rotationVelocity) < 0.01) {
+            rotationVelocity = 0;
+        }
         autoRotate = !overlayHovered;
+        overlay.classList.remove('is-dragging');
     }
 
     function onCanvasClick() {
@@ -495,6 +691,7 @@ export function createCosmicCarousel({
             gsap.to(cardGroup.rotation, { x: 0, y: 0, z: 0, duration: 0.6, ease: 'power4.inOut' });
             focusTimeline.reverse();
             detailPanel.style.pointerEvents = 'none';
+            autoRotate = !overlayHovered;
             return;
         }
         if (activeCard) {
@@ -502,6 +699,7 @@ export function createCosmicCarousel({
             gsap.to(activeCard.rotation, { x: 0, y: 0, z: 0, duration: 0.6, ease: 'power4.inOut' });
         }
         activeCard = cardGroup;
+        autoRotate = false;
         populateDetailPanel(detailPanel, cardGroup.userData.card);
         detailPanel.style.pointerEvents = 'auto';
         animatePanelIn(detailPanel);
@@ -529,24 +727,30 @@ export function createCosmicCarousel({
         }
     }
 
-    overlay.addEventListener('pointermove', onPointerMove);
-    overlay.addEventListener('mousemove', onPointerMove);
-    overlay.addEventListener('touchmove', (event) => {
+    function onTouchMove(event) {
         if (event.touches && event.touches.length) {
-            onPointerMove(event.touches[0]);
+            const touch = event.touches[0];
+            onPointerMove(touch);
+            onPointerMoveDrag(touch);
         }
-        onPointerMoveDrag(event);
-    }, { passive: true });
-    overlay.addEventListener('pointerdown', onPointerDown);
-    overlay.addEventListener('touchstart', (event) => {
+    }
+
+    function onTouchStart(event) {
         if (event.touches && event.touches.length) {
             onPointerDown(event.touches[0]);
         }
-    }, { passive: true });
+    }
+
+    overlay.addEventListener('pointermove', onPointerMove);
+    overlay.addEventListener('mousemove', onPointerMove);
+    overlay.addEventListener('touchmove', onTouchMove, { passive: true });
+    overlay.addEventListener('pointerdown', onPointerDown);
+    overlay.addEventListener('touchstart', onTouchStart, { passive: true });
     overlay.addEventListener('pointermove', onPointerMoveDrag);
     overlay.addEventListener('pointerup', onPointerUp);
     overlay.addEventListener('pointerleave', onPointerUp);
     overlay.addEventListener('touchend', onPointerUp);
+    overlay.addEventListener('touchcancel', onPointerUp);
     overlay.addEventListener('click', (event) => {
         if (event.target === exitButton) return;
         onCanvasClick(event);
@@ -559,6 +763,7 @@ export function createCosmicCarousel({
     function closeOverlay() {
         if (isClosing) return;
         isClosing = true;
+        overlay.classList.remove('is-dragging');
         gsap.to(overlay, {
             opacity: 0,
             duration: 0.6,
@@ -594,15 +799,24 @@ export function createCosmicCarousel({
         gsap.to(camera.position, { z: desiredZ, y: desiredY, duration: 0.8, ease: 'power2.out' });
     }
     updateRendererSize();
-    const resizeObserver = new ResizeObserver(updateRendererSize);
-    resizeObserver.observe(overlay);
+    let resizeObserver = null;
+    if ('ResizeObserver' in window) {
+        resizeObserver = new ResizeObserver(updateRendererSize);
+        resizeObserver.observe(overlay);
+    } else {
+        window.addEventListener('resize', updateRendererSize);
+    }
 
     // -----------------------------
     //  Aggiornamento carosello
     // -----------------------------
     function updateCarousel(delta) {
         if (autoRotate) {
-            targetRotation += delta * 0.1;
+            targetRotation += delta * 0.12;
+        }
+        if (!isPointerDown && Math.abs(rotationVelocity) > 0.0001) {
+            targetRotation += rotationVelocity;
+            rotationVelocity = THREE.MathUtils.lerp(rotationVelocity, 0, 0.08);
         }
         currentRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, 0.12);
 
@@ -653,18 +867,27 @@ export function createCosmicCarousel({
 
     gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power4.out' });
     gsap.fromTo(camera.position, { z: camera.position.z + 6, y: camera.position.y - 0.6 }, { z: camera.position.z, y: camera.position.y, duration: 1.2, ease: 'power4.out' });
+    gsap.fromTo(hud, { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 1.1, ease: 'power4.out', delay: 0.2 });
+    gsap.fromTo(exitButton, { y: -24, opacity: 0 }, { y: 0, opacity: 1, duration: 1, ease: 'power4.out', delay: 0.35 });
+    gsap.fromTo(instructions, { opacity: 0 }, { opacity: 0.85, duration: 1.2, ease: 'power2.out', delay: 0.6 });
 
     function destroy() {
         cancelAnimationFrame(animationFrame);
-        resizeObserver.disconnect();
+        resizeObserver?.disconnect?.();
+        if (!resizeObserver) {
+            window.removeEventListener('resize', updateRendererSize);
+        }
         overlay.removeEventListener('pointermove', onPointerMove);
         overlay.removeEventListener('mousemove', onPointerMove);
         overlay.removeEventListener('pointerdown', onPointerDown);
         overlay.removeEventListener('pointermove', onPointerMoveDrag);
         overlay.removeEventListener('pointerup', onPointerUp);
         overlay.removeEventListener('pointerleave', onPointerUp);
+        overlay.removeEventListener('touchmove', onTouchMove);
+        overlay.removeEventListener('touchstart', onTouchStart);
         overlay.removeEventListener('mouseenter', onOverlayEnter);
         overlay.removeEventListener('mouseleave', onOverlayLeave);
+        overlay.removeEventListener('touchcancel', onPointerUp);
         window.removeEventListener('keydown', handleKey);
         overlay.remove();
         renderer.dispose();
