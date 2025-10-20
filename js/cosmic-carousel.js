@@ -5,6 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
 // ---------------------------------------------------------------------------
@@ -22,159 +23,174 @@ function createCardTexture(card) {
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
 
-    // Fondo principale con gradiente tridimensionale
-    const background = ctx.createLinearGradient(0, 0, width, height);
-    background.addColorStop(0, '#030b1f');
-    background.addColorStop(0.45, '#0b1f3d');
-    background.addColorStop(1, '#07263a');
+    ctx.clearRect(0, 0, baseWidth, baseHeight);
+
+    const background = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    background.addColorStop(0, '#01050f');
+    background.addColorStop(0.45, '#08152a');
+    background.addColorStop(1, '#01030b');
     ctx.fillStyle = background;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-    // Nebulose traslucide
-    const nebula = ctx.createRadialGradient(width * 0.2, height * 0.25, 80, width * 0.2, height * 0.25, width * 0.8);
-    nebula.addColorStop(0, 'rgba(56, 189, 248, 0.55)');
-    nebula.addColorStop(0.45, 'rgba(56, 189, 248, 0.05)');
-    nebula.addColorStop(1, 'rgba(56, 189, 248, 0)');
-    ctx.fillStyle = nebula;
-    ctx.fillRect(0, 0, width, height);
-
-    const nebula2 = ctx.createRadialGradient(width * 0.85, height * 0.7, 60, width * 0.7, height * 0.8, width * 0.7);
-    nebula2.addColorStop(0, 'rgba(249, 115, 22, 0.45)');
-    nebula2.addColorStop(0.5, 'rgba(249, 115, 22, 0.08)');
-    nebula2.addColorStop(1, 'rgba(249, 115, 22, 0)');
-    ctx.fillStyle = nebula2;
-    ctx.fillRect(0, 0, width, height);
-
-    // Cornice glassy
     ctx.save();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-    roundedRect(ctx, 40, 40, width - 80, height - 80, 80);
+    ctx.shadowColor = 'rgba(94, 211, 255, 0.35)';
+    ctx.shadowBlur = 48;
+    ctx.fillStyle = 'rgba(9, 17, 32, 0.92)';
+    roundedRect(ctx, 48, 48, baseWidth - 96, baseHeight - 96, 88);
     ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(148, 239, 255, 0.25)';
+    ctx.strokeStyle = 'rgba(146, 223, 255, 0.45)';
     ctx.stroke();
     ctx.restore();
 
-    // Fascia superiore con accent line
+    ctx.save();
+    roundedRect(ctx, 96, 112, baseWidth - 192, baseHeight - 256, 76);
+    const glassGradient = ctx.createLinearGradient(96, 112, baseWidth - 96, baseHeight - 220);
+    glassGradient.addColorStop(0, 'rgba(28, 46, 72, 0.92)');
+    glassGradient.addColorStop(0.5, 'rgba(14, 28, 48, 0.8)');
+    glassGradient.addColorStop(1, 'rgba(6, 15, 30, 0.94)');
+    ctx.fillStyle = glassGradient;
+    ctx.fill();
+    const innerSheen = ctx.createLinearGradient(96, 112, baseWidth - 96, baseHeight - 256);
+    innerSheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+    innerSheen.addColorStop(0.35, 'rgba(255, 255, 255, 0.05)');
+    innerSheen.addColorStop(0.78, 'rgba(255, 255, 255, 0.22)');
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = innerSheen;
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
     ctx.save();
     ctx.beginPath();
-    roundedRect(ctx, 80, 90, width - 160, 220, 60);
-    const topGradient = ctx.createLinearGradient(80, 90, width - 80, 310);
-    topGradient.addColorStop(0, 'rgba(10, 25, 64, 0.55)');
-    topGradient.addColorStop(1, 'rgba(24, 58, 92, 0.75)');
-    ctx.fillStyle = topGradient;
+    roundedRect(ctx, 120, 160, baseWidth - 240, 260, 60);
+    const headerGradient = ctx.createLinearGradient(120, 160, baseWidth - 120, 420);
+    headerGradient.addColorStop(0, 'rgba(18, 34, 58, 0.92)');
+    headerGradient.addColorStop(1, 'rgba(10, 20, 36, 0.86)');
+    ctx.fillStyle = headerGradient;
     ctx.fill();
-    ctx.strokeStyle = 'rgba(125, 211, 252, 0.4)';
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = 'rgba(99, 193, 255, 0.5)';
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = 'rgba(125, 211, 252, 0.6)';
-    ctx.shadowColor = 'rgba(125, 211, 252, 0.75)';
-    ctx.shadowBlur = 28;
-    ctx.fillRect(110, 120, 14, 140);
+    ctx.globalCompositeOperation = 'lighter';
+    const streakGradient = ctx.createLinearGradient(120, 160, baseWidth - 120, 380);
+    streakGradient.addColorStop(0, 'rgba(128, 222, 255, 0.12)');
+    streakGradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.18)');
+    streakGradient.addColorStop(1, 'rgba(255, 182, 123, 0.08)');
+    ctx.fillStyle = streakGradient;
+    ctx.fillRect(120, 160, baseWidth - 240, 260);
     ctx.restore();
 
-    // Titolo principale
-    ctx.fillStyle = '#f8fbff';
-    ctx.font = 'bold 84px "Poppins", sans-serif';
-    ctx.textBaseline = 'top';
-    wrapText(ctx, card.title.toUpperCase(), 150, 132, width - 260, 86);
-
-    // Sottotitolo
-    ctx.fillStyle = 'rgba(185, 227, 255, 0.82)';
-    ctx.font = '48px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 150, 310, width - 260, 56);
-
-    // Divider luminoso
     ctx.save();
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
-    ctx.shadowBlur = 22;
-    ctx.shadowColor = 'rgba(56, 189, 248, 0.85)';
-    ctx.lineWidth = 6;
+    ctx.fillStyle = 'rgba(140, 213, 255, 0.8)';
+    ctx.shadowColor = 'rgba(140, 213, 255, 0.9)';
+    ctx.shadowBlur = 24;
+    ctx.fillRect(142, 190, 12, 180);
+    ctx.restore();
+
+    ctx.fillStyle = '#f4fbff';
+    ctx.font = '600 88px "Poppins", sans-serif';
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(5, 12, 25, 0.65)';
+    ctx.shadowBlur = 14;
+    wrapText(ctx, card.title.toUpperCase(), 190, 190, baseWidth - 360, 94);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(201, 229, 255, 0.94)';
+    ctx.font = '500 48px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 190, 360, baseWidth - 360, 60);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(80, 180, 255, 0.55)';
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = 'rgba(56, 189, 248, 0.65)';
+    ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(140, 420);
-    ctx.lineTo(width - 140, 420);
+    ctx.moveTo(170, 470);
+    ctx.lineTo(baseWidth - 170, 470);
     ctx.stroke();
     ctx.restore();
 
-    // Testo descrizione
-    ctx.fillStyle = 'rgba(230, 240, 255, 0.9)';
-    ctx.font = '38px "Poppins", sans-serif';
-    wrapText(ctx, card.summary || card.detail || '', 140, 470, width - 280, 52);
+    ctx.fillStyle = 'rgba(218, 236, 255, 0.92)';
+    ctx.font = '400 40px "Poppins", sans-serif';
+    wrapText(ctx, card.summary || card.detail || '', 170, 520, baseWidth - 340, 58);
 
-    // Evidenzia punti chiave
     const highlights = Array.isArray(card.highlights) ? card.highlights.slice(0, 3) : [];
     if (highlights.length) {
-        ctx.font = '34px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(191, 219, 254, 0.9)';
-        let hy = 760;
+        ctx.font = '500 36px "Poppins", sans-serif';
+        let hy = 780;
         highlights.forEach((item) => {
             ctx.save();
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.65)';
-            ctx.shadowColor = 'rgba(56, 189, 248, 0.65)';
-            ctx.shadowBlur = 18;
+            ctx.fillStyle = 'rgba(74, 182, 255, 0.72)';
+            ctx.shadowColor = 'rgba(74, 182, 255, 0.75)';
+            ctx.shadowBlur = 16;
             ctx.beginPath();
-            ctx.arc(150, hy + 20, 8, 0, Math.PI * 2);
+            ctx.arc(180, hy + 18, 8, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
-            wrapText(ctx, item, 190, hy, width - 320, 48);
+            ctx.fillStyle = 'rgba(219, 235, 255, 0.95)';
+            wrapText(ctx, item, 220, hy, baseWidth - 380, 50);
             hy += 86;
         });
     }
 
-    // Badge finale con tag
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
         ctx.save();
-        const badgeHeight = 180;
-        const badgeY = height - badgeHeight - 120;
-        roundedRect(ctx, 120, badgeY, width - 240, badgeHeight, 60);
-        const badgeGradient = ctx.createLinearGradient(120, badgeY, width - 120, badgeY + badgeHeight);
-        badgeGradient.addColorStop(0, 'rgba(8, 47, 73, 0.8)');
-        badgeGradient.addColorStop(1, 'rgba(15, 118, 221, 0.55)');
-        ctx.fillStyle = badgeGradient;
+        const footerY = baseHeight - 260;
+        roundedRect(ctx, 150, footerY, baseWidth - 300, 190, 56);
+        const footerGradient = ctx.createLinearGradient(150, footerY, baseWidth - 150, footerY + 190);
+        footerGradient.addColorStop(0, 'rgba(12, 26, 46, 0.88)');
+        footerGradient.addColorStop(1, 'rgba(22, 42, 68, 0.82)');
+        ctx.fillStyle = footerGradient;
         ctx.fill();
-        ctx.strokeStyle = 'rgba(125, 211, 252, 0.35)';
-        ctx.lineWidth = 3;
+        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = 'rgba(112, 205, 255, 0.4)';
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = '32px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(224, 244, 255, 0.9)';
-        let x = 170;
-        const y = height - 220;
+        ctx.font = '500 34px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(214, 234, 255, 0.95)';
+        let x = 200;
+        const y = baseHeight - 210;
         tags.forEach((tag) => {
             const label = `#${tag}`;
             const textWidth = ctx.measureText(label).width;
-            const pillWidth = textWidth + 60;
-            const pillHeight = 64;
-
+            const pillWidth = textWidth + 72;
+            const pillHeight = 68;
             ctx.save();
-            ctx.fillStyle = 'rgba(30, 64, 175, 0.68)';
+            const pillGradient = ctx.createLinearGradient(x, y, x + pillWidth, y + pillHeight);
+            pillGradient.addColorStop(0, 'rgba(45, 94, 160, 0.8)');
+            pillGradient.addColorStop(1, 'rgba(28, 67, 122, 0.7)');
             roundedRect(ctx, x, y, pillWidth, pillHeight, 40);
+            ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(96, 165, 250, 0.65)';
+            ctx.strokeStyle = 'rgba(133, 208, 255, 0.55)';
             ctx.lineWidth = 2;
             ctx.stroke();
             ctx.restore();
-
-            ctx.fillText(label, x + 30, y + 18);
-            x += pillWidth + 28;
+            ctx.fillText(label, x + 32, y + 18);
+            x += pillWidth + 32;
         });
     }
 
-    // Piccoli stelle decorative
-    for (let i = 0; i < 120; i++) {
-        const sx = Math.random() * width;
-        const sy = Math.random() * height;
-        const radius = Math.random() * 1.5;
-        ctx.fillStyle = `rgba(255,255,255,${0.15 + Math.random() * 0.5})`;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 90; i++) {
+        const sx = Math.random() * baseWidth;
+        const sy = Math.random() * baseHeight;
+        const radius = Math.random() * 1.8 + 0.6;
+        ctx.fillStyle = `rgba(138, 220, 255, ${0.08 + Math.random() * 0.25})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
     }
+    ctx.restore();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -198,62 +214,108 @@ function createCardBackTexture(card) {
     ctx.scale(scale, scale);
 
     const gradient = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
-    gradient.addColorStop(0, '#051225');
-    gradient.addColorStop(1, '#0d1f35');
+    gradient.addColorStop(0, '#020814');
+    gradient.addColorStop(1, '#0a1a33');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-    const glow = ctx.createRadialGradient(baseWidth * 0.5, baseHeight * 0.2, 120, baseWidth * 0.5, baseHeight * 0.2, 520);
-    glow.addColorStop(0, 'rgba(56, 189, 248, 0.35)');
-    glow.addColorStop(1, 'rgba(56, 189, 248, 0)');
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, baseWidth, baseHeight);
-
     ctx.save();
-    ctx.strokeStyle = 'rgba(148, 239, 255, 0.24)';
+    ctx.shadowColor = 'rgba(90, 198, 255, 0.28)';
+    ctx.shadowBlur = 36;
+    ctx.strokeStyle = 'rgba(150, 226, 255, 0.45)';
     ctx.lineWidth = 6;
-    roundedRect(ctx, 60, 60, baseWidth - 120, baseHeight - 120, 72);
+    roundedRect(ctx, 64, 64, baseWidth - 128, baseHeight - 128, 76);
     ctx.stroke();
     ctx.restore();
 
-    ctx.fillStyle = 'rgba(224, 244, 255, 0.8)';
-    ctx.font = 'bold 96px "Poppins", sans-serif';
+    ctx.save();
+    roundedRect(ctx, 120, 200, baseWidth - 240, baseHeight - 360, 68);
+    const panelGradient = ctx.createLinearGradient(120, 200, baseWidth - 120, baseHeight - 220);
+    panelGradient.addColorStop(0, 'rgba(18, 32, 54, 0.92)');
+    panelGradient.addColorStop(0.5, 'rgba(11, 24, 44, 0.84)');
+    panelGradient.addColorStop(1, 'rgba(7, 14, 28, 0.94)');
+    ctx.fillStyle = panelGradient;
+    ctx.fill();
+    const panelSheen = ctx.createLinearGradient(120, 200, baseWidth - 120, baseHeight - 360);
+    panelSheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
+    panelSheen.addColorStop(0.4, 'rgba(255, 255, 255, 0.04)');
+    panelSheen.addColorStop(0.8, 'rgba(255, 255, 255, 0.16)');
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = panelSheen;
+    ctx.fill();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#f3f9ff';
+    ctx.font = '600 92px "Poppins", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(card.title.toUpperCase(), baseWidth / 2, 200, baseWidth - 220);
+    ctx.shadowColor = 'rgba(4, 12, 22, 0.7)';
+    ctx.shadowBlur = 18;
+    ctx.fillText(card.title.toUpperCase(), baseWidth / 2, 230, baseWidth - 240);
+    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(148, 239, 255, 0.75)';
-    ctx.font = '48px "Poppins", sans-serif';
     ctx.textAlign = 'left';
-    wrapText(ctx, card.subtitle || '', 140, 420, baseWidth - 280, 58);
+    ctx.fillStyle = 'rgba(184, 220, 255, 0.95)';
+    ctx.font = '500 48px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 180, 440, baseWidth - 360, 58);
 
-    ctx.fillStyle = 'rgba(249, 115, 22, 0.65)';
-    ctx.font = '38px "Poppins", sans-serif';
+    ctx.fillStyle = 'rgba(249, 168, 109, 0.92)';
+    ctx.font = '400 40px "Poppins", sans-serif';
     const summary = card.summary || card.detail || '';
-    wrapText(ctx, summary, 140, 620, baseWidth - 280, 56);
+    wrapText(ctx, summary, 180, 600, baseWidth - 360, 56);
 
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
         ctx.save();
-        ctx.font = '34px "Poppins", sans-serif';
-        let x = 150;
-        const y = baseHeight - 260;
+        const badgeY = baseHeight - 300;
+        roundedRect(ctx, 180, badgeY, baseWidth - 360, 180, 54);
+        const badgeGradient = ctx.createLinearGradient(180, badgeY, baseWidth - 180, badgeY + 180);
+        badgeGradient.addColorStop(0, 'rgba(22, 42, 70, 0.85)');
+        badgeGradient.addColorStop(1, 'rgba(12, 26, 46, 0.88)');
+        ctx.fillStyle = badgeGradient;
+        ctx.fill();
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = 'rgba(118, 204, 255, 0.45)';
+        ctx.stroke();
+        ctx.restore();
+
+        ctx.font = '500 34px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(215, 236, 255, 0.96)';
+        let x = 220;
+        const y = baseHeight - 250;
         tags.forEach((tag) => {
             const label = `#${tag}`;
-            const w = ctx.measureText(label).width + 80;
-            const h = 72;
-            ctx.fillStyle = 'rgba(8, 47, 73, 0.68)';
-            roundedRect(ctx, x, y, w, h, 40);
+            const widthLabel = ctx.measureText(label).width + 76;
+            const heightLabel = 68;
+            ctx.save();
+            const pillGradient = ctx.createLinearGradient(x, y, x + widthLabel, y + heightLabel);
+            pillGradient.addColorStop(0, 'rgba(43, 96, 158, 0.78)');
+            pillGradient.addColorStop(1, 'rgba(27, 64, 118, 0.72)');
+            roundedRect(ctx, x, y, widthLabel, heightLabel, 40);
+            ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(56, 189, 248, 0.4)';
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(138, 214, 255, 0.55)';
+            ctx.lineWidth = 2;
             ctx.stroke();
-            ctx.fillStyle = 'rgba(224, 244, 255, 0.85)';
-            ctx.fillText(label, x + 40, y + 20);
-            x += w + 26;
+            ctx.restore();
+            ctx.fillText(label, x + 34, y + 18);
+            x += widthLabel + 30;
         });
-        ctx.restore();
     }
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 60; i++) {
+        const sx = Math.random() * baseWidth;
+        const sy = Math.random() * baseHeight;
+        const radius = Math.random() * 1.6 + 0.6;
+        ctx.fillStyle = `rgba(140, 216, 255, ${0.08 + Math.random() * 0.22})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -304,12 +366,17 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 function createRimMaterial({ color = 0x1b2a41 } = {}) {
     const material = new THREE.MeshPhysicalMaterial({
         color,
-        roughness: 0.42,
-        metalness: 0.4,
-        transmission: 0,
-        clearcoat: 0.2,
-        sheen: 0.6,
-        sheenColor: new THREE.Color(0x9ad6ff),
+        roughness: 0.18,
+        metalness: 0.18,
+        transmission: 0.45,
+        thickness: 0.42,
+        ior: 1.42,
+        envMapIntensity: 1.35,
+        clearcoat: 0.65,
+        clearcoatRoughness: 0.18,
+        sheen: 0.55,
+        sheenColor: new THREE.Color(0xa9e3ff),
+        transparent: true,
         side: THREE.DoubleSide
     });
 
@@ -336,7 +403,7 @@ function createRimMaterial({ color = 0x1b2a41 } = {}) {
 // ---------------------------------------------------------------------------
 //  Utility: crea glow planare per bordo card
 // ---------------------------------------------------------------------------
-function createGlowPlane(color = 0x64caff, intensity = 1.6) {
+function createGlowPlane(color = 0x64caff, intensity = 0.9) {
     const glowMaterial = new THREE.MeshBasicMaterial({
         color,
         transparent: true,
@@ -347,6 +414,44 @@ function createGlowPlane(color = 0x64caff, intensity = 1.6) {
     const geometry = new THREE.PlaneGeometry(2.4, 3.6);
     const mesh = new THREE.Mesh(geometry, glowMaterial);
     mesh.renderOrder = -1;
+    return mesh;
+}
+
+let cachedShadowTexture = null;
+
+function getShadowTexture() {
+    if (cachedShadowTexture) return cachedShadowTexture;
+    const size = 256;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, size * 0.15, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, 'rgba(0, 0, 0, 0.38)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.minFilter = THREE.LinearFilter;
+    texture.magFilter = THREE.LinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    cachedShadowTexture = texture;
+    return texture;
+}
+
+function createShadowPlane(width, height) {
+    const geometry = new THREE.PlaneGeometry(width * 1.8, height * 0.68, 1, 1);
+    const material = new THREE.MeshBasicMaterial({
+        map: getShadowTexture(),
+        transparent: true,
+        opacity: 0.32,
+        depthWrite: false
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.renderOrder = -3;
     return mesh;
 }
 
@@ -568,11 +673,13 @@ export function createCosmicCarousel({
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.18;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
     const scene = new THREE.Scene();
     scene.background = null;
+
+    RectAreaLightUniformsLib.init();
 
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
@@ -608,7 +715,7 @@ export function createCosmicCarousel({
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.8, 0.42);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.32, 0.75, 0.62);
     composer.addPass(bloomPass);
     const lutPass = new ShaderPass(ColorCorrectionShader);
     lutPass.uniforms.powRGB.value.set(1.08, 1.02, 1.12);
@@ -619,28 +726,61 @@ export function createCosmicCarousel({
     // -----------------------------
     //  Illuminazione fisica
     // -----------------------------
-    const ambient = new THREE.AmbientLight(0x1a2233, 0.45);
-    scene.add(ambient);
+    const lightRig = new THREE.Group();
+    scene.add(lightRig);
 
-    const keyLight = new THREE.DirectionalLight(0xffddb1, 2.2);
-    keyLight.position.set(6.5, 7.8, 5.2);
+    const ambient = new THREE.AmbientLight(0x101b2c, 0.38);
+    lightRig.add(ambient);
+
+    const hemi = new THREE.HemisphereLight(0x1a3658, 0x05070c, 0.22);
+    hemi.position.set(0, 6, 0);
+    lightRig.add(hemi);
+
+    const keyLight = new THREE.DirectionalLight(0xffd6aa, 2.1);
+    keyLight.position.set(6.4, 7.2, 4.6);
     keyLight.target.position.set(0, 1.2, 0);
-    scene.add(keyLight);
-    scene.add(keyLight.target);
+    lightRig.add(keyLight);
+    lightRig.add(keyLight.target);
 
-    const rimLight = new THREE.DirectionalLight(0x7cc7ff, 1.4);
-    rimLight.position.set(-5.2, 3.6, -4.8);
-    rimLight.target.position.set(0, 1.4, 0);
-    scene.add(rimLight);
-    scene.add(rimLight.target);
+    const rimLight = new THREE.DirectionalLight(0x7abfff, 1.6);
+    rimLight.position.set(-5.6, 3.9, -4.8);
+    rimLight.target.position.set(0, 1.3, 0);
+    lightRig.add(rimLight);
+    lightRig.add(rimLight.target);
 
-    const fillLight = new THREE.PointLight(0x27496d, 0.9, 40, 2.2);
-    fillLight.position.set(-2.4, 2.1, 6.4);
-    scene.add(fillLight);
+    const coolRect = new THREE.RectAreaLight(0x76d4ff, 1.55, 4.6, 2.6);
+    coolRect.position.set(-2.6, 3.5, 4.2);
+    coolRect.lookAt(0, 1.2, 0);
+    lightRig.add(coolRect);
 
-    const bounceLight = new THREE.PointLight(0x0f1b2d, 0.6, 28, 2.5);
-    bounceLight.position.set(2.4, -1.2, -4.6);
-    scene.add(bounceLight);
+    const warmRect = new THREE.RectAreaLight(0xffa475, 1.1, 3.6, 2.2);
+    warmRect.position.set(2.8, 2.7, -3.8);
+    warmRect.lookAt(0, 1.1, 0);
+    lightRig.add(warmRect);
+
+    const crystalSpot = new THREE.SpotLight(0x9bdcff, 1.25, 28, Math.PI / 5.2, 0.45, 1.3);
+    crystalSpot.position.set(-3.2, 6.1, 3.6);
+    crystalSpot.target.position.set(0, 1.05, 0);
+    lightRig.add(crystalSpot);
+    lightRig.add(crystalSpot.target);
+
+    const warmSpot = new THREE.SpotLight(0xff9966, 0.95, 24, Math.PI / 5.5, 0.55, 1.2);
+    warmSpot.position.set(4.1, 5.2, -2.8);
+    warmSpot.target.position.set(0, 1.0, 0);
+    lightRig.add(warmSpot);
+    lightRig.add(warmSpot.target);
+
+    const fillLight = new THREE.PointLight(0x1a3b5e, 0.7, 36, 2.4);
+    fillLight.position.set(-2.8, 2.0, 6.4);
+    lightRig.add(fillLight);
+
+    const bounceLight = new THREE.PointLight(0x0d192f, 0.6, 32, 2.3);
+    bounceLight.position.set(2.6, -0.8, -5.2);
+    lightRig.add(bounceLight);
+
+    const glintLight = new THREE.PointLight(0x3f6dff, 0.45, 18, 1.6);
+    glintLight.position.set(0, 3.5, -6.4);
+    lightRig.add(glintLight);
 
     // -----------------------------
     //  Carosello 3D orbitante
@@ -666,22 +806,25 @@ export function createCosmicCarousel({
             scale: 1,
             tiltX: 0,
             tiltZ: 0,
-            glow: 0.7,
-            rim: 1.4
+            glow: 0.55,
+            rim: 1.35,
+            shadow: 0.26
         },
         hover: {
             scale: 1.07,
             tiltX: THREE.MathUtils.degToRad(-4.2),
             tiltZ: THREE.MathUtils.degToRad(4.6),
-            glow: 1.18,
-            rim: 2.35
+            glow: 0.85,
+            rim: 2.1,
+            shadow: 0.36
         },
         active: {
             scale: 1.18,
             tiltX: THREE.MathUtils.degToRad(-6.2),
             tiltZ: THREE.MathUtils.degToRad(6.8),
-            glow: 1.55,
-            rim: 3.25
+            glow: 1.15,
+            rim: 3,
+            shadow: 0.48
         }
     };
 
@@ -697,19 +840,34 @@ export function createCosmicCarousel({
         pivot.add(lod);
         cardRoot.add(pivot);
 
+        const shadow = createShadowPlane(cardWidth, cardHeight);
+        shadow.position.y = -cardHeight * 0.62;
+        shadow.material.opacity = CARD_VISUAL_PRESETS.idle.shadow;
+        cardRoot.add(shadow);
+
         const rimMaterial = createRimMaterial({ color: 0x0d1828 });
         const frame = new THREE.Mesh(bodyGeometry, rimMaterial);
         frame.castShadow = false;
         frame.receiveShadow = false;
 
         const frontTexture = createCardTexture(card);
-        const frontMaterial = new THREE.MeshStandardMaterial({
+        const frontMaterial = new THREE.MeshPhysicalMaterial({
             map: frontTexture,
-            roughness: 0.32,
-            metalness: 0.25,
+            roughness: 0.18,
+            metalness: 0.06,
+            transmission: 0.32,
+            thickness: 0.38,
+            envMapIntensity: 1.45,
+            clearcoat: 0.75,
+            clearcoatRoughness: 0.2,
+            sheen: 0.18,
+            sheenColor: new THREE.Color(0xc5e8ff),
+            emissive: new THREE.Color(0x0b2036),
+            emissiveIntensity: 0.22,
+            iridescence: 0.12,
+            iridescenceIOR: 1.25,
             transparent: true,
-            emissive: new THREE.Color(0x0b2842),
-            emissiveIntensity: 0.32
+            opacity: 1
         });
         const frontFace = new THREE.Mesh(faceGeometry, frontMaterial);
         frontFace.position.z = cardDepth * 0.55;
@@ -727,22 +885,30 @@ export function createCosmicCarousel({
         lowVisual.add(lowPlane);
 
         const backTexture = createCardBackTexture(card);
-        const backMaterial = new THREE.MeshStandardMaterial({
+        const backMaterial = new THREE.MeshPhysicalMaterial({
             map: backTexture,
-            roughness: 0.45,
-            metalness: 0.12,
+            roughness: 0.24,
+            metalness: 0.08,
+            transmission: 0.18,
+            thickness: 0.28,
+            envMapIntensity: 1.25,
+            clearcoat: 0.6,
+            clearcoatRoughness: 0.22,
+            sheen: 0.14,
+            sheenColor: new THREE.Color(0x8bc8ff),
+            emissive: new THREE.Color(0x071120),
+            emissiveIntensity: 0.16,
             transparent: true,
-            emissive: new THREE.Color(0x08121f),
-            emissiveIntensity: 0.18
+            opacity: 1
         });
         const backFace = new THREE.Mesh(faceGeometry, backMaterial);
         backFace.position.z = -cardDepth * 0.55;
         backFace.rotation.y = Math.PI;
         backFace.userData.parentGroup = cardRoot;
 
-        const glow = createGlowPlane(0x4ed0ff, 0.7);
+        const glow = createGlowPlane(0x70d8ff, 0.65);
         glow.position.z = -cardDepth * 0.95;
-        glow.material.opacity = 0.7;
+        glow.material.opacity = CARD_VISUAL_PRESETS.idle.glow;
 
         visual.add(frame, frontFace, backFace, glow);
         cardRoot.userData = {
@@ -757,9 +923,12 @@ export function createCosmicCarousel({
             frontFace,
             backFace,
             glow,
+            shadow,
             rimMaterial,
             frontTexture,
             backTexture,
+            frontMaterial,
+            backMaterial,
             isActive: false,
             isHover: false
         };
@@ -814,7 +983,7 @@ export function createCosmicCarousel({
     focusTimeline.to(lutPass.uniforms.mulRGB.value, { x: 1.18, y: 1.05, z: 1.28, duration: 1.2, ease: 'power4.inOut' }, 0);
     focusTimeline.to(lutPass.uniforms.powRGB.value, { x: 1.28, y: 1.08, z: 1.42, duration: 1.2, ease: 'power4.inOut' }, 0);
     focusTimeline.to(lutPass.uniforms.addRGB.value, { x: 0.02, y: 0.012, z: -0.018, duration: 1.2, ease: 'power4.inOut' }, 0);
-    focusTimeline.to(bloomPass, { strength: 0.9, radius: 0.95, threshold: 0.55, duration: 1.15, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(bloomPass, { strength: 0.52, radius: 0.82, threshold: 0.6, duration: 1.15, ease: 'power4.inOut' }, 0);
     focusTimeline.to(focusState, { value: 1, duration: 1.15, ease: 'power4.inOut' }, 0);
     focusTimeline.eventCallback('onReverseComplete', () => {
         focusState.value = 0;
@@ -840,7 +1009,7 @@ export function createCosmicCarousel({
 
     function applyCardPreset(group, presetKey, { immediate = false } = {}) {
         const preset = CARD_VISUAL_PRESETS[presetKey] || CARD_VISUAL_PRESETS.idle;
-        const { visual, glow, rimMaterial } = group.userData;
+        const { visual, glow, rimMaterial, shadow, frontMaterial, backMaterial } = group.userData;
         const duration = immediate ? 0.001 : (presetKey === 'active' ? 0.58 : 0.42);
         gsap.killTweensOf(visual.scale);
         gsap.killTweensOf(visual.rotation);
@@ -864,6 +1033,37 @@ export function createCosmicCarousel({
             duration: Math.max(0.3, duration * 0.75),
             ease: 'power2.out'
         });
+        if (shadow) {
+            gsap.to(shadow.material, {
+                opacity: preset.shadow,
+                duration: Math.max(0.28, duration * 0.65),
+                ease: 'power2.out'
+            });
+        }
+        if (frontMaterial) {
+            const targetEmissive = presetKey === 'active' ? 0.36 : presetKey === 'hover' ? 0.28 : 0.22;
+            const targetEnv = presetKey === 'active' ? 1.75 : presetKey === 'hover' ? 1.55 : 1.45;
+            const targetTransmission = presetKey === 'active' ? 0.38 : presetKey === 'hover' ? 0.34 : 0.32;
+            const targetClearcoat = presetKey === 'active' ? 0.9 : presetKey === 'hover' ? 0.82 : 0.75;
+            gsap.to(frontMaterial, {
+                emissiveIntensity: targetEmissive,
+                envMapIntensity: targetEnv,
+                transmission: targetTransmission,
+                clearcoat: targetClearcoat,
+                duration: Math.max(0.32, duration * 0.9),
+                ease: 'power2.out'
+            });
+        }
+        if (backMaterial) {
+            const targetEmissive = presetKey === 'active' ? 0.24 : presetKey === 'hover' ? 0.2 : 0.16;
+            const targetEnv = presetKey === 'active' ? 1.45 : presetKey === 'hover' ? 1.32 : 1.25;
+            gsap.to(backMaterial, {
+                emissiveIntensity: targetEmissive,
+                envMapIntensity: targetEnv,
+                duration: Math.max(0.32, duration * 0.9),
+                ease: 'power2.out'
+            });
+        }
         animateRimStrength(rimMaterial, preset.rim, { duration: Math.max(0.28, duration * 0.85) });
     }
 
