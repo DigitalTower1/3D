@@ -43,10 +43,11 @@ const VignetteShader = {
 // ---------------------------------------------------------------------------
 //  Utility: generazione texture 2D per le card (Canvas2D => Texture Three.js)
 // ---------------------------------------------------------------------------
+
 function createCardTexture(card) {
     const baseWidth = 1024;
     const baseHeight = 1536;
-    const scale = window.devicePixelRatio > 1 ? 0.8 : 0.66;
+    const scale = window.devicePixelRatio > 1 ? 0.78 : 0.62;
     const width = Math.round(baseWidth * scale);
     const height = Math.round(baseHeight * scale);
     const canvas = document.createElement('canvas');
@@ -57,157 +58,168 @@ function createCardTexture(card) {
 
     ctx.clearRect(0, 0, baseWidth, baseHeight);
 
-    const midnight = ctx.createLinearGradient(0, 0, 0, baseHeight);
-    midnight.addColorStop(0, '#02060d');
-    midnight.addColorStop(0.45, '#061629');
-    midnight.addColorStop(1, '#01030a');
-    ctx.fillStyle = midnight;
+    const cosmic = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    cosmic.addColorStop(0, '#020613');
+    cosmic.addColorStop(0.45, '#05152c');
+    cosmic.addColorStop(1, '#0b1727');
+    ctx.fillStyle = cosmic;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-    const aurora = ctx.createRadialGradient(baseWidth * 0.2, baseHeight * 0.12, 20, baseWidth * 0.2, baseHeight * 0.12, baseWidth * 0.95);
-    aurora.addColorStop(0, 'rgba(98, 210, 255, 0.55)');
-    aurora.addColorStop(0.45, 'rgba(44, 115, 196, 0.38)');
-    aurora.addColorStop(1, 'rgba(12, 32, 56, 0)');
+    const flareOne = ctx.createRadialGradient(baseWidth * 0.15, baseHeight * 0.12, 20, baseWidth * 0.15, baseHeight * 0.12, baseWidth * 0.9);
+    flareOne.addColorStop(0, 'rgba(126, 240, 255, 0.45)');
+    flareOne.addColorStop(0.4, 'rgba(76, 160, 255, 0.26)');
+    flareOne.addColorStop(1, 'rgba(12, 34, 62, 0)');
+    const flareTwo = ctx.createRadialGradient(baseWidth * 0.85, baseHeight * 0.82, 10, baseWidth * 0.85, baseHeight * 0.82, baseWidth * 0.75);
+    flareTwo.addColorStop(0, 'rgba(255, 184, 130, 0.38)');
+    flareTwo.addColorStop(0.6, 'rgba(160, 90, 30, 0.12)');
+    flareTwo.addColorStop(1, 'rgba(24, 36, 52, 0)');
+    ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = aurora;
+    ctx.fillStyle = flareOne;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = flareTwo;
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = 'rgba(120, 232, 255, 0.32)';
-    ctx.shadowBlur = 60;
-    roundedRect(ctx, 56, 56, baseWidth - 112, baseHeight - 112, 94);
-    ctx.fillStyle = 'rgba(9, 18, 32, 0.95)';
+    ctx.shadowColor = 'rgba(130, 224, 255, 0.4)';
+    ctx.shadowBlur = 72;
+    roundedRect(ctx, 52, 58, baseWidth - 104, baseHeight - 116, 96);
+    ctx.fillStyle = 'rgba(5, 12, 24, 0.92)';
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 3.2;
-    ctx.strokeStyle = 'rgba(158, 233, 255, 0.55)';
+    ctx.lineWidth = 3.6;
+    ctx.strokeStyle = 'rgba(164, 236, 255, 0.55)';
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    const innerGradient = ctx.createLinearGradient(120, 146, baseWidth - 120, baseHeight - 260);
-    innerGradient.addColorStop(0, 'rgba(20, 40, 70, 0.92)');
-    innerGradient.addColorStop(0.52, 'rgba(18, 33, 58, 0.8)');
-    innerGradient.addColorStop(1, 'rgba(12, 22, 44, 0.96)');
-    roundedRect(ctx, 120, 146, baseWidth - 240, baseHeight - 292, 80);
-    ctx.fillStyle = innerGradient;
+    const innerGlass = ctx.createLinearGradient(120, 150, baseWidth - 120, baseHeight - 280);
+    innerGlass.addColorStop(0, 'rgba(18, 40, 72, 0.92)');
+    innerGlass.addColorStop(0.55, 'rgba(16, 34, 58, 0.82)');
+    innerGlass.addColorStop(1, 'rgba(14, 24, 46, 0.94)');
+    roundedRect(ctx, 120, 150, baseWidth - 240, baseHeight - 300, 78);
+    ctx.fillStyle = innerGlass;
     ctx.fill();
-    ctx.lineWidth = 2.4;
-    ctx.strokeStyle = 'rgba(120, 205, 255, 0.35)';
+    ctx.lineWidth = 2.6;
+    ctx.strokeStyle = 'rgba(108, 210, 255, 0.38)';
     ctx.stroke();
 
-    const sheen = ctx.createLinearGradient(120, 146, baseWidth - 120, baseHeight - 292);
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
-    sheen.addColorStop(0.32, 'rgba(255, 255, 255, 0.08)');
-    sheen.addColorStop(0.88, 'rgba(255, 255, 255, 0.32)');
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = sheen;
+    const verticalSheen = ctx.createLinearGradient(140, 160, baseWidth - 140, baseHeight - 320);
+    verticalSheen.addColorStop(0, 'rgba(255, 255, 255, 0.2)');
+    verticalSheen.addColorStop(0.5, 'rgba(255, 255, 255, 0.05)');
+    verticalSheen.addColorStop(1, 'rgba(255, 255, 255, 0.26)');
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = verticalSheen;
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
 
     ctx.save();
     ctx.globalCompositeOperation = 'screen';
-    const headerHighlight = ctx.createLinearGradient(160, 200, baseWidth - 160, 360);
-    headerHighlight.addColorStop(0, 'rgba(86, 156, 222, 0.45)');
-    headerHighlight.addColorStop(1, 'rgba(255, 164, 108, 0.35)');
-    roundedRect(ctx, 160, 200, baseWidth - 320, 220, 60);
-    ctx.fillStyle = headerHighlight;
+    const topBand = ctx.createLinearGradient(160, 210, baseWidth - 160, 360);
+    topBand.addColorStop(0, 'rgba(96, 170, 255, 0.55)');
+    topBand.addColorStop(0.6, 'rgba(88, 214, 255, 0.36)');
+    topBand.addColorStop(1, 'rgba(255, 176, 120, 0.4)');
+    roundedRect(ctx, 160, 210, baseWidth - 320, 210, 56);
+    ctx.fillStyle = topBand;
     ctx.fill();
     ctx.restore();
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(118, 208, 255, 0.52)';
+    ctx.strokeStyle = 'rgba(126, 220, 255, 0.5)';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(200, 474);
-    ctx.lineTo(baseWidth - 200, 474);
+    ctx.moveTo(200, 470);
+    ctx.lineTo(baseWidth - 200, 470);
     ctx.stroke();
     ctx.restore();
 
-    ctx.fillStyle = '#f5fbff';
-    ctx.font = '700 92px "Poppins", sans-serif';
+    ctx.save();
+    ctx.fillStyle = '#f6fbff';
+    ctx.font = '700 94px "Poppins", sans-serif';
     ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(4, 8, 18, 0.65)';
+    ctx.shadowColor = 'rgba(2, 8, 18, 0.7)';
     ctx.shadowBlur = 18;
-    wrapText(ctx, card.title.toUpperCase(), 220, 212, baseWidth - 440, 102);
+    wrapText(ctx, card.title.toUpperCase(), 224, 214, baseWidth - 448, 102);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(206, 230, 255, 0.96)';
-    ctx.font = '500 54px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 220, 392, baseWidth - 440, 68);
+    ctx.fillStyle = 'rgba(210, 234, 255, 0.94)';
+    ctx.font = '600 56px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 224, 392, baseWidth - 448, 72);
 
-    ctx.fillStyle = 'rgba(214, 230, 248, 0.9)';
-    ctx.font = '400 44px "Poppins", sans-serif';
-    wrapText(ctx, card.summary || card.detail || '', 210, 548, baseWidth - 420, 64);
+    ctx.fillStyle = 'rgba(208, 224, 245, 0.92)';
+    ctx.font = '400 46px "Poppins", sans-serif';
+    wrapText(ctx, card.summary || card.detail || '', 216, 568, baseWidth - 432, 64);
+    ctx.restore();
 
     const highlights = Array.isArray(card.highlights) ? card.highlights.slice(0, 4) : [];
     if (highlights.length) {
-        ctx.font = '500 40px "Poppins", sans-serif';
-        let hy = 792;
+        ctx.font = '500 42px "Poppins", sans-serif';
+        let hy = 808;
         highlights.forEach((item) => {
             ctx.save();
-            const pulse = ctx.createLinearGradient(208, hy, 248, hy + 56);
-            pulse.addColorStop(0, 'rgba(126, 228, 255, 0.92)');
-            pulse.addColorStop(1, 'rgba(255, 180, 128, 0.82)');
-            roundedRect(ctx, 208, hy, 30, 56, 20);
+            const pulse = ctx.createLinearGradient(206, hy, 246, hy + 58);
+            pulse.addColorStop(0, 'rgba(118, 224, 255, 0.98)');
+            pulse.addColorStop(1, 'rgba(255, 186, 134, 0.86)');
+            roundedRect(ctx, 206, hy, 32, 58, 22);
             ctx.fillStyle = pulse;
             ctx.fill();
             ctx.restore();
-            ctx.fillStyle = 'rgba(214, 232, 255, 0.96)';
-            wrapText(ctx, item, 262, hy + 8, baseWidth - 480, 60);
-            hy += 92;
+
+            ctx.fillStyle = 'rgba(216, 236, 255, 0.96)';
+            wrapText(ctx, item, 262, hy + 6, baseWidth - 480, 66);
+            hy += 94;
         });
     }
 
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
         ctx.save();
-        const footerY = baseHeight - 270;
-        roundedRect(ctx, 180, footerY, baseWidth - 360, 210, 64);
-        const footerGradient = ctx.createLinearGradient(180, footerY, baseWidth - 180, footerY + 210);
-        footerGradient.addColorStop(0, 'rgba(24, 48, 82, 0.92)');
-        footerGradient.addColorStop(1, 'rgba(18, 36, 66, 0.88)');
+        const footerY = baseHeight - 280;
+        roundedRect(ctx, 186, footerY, baseWidth - 372, 224, 68);
+        const footerGradient = ctx.createLinearGradient(186, footerY, baseWidth - 186, footerY + 224);
+        footerGradient.addColorStop(0, 'rgba(24, 54, 88, 0.9)');
+        footerGradient.addColorStop(1, 'rgba(20, 40, 72, 0.88)');
         ctx.fillStyle = footerGradient;
         ctx.fill();
-        ctx.lineWidth = 2.2;
-        ctx.strokeStyle = 'rgba(132, 210, 255, 0.45)';
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = 'rgba(132, 214, 255, 0.48)';
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = '500 38px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(212, 234, 255, 0.96)';
-        let x = 230;
-        const y = baseHeight - 220;
+        ctx.font = '500 40px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(214, 236, 255, 0.96)';
+        let x = 236;
+        const y = baseHeight - 232;
         tags.forEach((tag) => {
             const label = `#${tag}`;
             const textWidth = ctx.measureText(label).width;
-            const pillWidth = textWidth + 86;
-            const pillHeight = 74;
+            const pillWidth = textWidth + 92;
+            const pillHeight = 76;
             ctx.save();
             const pillGradient = ctx.createLinearGradient(x, y, x + pillWidth, y + pillHeight);
-            pillGradient.addColorStop(0, 'rgba(74, 126, 192, 0.9)');
-            pillGradient.addColorStop(1, 'rgba(54, 98, 174, 0.84)');
+            pillGradient.addColorStop(0, 'rgba(74, 140, 210, 0.9)');
+            pillGradient.addColorStop(1, 'rgba(56, 112, 198, 0.85)');
             roundedRect(ctx, x, y, pillWidth, pillHeight, 44);
             ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(150, 218, 255, 0.55)';
-            ctx.lineWidth = 2.4;
+            ctx.strokeStyle = 'rgba(160, 228, 255, 0.6)';
+            ctx.lineWidth = 2.6;
             ctx.stroke();
             ctx.restore();
-            ctx.fillText(label, x + 38, y + 22);
-            x += pillWidth + 34;
+            ctx.fillText(label, x + 38, y + 24);
+            x += pillWidth + 32;
         });
     }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 140; i++) {
+    for (let i = 0; i < 160; i++) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
-        const radius = Math.random() * 2 + 0.3;
-        ctx.fillStyle = `rgba(130, 224, 255, ${0.05 + Math.random() * 0.24})`;
+        const radius = Math.random() * 2 + 0.4;
+        ctx.fillStyle = `rgba(140, 230, 255, ${0.05 + Math.random() * 0.22})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -223,10 +235,12 @@ function createCardTexture(card) {
     return texture;
 }
 
+
+
 function createCardBackTexture(card) {
     const baseWidth = 1024;
     const baseHeight = 1536;
-    const scale = window.devicePixelRatio > 1 ? 0.68 : 0.58;
+    const scale = window.devicePixelRatio > 1 ? 0.7 : 0.58;
     const width = Math.round(baseWidth * scale);
     const height = Math.round(baseHeight * scale);
     const canvas = document.createElement('canvas');
@@ -235,114 +249,127 @@ function createCardBackTexture(card) {
     const ctx = canvas.getContext('2d');
     ctx.scale(scale, scale);
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, baseHeight);
-    gradient.addColorStop(0, '#02060d');
-    gradient.addColorStop(0.55, '#071a30');
-    gradient.addColorStop(1, '#02040a');
-    ctx.fillStyle = gradient;
+    ctx.clearRect(0, 0, baseWidth, baseHeight);
+
+    const background = ctx.createLinearGradient(0, 0, 0, baseHeight);
+    background.addColorStop(0, '#020713');
+    background.addColorStop(0.5, '#05152e');
+    background.addColorStop(1, '#020712');
+    ctx.fillStyle = background;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-    const diagonal = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
-    diagonal.addColorStop(0, 'rgba(110, 210, 255, 0.28)');
-    diagonal.addColorStop(0.5, 'rgba(255, 170, 120, 0.18)');
-    diagonal.addColorStop(1, 'rgba(28, 64, 110, 0)');
+    const glowA = ctx.createRadialGradient(baseWidth * 0.18, baseHeight * 0.18, 16, baseWidth * 0.18, baseHeight * 0.18, baseWidth * 0.9);
+    glowA.addColorStop(0, 'rgba(124, 232, 255, 0.42)');
+    glowA.addColorStop(0.65, 'rgba(40, 110, 196, 0.16)');
+    glowA.addColorStop(1, 'rgba(18, 38, 64, 0)');
+    const glowB = ctx.createRadialGradient(baseWidth * 0.78, baseHeight * 0.82, 12, baseWidth * 0.78, baseHeight * 0.82, baseWidth * 0.8);
+    glowB.addColorStop(0, 'rgba(255, 186, 134, 0.34)');
+    glowB.addColorStop(1, 'rgba(30, 52, 82, 0)');
+    ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = diagonal;
+    ctx.fillStyle = glowA;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
-    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = glowB;
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = 'rgba(124, 230, 255, 0.32)';
-    ctx.shadowBlur = 44;
-    ctx.strokeStyle = 'rgba(156, 226, 255, 0.48)';
-    ctx.lineWidth = 6;
-    roundedRect(ctx, 70, 70, baseWidth - 140, baseHeight - 140, 88);
+    ctx.shadowColor = 'rgba(126, 224, 255, 0.36)';
+    ctx.shadowBlur = 56;
+    roundedRect(ctx, 68, 72, baseWidth - 136, baseHeight - 144, 92);
+    ctx.fillStyle = 'rgba(6, 16, 30, 0.9)';
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 3.4;
+    ctx.strokeStyle = 'rgba(150, 226, 255, 0.52)';
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    roundedRect(ctx, 132, 210, baseWidth - 264, baseHeight - 380, 76);
-    const panelGradient = ctx.createLinearGradient(132, 210, baseWidth - 132, baseHeight - 240);
-    panelGradient.addColorStop(0, 'rgba(22, 42, 70, 0.92)');
-    panelGradient.addColorStop(0.5, 'rgba(16, 34, 60, 0.82)');
-    panelGradient.addColorStop(1, 'rgba(12, 24, 46, 0.95)');
+    roundedRect(ctx, 136, 212, baseWidth - 272, baseHeight - 396, 80);
+    const panelGradient = ctx.createLinearGradient(136, 212, baseWidth - 136, baseHeight - 256);
+    panelGradient.addColorStop(0, 'rgba(24, 48, 80, 0.9)');
+    panelGradient.addColorStop(0.55, 'rgba(18, 36, 66, 0.84)');
+    panelGradient.addColorStop(1, 'rgba(14, 28, 52, 0.9)');
     ctx.fillStyle = panelGradient;
     ctx.fill();
-    const sheen = ctx.createLinearGradient(132, 210, baseWidth - 132, baseHeight - 380);
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
-    sheen.addColorStop(0.32, 'rgba(255, 255, 255, 0.08)');
-    sheen.addColorStop(0.74, 'rgba(255, 255, 255, 0.22)');
-    ctx.globalAlpha = 0.55;
+    const sheen = ctx.createLinearGradient(136, 212, baseWidth - 136, baseHeight - 396);
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+    sheen.addColorStop(0.3, 'rgba(255, 255, 255, 0.06)');
+    sheen.addColorStop(0.78, 'rgba(255, 255, 255, 0.2)');
+    ctx.globalAlpha = 0.5;
     ctx.fillStyle = sheen;
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
 
+    ctx.save();
     ctx.fillStyle = '#f4fbff';
     ctx.font = '700 96px "Poppins", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(6, 12, 26, 0.72)';
+    ctx.shadowColor = 'rgba(4, 10, 24, 0.72)';
     ctx.shadowBlur = 18;
-    ctx.fillText(card.title.toUpperCase(), baseWidth / 2, 240, baseWidth - 260);
+    wrapText(ctx, card.title.toUpperCase(), baseWidth / 2, 240, baseWidth - 280, 104);
     ctx.shadowBlur = 0;
-
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(196, 226, 255, 0.96)';
-    ctx.font = '500 50px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 200, 460, baseWidth - 400, 62);
 
-    ctx.fillStyle = 'rgba(255, 188, 132, 0.88)';
-    ctx.font = '400 42px "Poppins", sans-serif';
+    ctx.fillStyle = 'rgba(214, 236, 255, 0.94)';
+    ctx.font = '600 52px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 208, 460, baseWidth - 416, 68);
+
+    ctx.fillStyle = 'rgba(255, 190, 142, 0.9)';
+    ctx.font = '400 44px "Poppins", sans-serif';
     const summary = card.detail || card.summary || '';
-    wrapText(ctx, summary, 200, 640, baseWidth - 400, 58);
+    wrapText(ctx, summary, 208, 640, baseWidth - 416, 62);
 
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
         ctx.save();
-        const badgeY = baseHeight - 310;
-        roundedRect(ctx, 200, badgeY, baseWidth - 400, 200, 58);
-        const badgeGradient = ctx.createLinearGradient(200, badgeY, baseWidth - 200, badgeY + 200);
-        badgeGradient.addColorStop(0, 'rgba(24, 48, 78, 0.9)');
-        badgeGradient.addColorStop(1, 'rgba(34, 66, 102, 0.84)');
+        const badgeY = baseHeight - 324;
+        roundedRect(ctx, 212, badgeY, baseWidth - 424, 216, 64);
+        const badgeGradient = ctx.createLinearGradient(212, badgeY, baseWidth - 212, badgeY + 216);
+        badgeGradient.addColorStop(0, 'rgba(26, 56, 92, 0.9)');
+        badgeGradient.addColorStop(1, 'rgba(30, 64, 112, 0.86)');
         ctx.fillStyle = badgeGradient;
         ctx.fill();
         ctx.lineWidth = 2.6;
-        ctx.strokeStyle = 'rgba(142, 220, 255, 0.5)';
+        ctx.strokeStyle = 'rgba(146, 220, 255, 0.5)';
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = '500 36px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(220, 238, 255, 0.96)';
-        let x = 240;
-        const y = baseHeight - 256;
+        ctx.font = '500 38px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(214, 236, 255, 0.96)';
+        let x = 252;
+        const y = baseHeight - 272;
         tags.forEach((tag) => {
             const label = `#${tag}`;
-            const w = ctx.measureText(label).width + 84;
-            const h = 72;
+            const textWidth = ctx.measureText(label).width;
+            const pillWidth = textWidth + 96;
+            const pillHeight = 76;
             ctx.save();
-            const pillGradient = ctx.createLinearGradient(x, y, x + w, y + h);
-            pillGradient.addColorStop(0, 'rgba(68, 124, 188, 0.82)');
-            pillGradient.addColorStop(1, 'rgba(48, 92, 156, 0.78)');
-            roundedRect(ctx, x, y, w, h, 44);
+            const pillGradient = ctx.createLinearGradient(x, y, x + pillWidth, y + pillHeight);
+            pillGradient.addColorStop(0, 'rgba(72, 138, 214, 0.92)');
+            pillGradient.addColorStop(1, 'rgba(54, 116, 192, 0.86)');
+            roundedRect(ctx, x, y, pillWidth, pillHeight, 46);
             ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(160, 224, 255, 0.55)';
-            ctx.lineWidth = 2.2;
+            ctx.strokeStyle = 'rgba(160, 224, 255, 0.58)';
+            ctx.lineWidth = 2.4;
             ctx.stroke();
             ctx.restore();
-            ctx.fillText(label, x + 38, y + 22);
-            x += w + 40;
+            ctx.fillText(label, x + 40, y + 24);
+            x += pillWidth + 32;
         });
     }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 80; i++) {
+    for (let i = 0; i < 140; i++) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
-        const radius = Math.random() * 1.8 + 0.5;
-        ctx.fillStyle = `rgba(138, 220, 255, ${0.06 + Math.random() * 0.22})`;
+        const radius = Math.random() * 2 + 0.35;
+        ctx.fillStyle = `rgba(134, 224, 255, ${0.04 + Math.random() * 0.22})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -351,90 +378,13 @@ function createCardBackTexture(card) {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.anisotropy = 4;
     texture.generateMipmaps = true;
     return texture;
 }
 
-function roundedRect(ctx, x, y, width, height, radius) {
-    const r = Math.min(radius, height / 2, width / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + width - r, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-    ctx.lineTo(x + width, y + height - r);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-    ctx.lineTo(x + r, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-}
-
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-    if (!text) return;
-    const words = text.split(' ');
-    let line = '';
-    let cursorY = y;
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && n > 0) {
-            ctx.fillText(line, x, cursorY);
-            line = words[n] + ' ';
-            cursorY += lineHeight;
-        } else {
-            line = testLine;
-        }
-    }
-    ctx.fillText(line.trim(), x, cursorY);
-}
-
-// ---------------------------------------------------------------------------
-//  Utility: crea materiale con rim light caldo/freddo
-// ---------------------------------------------------------------------------
-function createRimMaterial({ color = 0x1b2a41 } = {}) {
-    const material = new THREE.MeshPhysicalMaterial({
-        color,
-        roughness: 0.18,
-        metalness: 0.18,
-        transmission: 0.45,
-        thickness: 0.42,
-        ior: 1.42,
-        envMapIntensity: 1.35,
-        clearcoat: 0.65,
-        clearcoatRoughness: 0.18,
-        sheen: 0.55,
-        sheenColor: new THREE.Color(0xa9e3ff),
-        transparent: true,
-        side: THREE.DoubleSide
-    });
-
-    material.userData.targetRimStrength = 1.4;
-    material.onBeforeCompile = (shader) => {
-        shader.uniforms.rimWarm = { value: new THREE.Color(0xffa361) };
-        shader.uniforms.rimCool = { value: new THREE.Color(0x52d0ff) };
-        shader.uniforms.rimStrength = { value: material.userData.targetRimStrength };
-        shader.fragmentShader = shader.fragmentShader.replace(
-            '#include <emissivemap_fragment>',
-            `#include <emissivemap_fragment>
-             vec3 viewDir = normalize(vViewPosition);
-             float rimTerm = pow(1.0 - max(dot(normal, viewDir), 0.0), 2.0);
-             vec3 rimMix = mix(rimWarm, rimCool, clamp(normal.y * 0.5 + 0.5, 0.0, 1.0));
-             totalEmissiveRadiance += rimMix * rimTerm * rimStrength;
-            `
-        );
-        material.userData.shader = shader;
-    };
-    material.customProgramCacheKey = () => 'cosmic-rim';
-    return material;
-}
-
-// ---------------------------------------------------------------------------
-//  Utility: crea glow planare per bordo card
-// ---------------------------------------------------------------------------
 function createGlowPlane(color = 0x64caff, intensity = 0.9) {
     const glowMaterial = new THREE.MeshBasicMaterial({
         color,
@@ -736,13 +686,13 @@ export function createCosmicCarousel({
             }
         );
 
-    const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 220);
-    const cameraIdleOffset = new THREE.Vector3(0.08, 1.24, 11.4);
-    const cameraFocusOffset = new THREE.Vector3(-0.18, 0.96, 6.2);
+    const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 220);
+    const cameraIdleOffset = new THREE.Vector3(0.04, 0.94, 12.4);
+    const cameraFocusOffset = new THREE.Vector3(-0.12, 0.84, 6.5);
     camera.position.copy(cameraIdleOffset);
     scene.add(camera);
-    const cameraLookTarget = new THREE.Vector3(0, 1.05, 0);
-    let cameraLookBaseY = 1.05;
+    const cameraLookTarget = new THREE.Vector3(0, 0.9, 0);
+    let cameraLookBaseY = 0.9;
 
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
@@ -835,88 +785,66 @@ export function createCosmicCarousel({
     hazePlane.lookAt(0, 2.2, 0);
     scene.add(hazePlane);
 
+    
     // -----------------------------
     //  Carosello 3D orbitante
     // -----------------------------
     const carouselGroup = new THREE.Group();
     scene.add(carouselGroup);
 
-    const cardGroups = [];
     const interactableMeshes = [];
-    const cardRadius = 5.2;
-    const cardHeight = 3.0;
-    const cardWidth = 2.05;
-    const cardDepth = 0.14;
+    const cardControllers = [];
 
-    const bodyGeometry = new THREE.BoxGeometry(cardWidth, cardHeight, cardDepth, 1, 1, 1);
-    const faceGeometry = new THREE.PlaneGeometry(cardWidth * 0.94, cardHeight * 0.92, 1, 1);
-    const lowFaceGeometry = new THREE.PlaneGeometry(cardWidth * 0.9, cardHeight * 0.9, 1, 1);
+    const CARD_METRICS = {
+        width: 2.12,
+        height: 3.08,
+        depth: 0.14,
+        orbitRadius: 5.9,
+        focusRadius: 3.45
+    };
+
+    const bodyGeometry = new THREE.BoxGeometry(CARD_METRICS.width, CARD_METRICS.height, CARD_METRICS.depth, 1, 1, 1);
+    const faceGeometry = new THREE.PlaneGeometry(CARD_METRICS.width * 0.94, CARD_METRICS.height * 0.92, 1, 1);
+    const lowFaceGeometry = new THREE.PlaneGeometry(CARD_METRICS.width * 0.9, CARD_METRICS.height * 0.9, 1, 1);
 
     const introTimeline = gsap.timeline({ delay: 0.22, defaults: { ease: 'power4.out' } });
-
-    // -----------------------------
-    //  Stato interazione e animazioni (dichiarato prima dell'utilizzo)
-    // -----------------------------
-    const pointer = new THREE.Vector2();
-    const parallaxTarget = new THREE.Vector2();
-    const parallaxCurrent = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    let hoveredGroup = null;
-    let activeGroup = null;
-    let needsRaycast = false;
-    let isPointerDown = false;
-    let dragStartX = 0;
-    const rotationState = { current: 0, target: 0, velocity: 0 };
-    let rotationTween = null;
-    let autoRotate = true;
-    let animationFrame = null;
-    let overlayHovered = false;
-    let isClosing = false;
-    let hasInteracted = false;
-    const tmpCameraDir = new THREE.Vector3();
-    const tmpCameraOffset = new THREE.Vector3();
-    const tmpDesiredCamera = new THREE.Vector3();
-    const tmpLookBase = new THREE.Vector3();
-    const tmpLookBlend = new THREE.Vector3();
-    const focusAnchor = new THREE.Vector3();
-    const tmpTangent = new THREE.Vector3();
 
     const CARD_VISUAL_PRESETS = {
         idle: {
             scale: 1,
             tiltX: 0,
             tiltZ: 0,
-            glow: 0.54,
-            rim: 1.3,
-            shadow: 0.24
+            glow: 0.48,
+            rim: 1.2,
+            shadow: 0.22
         },
         hover: {
-            scale: 1.12,
-            tiltX: THREE.MathUtils.degToRad(-4.5),
-            tiltZ: THREE.MathUtils.degToRad(4.9),
-            glow: 0.92,
-            rim: 2.3,
-            shadow: 0.34
+            scale: 1.1,
+            tiltX: THREE.MathUtils.degToRad(-4.2),
+            tiltZ: THREE.MathUtils.degToRad(4.8),
+            glow: 0.85,
+            rim: 2.1,
+            shadow: 0.3
         },
         active: {
-            scale: 1.26,
-            tiltX: THREE.MathUtils.degToRad(-6.8),
-            tiltZ: THREE.MathUtils.degToRad(7.2),
-            glow: 1.22,
-            rim: 3.2,
-            shadow: 0.48
+            scale: 1.24,
+            tiltX: THREE.MathUtils.degToRad(-6.2),
+            tiltZ: THREE.MathUtils.degToRad(6.8),
+            glow: 1.18,
+            rim: 3.0,
+            shadow: 0.44
         },
         dim: {
-            scale: 0.92,
-            tiltX: THREE.MathUtils.degToRad(-1.2),
-            tiltZ: THREE.MathUtils.degToRad(1.2),
-            glow: 0.32,
-            rim: 0.92,
-            shadow: 0.18
+            scale: 0.9,
+            tiltX: THREE.MathUtils.degToRad(-1.1),
+            tiltZ: THREE.MathUtils.degToRad(1.1),
+            glow: 0.28,
+            rim: 0.88,
+            shadow: 0.16
         }
     };
 
-    cards.forEach((card, index) => {
+    function createCardController(card, index) {
         const cardRoot = new THREE.Group();
         cardRoot.name = card.title;
         const pivot = new THREE.Group();
@@ -928,12 +856,12 @@ export function createCosmicCarousel({
         pivot.add(lod);
         cardRoot.add(pivot);
 
-        const shadow = createShadowPlane(cardWidth, cardHeight);
-        shadow.position.y = -cardHeight * 0.62;
+        const shadow = createShadowPlane(CARD_METRICS.width, CARD_METRICS.height);
+        shadow.position.y = -CARD_METRICS.height * 0.62;
         shadow.material.opacity = CARD_VISUAL_PRESETS.idle.shadow;
         cardRoot.add(shadow);
 
-        const rimMaterial = createRimMaterial({ color: 0x0d1828 });
+        const rimMaterial = createRimMaterial({ color: 0x06101c });
         const frame = new THREE.Mesh(bodyGeometry, rimMaterial);
         frame.castShadow = false;
         frame.receiveShadow = false;
@@ -941,113 +869,155 @@ export function createCosmicCarousel({
         const frontTexture = createCardTexture(card);
         const frontMaterial = new THREE.MeshPhysicalMaterial({
             map: frontTexture,
-            roughness: 0.18,
-            metalness: 0.06,
-            transmission: 0.32,
-            thickness: 0.38,
-            envMapIntensity: 1.45,
-            clearcoat: 0.75,
-            clearcoatRoughness: 0.2,
-            sheen: 0.18,
-            sheenColor: new THREE.Color(0xc5e8ff),
-            emissive: new THREE.Color(0x0b2036),
-            emissiveIntensity: 0.22,
-            iridescence: 0.12,
-            iridescenceIOR: 1.25,
+            roughness: 0.16,
+            metalness: 0.08,
+            transmission: 0.38,
+            thickness: 0.32,
+            envMapIntensity: 1.4,
+            clearcoat: 0.82,
+            clearcoatRoughness: 0.18,
+            sheen: 0.2,
+            sheenColor: new THREE.Color(0xb8e7ff),
+            emissive: new THREE.Color(0x09172a),
+            emissiveIntensity: 0.24,
+            iridescence: 0.16,
+            iridescenceIOR: 1.2,
             transparent: true,
             opacity: 1
         });
         const frontFace = new THREE.Mesh(faceGeometry, frontMaterial);
-        frontFace.position.z = cardDepth * 0.55;
+        frontFace.position.z = CARD_METRICS.depth * 0.55;
         frontFace.castShadow = false;
-        frontFace.userData.parentGroup = cardRoot;
 
         const lowMaterial = new THREE.MeshBasicMaterial({
             map: frontTexture,
             transparent: true,
             depthWrite: false,
-            opacity: 0.9
+            opacity: 0.88
         });
         const lowPlane = new THREE.Mesh(lowFaceGeometry, lowMaterial);
-        lowPlane.position.z = cardDepth * 0.52;
+        lowPlane.position.z = CARD_METRICS.depth * 0.5;
         lowVisual.add(lowPlane);
 
         const backTexture = createCardBackTexture(card);
         const backMaterial = new THREE.MeshPhysicalMaterial({
             map: backTexture,
-            roughness: 0.24,
-            metalness: 0.08,
-            transmission: 0.18,
-            thickness: 0.28,
+            roughness: 0.22,
+            metalness: 0.1,
+            transmission: 0.22,
+            thickness: 0.26,
             envMapIntensity: 1.25,
-            clearcoat: 0.6,
+            clearcoat: 0.64,
             clearcoatRoughness: 0.22,
             sheen: 0.14,
-            sheenColor: new THREE.Color(0x8bc8ff),
-            emissive: new THREE.Color(0x071120),
-            emissiveIntensity: 0.16,
+            sheenColor: new THREE.Color(0x91c8ff),
+            emissive: new THREE.Color(0x06101d),
+            emissiveIntensity: 0.18,
             transparent: true,
             opacity: 1
         });
         const backFace = new THREE.Mesh(faceGeometry, backMaterial);
-        backFace.position.z = -cardDepth * 0.55;
+        backFace.position.z = -CARD_METRICS.depth * 0.55;
         backFace.rotation.y = Math.PI;
-        backFace.userData.parentGroup = cardRoot;
 
-        const glow = createGlowPlane(0x70d8ff, 0.65);
-        glow.position.z = -cardDepth * 0.95;
+        const glow = createGlowPlane(0x74d4ff, 0.68);
+        glow.position.z = -CARD_METRICS.depth * 0.96;
         glow.material.opacity = CARD_VISUAL_PRESETS.idle.glow;
 
         visual.add(frame, frontFace, backFace, glow);
-        cardRoot.userData = {
+
+        const baseAngle = cards.length ? (Math.PI * 2 * index) / cards.length : 0;
+        const floatPhase = Math.random() * Math.PI * 2;
+
+        const controller = {
             card,
+            group: cardRoot,
             pivot,
-            visual,
             lod,
+            visual,
             lowVisual,
-            lowMaterial,
-            lowPlane,
-            frame,
-            frontFace,
-            backFace,
-            glow,
             shadow,
+            glow,
             rimMaterial,
-            frontTexture,
-            backTexture,
             frontMaterial,
             backMaterial,
-            isActive: false,
+            lowMaterial,
+            frontTexture,
+            backTexture,
+            baseAngle,
+            floatPhase,
             isHover: false,
-            floatPhase: Math.random() * Math.PI * 2
+            isActive: false
         };
 
-        const angle = (index / cards.length) * Math.PI * 2;
-        cardRoot.userData.baseAngle = angle;
-        const x = Math.cos(angle) * cardRadius;
-        const z = Math.sin(angle) * cardRadius;
-        const y = Math.sin(angle * 2.0) * 0.35;
-        cardRoot.position.set(x, y, z);
-        cardRoot.lookAt(0, 0, 0);
+        frontFace.userData.controller = controller;
+        backFace.userData.controller = controller;
+        frame.userData.controller = controller;
+        controller.interactables = [frontFace, backFace, frame];
+        interactableMeshes.push(...controller.interactables);
+
+        const initialRadius = CARD_METRICS.orbitRadius;
+        const ix = Math.cos(baseAngle) * initialRadius;
+        const iz = Math.sin(baseAngle) * initialRadius;
+        const iy = Math.sin(baseAngle * 2) * 0.26;
+        cardRoot.position.set(ix, iy, iz);
 
         carouselGroup.add(cardRoot);
-        cardGroups.push(cardRoot);
-        interactableMeshes.push(frontFace, backFace);
-        syncCardVisual(cardRoot, { immediate: true });
-        introTimeline.fromTo(cardRoot.position, { y: y + 1.4, x: x * 1.08, z: z * 1.08 }, { y, x, z, duration: 1.2 }, index * 0.08);
+        cardControllers.push(controller);
+        applyCardPreset(controller, 'idle', { immediate: true });
+
+        introTimeline.fromTo(cardRoot.position, { x: ix * 1.08, y: iy + 1.6, z: iz * 1.08 }, { x: ix, y: iy, z: iz, duration: 1.2 }, index * 0.08);
         introTimeline.fromTo(visual.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 1.05 }, index * 0.08);
-        introTimeline.fromTo(glow.material, { opacity: 0 }, { opacity: glow.material.opacity, duration: 0.8 }, index * 0.08 + 0.1);
+        introTimeline.fromTo(glow.material, { opacity: 0 }, { opacity: CARD_VISUAL_PRESETS.idle.glow, duration: 0.9 }, index * 0.08 + 0.12);
+
+        return controller;
+    }
+
+    cards.forEach((card, index) => {
+        createCardController(card, index);
     });
 
-    const autoRotateStrength = { value: 1 };
+    const pointer = new THREE.Vector2();
+    const parallaxTarget = new THREE.Vector2();
+    const parallaxCurrent = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
+    const tmpCameraDir = new THREE.Vector3();
+    const tmpCameraOffset = new THREE.Vector3();
+    const tmpDesiredCamera = new THREE.Vector3();
+    const tmpLookBase = new THREE.Vector3();
+    const tmpLookBlend = new THREE.Vector3();
+    const focusAnchor = new THREE.Vector3();
+    const tmpTangent = new THREE.Vector3();
+
+    let needsRaycast = false;
+    let overlayHovered = false;
+    let isClosing = false;
+    let hasInteracted = false;
+
+    const interactionState = {
+        hovered: null,
+        active: null,
+        pointerDown: false
+    };
+
+    const rotationController = {
+        angle: 0,
+        target: 0,
+        velocity: 0,
+        autoEnabled: true,
+        autoSpeed: { value: 0.16 }
+    };
+    let rotationTween = null;
+    const AUTO_SPEED_DEFAULT = 0.16;
+    const AUTO_SPEED_SLOW = 0.02;
 
     const focusState = { value: 0 };
     const focusTimeline = gsap.timeline({ paused: true });
     focusTimeline.to(lutPass.uniforms.mulRGB.value, { x: 1.18, y: 1.05, z: 1.28, duration: 1.2, ease: 'power4.inOut' }, 0);
     focusTimeline.to(lutPass.uniforms.powRGB.value, { x: 1.28, y: 1.08, z: 1.42, duration: 1.2, ease: 'power4.inOut' }, 0);
     focusTimeline.to(lutPass.uniforms.addRGB.value, { x: 0.02, y: 0.012, z: -0.018, duration: 1.2, ease: 'power4.inOut' }, 0);
-    focusTimeline.to(bloomPass, { strength: 0.52, radius: 0.82, threshold: 0.6, duration: 1.15, ease: 'power4.inOut' }, 0);
-    focusTimeline.to(focusState, { value: 1, duration: 1.15, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(bloomPass, { strength: 0.48, radius: 0.74, threshold: 0.62, duration: 1.1, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(focusState, { value: 1, duration: 1.05, ease: 'power4.inOut' }, 0);
     focusTimeline.eventCallback('onReverseComplete', () => {
         focusState.value = 0;
     });
@@ -1060,141 +1030,103 @@ export function createCosmicCarousel({
         audio.ensure();
     }
 
-    function setAutoRotateStrength(value) {
-        gsap.to(autoRotateStrength, { value, duration: 0.6, ease: 'power2.out' });
-    }
-
-    function refreshAutoRotate({ immediate = false } = {}) {
-        if (isPointerDown) {
-            return;
-        }
-        if (activeGroup) {
-            autoRotate = false;
-            if (immediate) {
-                autoRotateStrength.value = 0.02;
-            } else {
-                setAutoRotateStrength(0.02);
-            }
-            return;
-        }
-        autoRotate = true;
-        const targetStrength = hoveredGroup ? 0.04 : 1;
+    function setAutoSpeed(value, { immediate = false } = {}) {
         if (immediate) {
-            autoRotateStrength.value = targetStrength;
+            rotationController.autoSpeed.value = value;
         } else {
-            setAutoRotateStrength(targetStrength);
+            gsap.to(rotationController.autoSpeed, { value, duration: 0.5, ease: 'power2.out' });
         }
     }
 
-    function animateRimStrength(material, value, { duration = 0.6, ease = 'power2.out' } = {}) {
-        material.userData.targetRimStrength = value;
-        const shader = material.userData.shader;
-        if (shader && shader.uniforms?.rimStrength) {
-            gsap.to(shader.uniforms.rimStrength, { value, duration, ease });
+    function updateAutoRotationState({ immediate = false } = {}) {
+        const shouldRun = !interactionState.pointerDown && !interactionState.active;
+        rotationController.autoEnabled = shouldRun;
+        if (!shouldRun) {
+            setAutoSpeed(0, { immediate: true });
+            return;
         }
+        const target = interactionState.hovered ? AUTO_SPEED_SLOW : AUTO_SPEED_DEFAULT;
+        setAutoSpeed(target, { immediate });
     }
 
-    function applyCardPreset(group, presetKey, { immediate = false } = {}) {
+    function applyCardPreset(controller, presetKey, { immediate = false } = {}) {
         const preset = CARD_VISUAL_PRESETS[presetKey] || CARD_VISUAL_PRESETS.idle;
-        const { visual, glow, rimMaterial, shadow, frontMaterial, backMaterial } = group.userData;
-        const duration = immediate ? 0.001 : (presetKey === 'active' ? 0.58 : 0.42);
-        gsap.killTweensOf(visual.scale);
-        gsap.killTweensOf(visual.rotation);
-        gsap.killTweensOf(glow.material);
-        gsap.to(visual.scale, {
-            x: preset.scale,
-            y: preset.scale,
-            z: preset.scale,
-            duration,
-            ease: 'power3.out'
-        });
-        gsap.to(visual.rotation, {
-            x: preset.tiltX,
-            y: 0,
-            z: preset.tiltZ,
-            duration,
-            ease: 'power3.out'
-        });
-        gsap.to(glow.material, {
-            opacity: preset.glow,
-            duration: Math.max(0.3, duration * 0.75),
-            ease: 'power2.out'
-        });
-        if (shadow) {
-            gsap.to(shadow.material, {
-                opacity: preset.shadow,
-                duration: Math.max(0.28, duration * 0.65),
-                ease: 'power2.out'
-            });
+        const duration = immediate ? 0.001 : (presetKey === 'active' ? 0.6 : 0.4);
+        const { pivot, visual, glow, shadow, rimMaterial, frontMaterial, backMaterial } = controller;
+        if (immediate) {
+            pivot.rotation.x = preset.tiltX;
+            pivot.rotation.z = preset.tiltZ;
+            visual.scale.set(preset.scale, preset.scale, preset.scale);
+            glow.material.opacity = preset.glow;
+            if (shadow) shadow.material.opacity = preset.shadow;
+            rimMaterial.userData.targetRimStrength = preset.rim;
+            if (rimMaterial.userData.shader?.uniforms?.rimStrength) {
+                rimMaterial.userData.shader.uniforms.rimStrength.value = preset.rim;
+            }
+        } else {
+            gsap.to(pivot.rotation, { x: preset.tiltX, z: preset.tiltZ, duration, ease: 'power3.out' });
+            gsap.to(visual.scale, { x: preset.scale, y: preset.scale, z: preset.scale, duration, ease: 'power3.out' });
+            gsap.to(glow.material, { opacity: preset.glow, duration: Math.max(0.28, duration * 0.75), ease: 'power2.out' });
+            if (shadow) {
+                gsap.to(shadow.material, { opacity: preset.shadow, duration: Math.max(0.28, duration * 0.75), ease: 'power2.out' });
+            }
+            animateRimStrength(rimMaterial, preset.rim, { duration: Math.max(0.3, duration * 0.85) });
         }
         const frontTargets = {
-            idle: { emissive: 0.22, env: 1.42, transmission: 0.32, clearcoat: 0.75 },
-            hover: { emissive: 0.3, env: 1.62, transmission: 0.36, clearcoat: 0.84 },
-            active: { emissive: 0.38, env: 1.85, transmission: 0.4, clearcoat: 0.92 },
-            dim: { emissive: 0.18, env: 1.22, transmission: 0.28, clearcoat: 0.68 }
+            idle: { emissive: 0.24, env: 1.4, transmission: 0.38, clearcoat: 0.82 },
+            hover: { emissive: 0.3, env: 1.6, transmission: 0.42, clearcoat: 0.9 },
+            active: { emissive: 0.38, env: 1.85, transmission: 0.46, clearcoat: 0.98 },
+            dim: { emissive: 0.18, env: 1.18, transmission: 0.32, clearcoat: 0.7 }
         };
         const backTargets = {
-            idle: { emissive: 0.16, env: 1.24 },
-            hover: { emissive: 0.21, env: 1.36 },
+            idle: { emissive: 0.18, env: 1.24 },
+            hover: { emissive: 0.22, env: 1.36 },
             active: { emissive: 0.26, env: 1.52 },
-            dim: { emissive: 0.12, env: 1.1 }
+            dim: { emissive: 0.12, env: 1.08 }
         };
-        if (frontMaterial) {
-            const target = frontTargets[presetKey] || frontTargets.idle;
+        const front = frontTargets[presetKey] || frontTargets.idle;
+        const back = backTargets[presetKey] || backTargets.idle;
+        if (immediate) {
+            frontMaterial.emissiveIntensity = front.emissive;
+            frontMaterial.envMapIntensity = front.env;
+            frontMaterial.transmission = front.transmission;
+            frontMaterial.clearcoat = front.clearcoat;
+            backMaterial.emissiveIntensity = back.emissive;
+            backMaterial.envMapIntensity = back.env;
+        } else {
             gsap.to(frontMaterial, {
-                emissiveIntensity: target.emissive,
-                envMapIntensity: target.env,
-                transmission: target.transmission,
-                clearcoat: target.clearcoat,
+                emissiveIntensity: front.emissive,
+                envMapIntensity: front.env,
+                transmission: front.transmission,
+                clearcoat: front.clearcoat,
                 duration: Math.max(0.32, duration * 0.9),
                 ease: 'power2.out'
             });
-        }
-        if (backMaterial) {
-            const target = backTargets[presetKey] || backTargets.idle;
             gsap.to(backMaterial, {
-                emissiveIntensity: target.emissive,
-                envMapIntensity: target.env,
+                emissiveIntensity: back.emissive,
+                envMapIntensity: back.env,
                 duration: Math.max(0.32, duration * 0.9),
                 ease: 'power2.out'
             });
         }
-        animateRimStrength(rimMaterial, preset.rim, { duration: Math.max(0.28, duration * 0.85) });
     }
 
-    function syncCardVisual(group, { immediate = false } = {}) {
-        if (!group) return;
-        let presetKey = 'idle';
-        if (group.userData.isActive) {
-            presetKey = 'active';
-        } else if (group.userData.isHover) {
-            presetKey = 'hover';
-        } else if (activeGroup && group !== activeGroup) {
-            presetKey = 'dim';
+    function syncCardVisual(controller, options = {}) {
+        if (!controller) return;
+        let preset = 'idle';
+        if (controller.isActive) {
+            preset = 'active';
+        } else if (controller.isHover) {
+            preset = 'hover';
+        } else if (interactionState.active && interactionState.active !== controller) {
+            preset = 'dim';
         }
-        applyCardPreset(group, presetKey, { immediate });
+        applyCardPreset(controller, preset, options);
     }
 
-    function setHoveredGroup(group) {
-        if (hoveredGroup === group) return;
-        if (hoveredGroup && hoveredGroup !== activeGroup) {
-            hoveredGroup.userData.isHover = false;
-            syncCardVisual(hoveredGroup);
-        }
-        hoveredGroup = group;
-        if (hoveredGroup && hoveredGroup !== activeGroup) {
-            hoveredGroup.userData.isHover = true;
-            syncCardVisual(hoveredGroup);
-            audio.playHover();
-        }
-        if (!activeGroup) {
-            refreshAutoRotate();
-        }
-    }
-
-    function flipCard(group, showBack, { immediate = false } = {}) {
-        if (!group) return;
-        const { pivot } = group.userData;
+    function flipController(controller, showBack, { immediate = false } = {}) {
+        if (!controller) return;
+        const { pivot } = controller;
         gsap.killTweensOf(pivot.rotation);
         gsap.killTweensOf(pivot.position);
         if (immediate) {
@@ -1204,7 +1136,7 @@ export function createCosmicCarousel({
         }
         gsap.to(pivot.rotation, {
             y: showBack ? Math.PI : 0,
-            duration: 0.88,
+            duration: 0.9,
             ease: 'expo.inOut',
             overwrite: true
         });
@@ -1215,12 +1147,41 @@ export function createCosmicCarousel({
         });
     }
 
-    function releaseActiveCard({ immediate = false } = {}) {
-        if (!activeGroup) return;
-        const previous = activeGroup;
-        previous.userData.isActive = false;
-        flipCard(previous, false, { immediate });
-        syncCardVisual(previous, { immediate });
+    function setHoveredController(controller) {
+        if (interactionState.hovered === controller) return;
+        if (interactionState.hovered && interactionState.hovered !== interactionState.active) {
+            interactionState.hovered.isHover = false;
+            syncCardVisual(interactionState.hovered);
+        }
+        interactionState.hovered = controller;
+        if (controller && controller !== interactionState.active) {
+            controller.isHover = true;
+            syncCardVisual(controller);
+            audio.playHover();
+        }
+        updateAutoRotationState();
+    }
+
+    function releaseActiveController({ immediate = false } = {}) {
+        const active = interactionState.active;
+        if (!active) return;
+        active.isActive = false;
+        if (interactionState.hovered === active) {
+            active.isHover = true;
+        }
+        flipController(active, false, { immediate });
+        syncCardVisual(active, { immediate });
+        cardControllers.forEach((controller) => {
+            if (controller !== active) {
+                syncCardVisual(controller, { immediate });
+            }
+        });
+        if (rotationTween) {
+            rotationTween.kill();
+            rotationTween = null;
+        }
+        rotationController.velocity = 0;
+        interactionState.active = null;
         if (focusTimeline.progress() > 0) {
             if (immediate) {
                 focusTimeline.pause(0);
@@ -1228,66 +1189,56 @@ export function createCosmicCarousel({
             } else {
                 focusTimeline.timeScale(1).reverse();
             }
-        } else {
-            focusState.value = 0;
         }
-        rotationTween?.kill?.();
-        rotationTween = null;
-        rotationState.velocity = 0;
-        activeGroup = null;
-        cardGroups.forEach((entry) => {
-            if (entry !== previous) {
-                syncCardVisual(entry, { immediate });
-            }
-        });
-        focusAnchor.set(0, cameraLookBaseY, 0);
-        refreshAutoRotate({ immediate });
+        updateAutoRotationState({ immediate });
     }
 
-    function activateCard(group) {
-        if (!group) {
-            releaseActiveCard();
+    function focusController(controller) {
+        if (!controller) {
+            releaseActiveController();
             return;
         }
-        if (activeGroup === group) {
-            releaseActiveCard();
+        if (interactionState.active === controller) {
+            releaseActiveController();
             return;
         }
-        releaseActiveCard();
-        activeGroup = group;
-        activeGroup.userData.isActive = true;
-        syncCardVisual(activeGroup);
-        cardGroups.forEach((entry) => {
-            if (entry !== activeGroup) {
+        releaseActiveController();
+        interactionState.active = controller;
+        controller.isActive = true;
+        controller.isHover = false;
+        flipController(controller, true, {});
+        syncCardVisual(controller);
+        cardControllers.forEach((entry) => {
+            if (entry !== controller) {
                 syncCardVisual(entry);
             }
         });
-        focusAnchor.copy(activeGroup.position);
-        flipCard(activeGroup, true);
-        rotationTween?.kill?.();
-        rotationState.velocity = 0;
-        const desiredBase = -group.userData.baseAngle;
-        const twoPi = Math.PI * 2;
-        let desiredRotation = desiredBase;
-        let current = rotationState.target;
-        while (desiredRotation - current > Math.PI) desiredRotation -= twoPi;
-        while (desiredRotation - current < -Math.PI) desiredRotation += twoPi;
-        const rotationProxy = { value: rotationState.target };
-        rotationTween = gsap.to(rotationProxy, {
-            value: desiredRotation,
-            duration: 1.08,
+        rotationController.velocity = 0;
+        const desired = -controller.baseAngle;
+        let delta = desired - rotationController.target;
+        delta = THREE.MathUtils.euclideanModulo(delta + Math.PI, Math.PI * 2) - Math.PI;
+        const finalTarget = rotationController.target + delta;
+        const proxy = { value: rotationController.target };
+        if (rotationTween) {
+            rotationTween.kill();
+        }
+        rotationTween = gsap.to(proxy, {
+            value: finalTarget,
+            duration: 1.05,
             ease: 'power4.inOut',
-            onUpdate: () => { rotationState.target = rotationProxy.value; },
-            onComplete: () => { rotationTween = null; rotationState.velocity = 0; }
+            onUpdate: () => {
+                rotationController.target = proxy.value;
+            },
+            onComplete: () => {
+                rotationTween = null;
+                rotationController.velocity = 0;
+            }
         });
         focusTimeline.timeScale(1).restart(true);
-        refreshAutoRotate();
+        updateAutoRotationState({ immediate: true });
         audio.playFocus();
     }
 
-    // -----------------------------
-    //  Eventi
-    // -----------------------------
     function updatePointerFromEvent(event) {
         const rect = canvas.getBoundingClientRect();
         const coords = extractClientCoords(event);
@@ -1318,40 +1269,45 @@ export function createCosmicCarousel({
         updatePointerFromEvent(event);
     }
 
+    const dragState = { lastX: 0 };
+
     function onPointerDown(event) {
         updatePointerFromEvent(event);
         handleFirstInteraction();
-        isPointerDown = true;
-        autoRotate = false;
-        rotationState.velocity = 0;
+        interactionState.pointerDown = true;
+        rotationController.velocity = 0;
+        if (rotationTween) {
+            rotationTween.kill();
+            rotationTween = null;
+        }
+        setHoveredController(interactionState.hovered);
+        updateAutoRotationState({ immediate: true });
         const { clientX } = extractClientCoords(event);
-        dragStartX = clientX || 0;
+        dragState.lastX = clientX || 0;
         overlay.classList.add('is-dragging');
-        rotationTween?.kill?.();
-        rotationTween = null;
-        setAutoRotateStrength(0.03);
-        needsRaycast = true;
         if (event.pointerId !== undefined && overlay.setPointerCapture) {
             try { overlay.setPointerCapture(event.pointerId); } catch (err) { /* ignore */ }
         }
     }
 
     function onPointerMoveDrag(event) {
-        if (!isPointerDown) return;
-        const clientX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
-        const deltaX = clientX - dragStartX;
-        dragStartX = clientX;
-        rotationState.velocity = THREE.MathUtils.clamp(deltaX * 0.0035, -0.25, 0.25);
-        rotationState.target += rotationState.velocity;
+        if (!interactionState.pointerDown) return;
+        const coords = extractClientCoords(event);
+        const deltaX = coords.clientX - dragState.lastX;
+        dragState.lastX = coords.clientX;
+        const velocity = THREE.MathUtils.clamp(deltaX * 0.0035, -0.25, 0.25);
+        rotationController.velocity = velocity;
+        rotationController.target += velocity;
     }
 
     function onPointerUp(event) {
-        isPointerDown = false;
-        if (Math.abs(rotationState.velocity) < 0.01) {
-            rotationState.velocity = 0;
+        if (!interactionState.pointerDown) return;
+        interactionState.pointerDown = false;
+        if (Math.abs(rotationController.velocity) < 0.01) {
+            rotationController.velocity = 0;
         }
-        refreshAutoRotate();
         overlay.classList.remove('is-dragging');
+        updateAutoRotationState();
         needsRaycast = true;
         if (event && event.pointerId !== undefined && overlay.releasePointerCapture) {
             try { overlay.releasePointerCapture(event.pointerId); } catch (err) { /* ignore */ }
@@ -1359,21 +1315,19 @@ export function createCosmicCarousel({
     }
 
     function onCanvasClick() {
-        if (!hoveredGroup) return;
-        activateCard(hoveredGroup);
+        if (!interactionState.hovered) return;
+        focusController(interactionState.hovered);
     }
 
     function onOverlayEnter() {
         overlayHovered = true;
         needsRaycast = true;
-        refreshAutoRotate();
     }
 
     function onOverlayLeave() {
         overlayHovered = false;
         parallaxTarget.set(0, 0);
-        setHoveredGroup(null);
-        refreshAutoRotate();
+        setHoveredController(null);
         needsRaycast = true;
     }
 
@@ -1408,13 +1362,13 @@ export function createCosmicCarousel({
     overlay.addEventListener('pointerleave', onPointerUp);
     overlay.addEventListener('touchend', onPointerUp);
     overlay.addEventListener('touchcancel', onPointerUp);
+
     function handleOverlayClick(event) {
         if (event.target === exitButton) return;
         handleFirstInteraction();
         onCanvasClick(event);
     }
     overlay.addEventListener('click', handleOverlayClick);
-    // Auto-rotation + pausa su hover (desktop e mobile)
     overlay.addEventListener('mouseenter', onOverlayEnter);
     overlay.addEventListener('mouseleave', onOverlayLeave);
     window.addEventListener('keydown', handleKey);
@@ -1423,26 +1377,29 @@ export function createCosmicCarousel({
         if (isClosing) return;
         isClosing = true;
         overlay.classList.remove('is-dragging');
-        releaseActiveCard();
-        rotationTween?.kill?.();
-        rotationTween = null;
-        setHoveredGroup(null);
+        setHoveredController(null);
+        releaseActiveController({ immediate: true });
+        if (rotationTween) {
+            rotationTween.kill();
+            rotationTween = null;
+        }
+        rotationController.velocity = 0;
+        updateAutoRotationState({ immediate: true });
         audio.fadeOut();
         gsap.to(overlay, {
             opacity: 0,
             duration: 0.6,
-            ease: 'power4.in',
-            onComplete: () => {
-                destroy();
-                if (typeof onRequestClose === 'function') {
-                    onRequestClose();
-                }
-            }
+            ease: 'power3.inOut',
+            onComplete: destroy
         });
+        gsap.to(hud, { y: -40, opacity: 0, duration: 0.4, ease: 'power2.in' });
+        gsap.to(exitButton, { y: -24, opacity: 0, duration: 0.4, ease: 'power2.in' });
+        gsap.to(instructions, { opacity: 0, duration: 0.4, ease: 'power2.in' });
+        onRequestClose?.();
     }
 
-    const handleExitHover = () => { if (hasInteracted) audio.playHover(); };
     exitButton.addEventListener('click', closeOverlay);
+    const handleExitHover = () => { if (hasInteracted) audio.playHover(); };
     exitButton.addEventListener('mouseenter', handleExitHover);
     exitButton.addEventListener('focus', handleExitHover);
 
@@ -1453,7 +1410,7 @@ export function createCosmicCarousel({
         const width = overlay.clientWidth;
         const height = overlay.clientHeight;
         renderer.setSize(width, height, false);
-        const ratioCap = width < 720 ? 1.2 : 1.6;
+        const ratioCap = width < 720 ? 1.2 : 1.5;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratioCap));
         composer.setSize(width, height);
         if (composer.setPixelRatio) {
@@ -1464,18 +1421,18 @@ export function createCosmicCarousel({
 
         const mobile = width < 720;
         const idleTarget = mobile
-            ? { x: 0.04, y: 1.12, z: 12.4 }
-            : { x: 0.08, y: 1.26, z: 11.2 };
+            ? { x: 0.02, y: 0.88, z: 13.1 }
+            : { x: 0.04, y: 0.94, z: 12.4 };
         const focusTarget = mobile
-            ? { x: -0.08, y: 0.92, z: 6.6 }
-            : { x: -0.18, y: 0.96, z: 6.2 };
+            ? { x: -0.06, y: 0.82, z: 6.9 }
+            : { x: -0.12, y: 0.84, z: 6.5 };
         gsap.to(cameraIdleOffset, { ...idleTarget, duration: 0.8, ease: 'power2.out' });
         gsap.to(cameraFocusOffset, { ...focusTarget, duration: 0.8, ease: 'power2.out' });
-        cameraLookBaseY = mobile ? 0.86 : 0.95;
+        cameraLookBaseY = mobile ? 0.82 : 0.9;
     }
     updateRendererSize();
-    camera.position.set(cameraIdleOffset.x, cameraIdleOffset.y, cameraIdleOffset.z + 0.8);
-    refreshAutoRotate({ immediate: true });
+    camera.position.set(cameraIdleOffset.x, cameraIdleOffset.y, cameraIdleOffset.z + 0.6);
+    updateAutoRotationState({ immediate: true });
     cameraLookTarget.set(0, cameraLookBaseY, 0);
     focusAnchor.set(0, cameraLookBaseY, 0);
     let resizeObserver = null;
@@ -1490,58 +1447,50 @@ export function createCosmicCarousel({
     //  Aggiornamento carosello
     // -----------------------------
     function updateCarousel(delta) {
-        if (autoRotate) {
-            rotationState.target += delta * 0.12 * autoRotateStrength.value;
+        if (rotationController.autoEnabled) {
+            rotationController.target += delta * rotationController.autoSpeed.value;
         }
-        if (!isPointerDown && Math.abs(rotationState.velocity) > 0.0001) {
-            rotationState.target += rotationState.velocity;
-            rotationState.velocity = THREE.MathUtils.damp(rotationState.velocity, 0, 6, delta);
+        if (!interactionState.pointerDown && Math.abs(rotationController.velocity) > 0.0001) {
+            rotationController.target += rotationController.velocity;
+            rotationController.velocity = THREE.MathUtils.damp(rotationController.velocity, 0, 6, delta);
         }
-        rotationState.current = THREE.MathUtils.damp(rotationState.current, rotationState.target, 6, delta);
+        rotationController.angle = THREE.MathUtils.damp(rotationController.angle, rotationController.target, 6, delta);
 
         const focusAmount = focusState.value;
-        const cameraBaseOffset = tmpCameraOffset.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
-        const cameraDir = tmpCameraDir.copy(cameraBaseOffset).normalize();
-        tmpDesiredCamera.copy(cameraBaseOffset);
-        if (!activeGroup) {
-            focusAnchor.set(0, cameraLookBaseY, 0);
-        }
-        const activeAngle = activeGroup ? activeGroup.userData.baseAngle + rotationState.current : null;
+        const activeController = interactionState.active;
+        const activeAngle = activeController ? activeController.baseAngle + rotationController.angle : null;
 
-        cardGroups.forEach((group) => {
-            const angle = group.userData.baseAngle + rotationState.current;
-            const focus = group === activeGroup ? focusAmount : 0;
-            let orbitRadius = cardRadius - focus * 1.3;
-            let x = Math.cos(angle) * orbitRadius;
-            let z = Math.sin(angle) * orbitRadius;
-            const baseWave = Math.sin(angle * 2.0) * 0.3;
-            const floatWave = Math.sin(elapsedTime * 1.12 + group.userData.floatPhase) * (0.16 + focus * 0.08);
-            let y = baseWave + floatWave;
+        cardControllers.forEach((controller) => {
+            const angle = controller.baseAngle + rotationController.angle;
+            const isActive = controller === activeController;
+            const focus = isActive ? focusAmount : 0;
+            let radius = THREE.MathUtils.lerp(CARD_METRICS.orbitRadius, CARD_METRICS.focusRadius, focus);
+            let x = Math.cos(angle) * radius;
+            let z = Math.sin(angle) * radius;
+            let y = Math.sin(angle * 2) * 0.26;
+            const floatOffset = Math.sin(elapsedTime * 1.12 + controller.floatPhase) * (0.16 + focus * 0.1);
+            y += floatOffset;
 
-            if (activeGroup && group !== activeGroup && activeAngle !== null) {
+            if (activeController && !isActive && activeAngle !== null) {
                 const diff = THREE.MathUtils.euclideanModulo(angle - activeAngle + Math.PI, Math.PI * 2) - Math.PI;
-                const closeness = 1 - Math.min(Math.abs(diff) / (Math.PI / 2), 1);
-                const pushRadius = focusAmount * closeness * 1.6;
-                orbitRadius = cardRadius + pushRadius;
-                x = Math.cos(angle) * orbitRadius;
-                z = Math.sin(angle) * orbitRadius;
+                const separation = 1 - THREE.MathUtils.clamp(Math.abs(diff) / (Math.PI / 2.4), 0, 1);
+                const pushOut = separation * focusAmount * 2.1;
                 const tangent = tmpTangent.set(-Math.sin(angle), 0, Math.cos(angle));
-                x += tangent.x * pushRadius * 0.85;
-                z += tangent.z * pushRadius * 0.85;
-                y += focusAmount * (0.2 + closeness * 0.35);
+                x += tangent.x * pushOut;
+                z += tangent.z * pushOut;
+                radius += pushOut * 0.6;
+                x = Math.cos(angle) * radius;
+                z = Math.sin(angle) * radius;
+                y += separation * focusAmount * 0.42;
             }
 
-            const pull = focus * 1.4;
-            x += cameraDir.x * pull;
-            y += cameraDir.y * pull + focus * 0.35;
-            z += cameraDir.z * pull;
-            group.position.set(x, y, z);
-            const lookY = THREE.MathUtils.lerp(0.18, 0.52, focus);
-            group.lookAt(tmpDesiredCamera.x, lookY, tmpDesiredCamera.z);
-            if (group === activeGroup) {
-                group.getWorldPosition(focusAnchor);
+            controller.group.position.set(x, y, z);
+            const lookHeight = THREE.MathUtils.lerp(0.14, 0.54, focus);
+            controller.group.lookAt(tmpDesiredCamera.x, lookHeight, tmpDesiredCamera.z);
+            controller.lod?.update?.(camera);
+            if (isActive) {
+                controller.group.getWorldPosition(focusAnchor);
             }
-            group.userData.lod?.update(camera);
         });
     }
 
@@ -1550,8 +1499,8 @@ export function createCosmicCarousel({
         needsRaycast = false;
         raycaster.setFromCamera(pointer, camera);
         const intersects = raycaster.intersectObjects(interactableMeshes, true);
-        const newGroup = intersects.length ? intersects[0].object.userData.parentGroup : null;
-        setHoveredGroup(newGroup);
+        const newController = intersects.length ? intersects[0].object.userData.controller : null;
+        setHoveredController(newController);
     }
 
     let previousTime = performance.now();
@@ -1569,20 +1518,20 @@ export function createCosmicCarousel({
         parallaxCurrent.y = THREE.MathUtils.damp(parallaxCurrent.y, parallaxTarget.y, parallaxEase, delta);
         const focusAmount = focusState.value;
         const baseOffset = tmpDesiredCamera.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
-        const desiredX = baseOffset.x + parallaxCurrent.x * 1.25;
-        const desiredY = baseOffset.y + parallaxCurrent.y * 0.75;
-        const desiredZ = baseOffset.z + parallaxCurrent.y * -0.38;
+        const desiredX = baseOffset.x + parallaxCurrent.x * 1.2;
+        const desiredY = baseOffset.y + parallaxCurrent.y * 0.7;
+        const desiredZ = baseOffset.z + parallaxCurrent.y * -0.35;
         camera.position.x = THREE.MathUtils.damp(camera.position.x, desiredX, 7, delta);
         camera.position.y = THREE.MathUtils.damp(camera.position.y, desiredY, 7, delta);
         camera.position.z = THREE.MathUtils.damp(camera.position.z, desiredZ, 7, delta);
         tmpLookBase.set(0, cameraLookBaseY, 0);
         tmpLookBlend.copy(tmpLookBase);
-        if (activeGroup) {
+        if (interactionState.active) {
             tmpLookBlend.lerp(focusAnchor, focusAmount);
         }
-        tmpLookBlend.x += parallaxCurrent.x * 0.85;
-        tmpLookBlend.y += parallaxCurrent.y * 0.35;
-        tmpLookBlend.z += parallaxCurrent.y * -0.25;
+        tmpLookBlend.x += parallaxCurrent.x * 0.82;
+        tmpLookBlend.y += parallaxCurrent.y * 0.32;
+        tmpLookBlend.z += parallaxCurrent.y * -0.22;
         cameraLookTarget.x = THREE.MathUtils.damp(cameraLookTarget.x, tmpLookBlend.x, 6, delta);
         cameraLookTarget.y = THREE.MathUtils.damp(cameraLookTarget.y, tmpLookBlend.y, 6, delta);
         cameraLookTarget.z = THREE.MathUtils.damp(cameraLookTarget.z, tmpLookBlend.z, 6, delta);
@@ -1591,7 +1540,7 @@ export function createCosmicCarousel({
         composer.render();
         animationFrame = requestAnimationFrame(animate);
     }
-    animationFrame = requestAnimationFrame(animate);
+    let animationFrame = requestAnimationFrame(animate);
 
     gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 1.2, ease: 'power4.out' });
     gsap.fromTo(hud, { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 1.1, ease: 'power4.out', delay: 0.2 });
@@ -1599,7 +1548,7 @@ export function createCosmicCarousel({
     gsap.fromTo(instructions, { opacity: 0 }, { opacity: 0.85, duration: 1.2, ease: 'power2.out', delay: 0.6 });
 
     function destroy() {
-        releaseActiveCard({ immediate: true });
+        releaseActiveController({ immediate: true });
         focusTimeline.pause(0);
         focusState.value = 0;
         rotationTween?.kill?.();
@@ -1618,9 +1567,9 @@ export function createCosmicCarousel({
         overlay.removeEventListener('touchmove', onTouchMove);
         overlay.removeEventListener('touchstart', onTouchStart);
         overlay.removeEventListener('touchend', onPointerUp);
+        overlay.removeEventListener('touchcancel', onPointerUp);
         overlay.removeEventListener('mouseenter', onOverlayEnter);
         overlay.removeEventListener('mouseleave', onOverlayLeave);
-        overlay.removeEventListener('touchcancel', onPointerUp);
         overlay.removeEventListener('click', handleOverlayClick);
         window.removeEventListener('keydown', handleKey);
         exitButton.removeEventListener('click', closeOverlay);
@@ -1655,14 +1604,14 @@ export function createCosmicCarousel({
         environmentRenderTarget?.dispose?.();
         environmentRenderTarget = null;
         environmentTexture = null;
-        cardGroups.forEach(({ userData }) => {
-            userData.frontTexture?.dispose?.();
-            userData.backTexture?.dispose?.();
-            userData.frontFace?.material?.dispose?.();
-            userData.backFace?.material?.dispose?.();
-            userData.glow?.material?.dispose?.();
-            userData.rimMaterial?.dispose?.();
-            userData.lowMaterial?.dispose?.();
+        cardControllers.forEach((controller) => {
+            controller.frontTexture?.dispose?.();
+            controller.backTexture?.dispose?.();
+            controller.frontMaterial?.dispose?.();
+            controller.backMaterial?.dispose?.();
+            controller.glow?.material?.dispose?.();
+            controller.rimMaterial?.dispose?.();
+            controller.lowMaterial?.dispose?.();
         });
         bodyGeometry.dispose();
         faceGeometry.dispose();
