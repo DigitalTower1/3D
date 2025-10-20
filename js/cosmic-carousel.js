@@ -1227,10 +1227,11 @@ export function createCosmicCarousel({
     // -----------------------------
     //  Eventi
     // -----------------------------
-    function onPointerMove(event) {
+    function updatePointerFromEvent(event) {
         const rect = canvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left) / rect.width;
-        const y = (event.clientY - rect.top) / rect.height;
+        const coords = extractClientCoords(event);
+        const x = rect.width ? (coords.clientX - rect.left) / rect.width : 0.5;
+        const y = rect.height ? (coords.clientY - rect.top) / rect.height : 0.5;
         pointer.set(x * 2 - 1, -(y * 2 - 1));
         const px = THREE.MathUtils.clamp(x - 0.5, -0.6, 0.6);
         const py = THREE.MathUtils.clamp(y - 0.5, -0.6, 0.6);
@@ -1238,12 +1239,32 @@ export function createCosmicCarousel({
         needsRaycast = true;
     }
 
+    function extractClientCoords(event) {
+        if (event && typeof event.clientX === 'number' && typeof event.clientY === 'number') {
+            return { clientX: event.clientX, clientY: event.clientY };
+        }
+        if (event && event.touches && event.touches.length) {
+            return { clientX: event.touches[0].clientX, clientY: event.touches[0].clientY };
+        }
+        if (event && event.changedTouches && event.changedTouches.length) {
+            return { clientX: event.changedTouches[0].clientX, clientY: event.changedTouches[0].clientY };
+        }
+        const rect = canvas.getBoundingClientRect();
+        return { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+    }
+
+    function onPointerMove(event) {
+        updatePointerFromEvent(event);
+    }
+
     function onPointerDown(event) {
+        updatePointerFromEvent(event);
         handleFirstInteraction();
         isPointerDown = true;
         autoRotate = false;
         rotationVelocity = 0;
-        dragStartX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
+        const { clientX } = extractClientCoords(event);
+        dragStartX = clientX || 0;
         overlay.classList.add('is-dragging');
         rotationTween?.kill?.();
         rotationTween = null;
