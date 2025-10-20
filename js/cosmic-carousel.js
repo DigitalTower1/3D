@@ -1196,6 +1196,7 @@ export function createCosmicCarousel({
             return;
         }
         if (activeGroup) {
+            flipCard(activeGroup, false);
             activeGroup.userData.isActive = false;
             refreshCardVisual(activeGroup);
         }
@@ -1218,7 +1219,7 @@ export function createCosmicCarousel({
             onUpdate: () => { targetRotation = rotationProxy.value; },
             onComplete: () => { rotationTween = null; }
         });
-        focusTimeline.timeScale(1).play();
+        focusTimeline.timeScale(1).play(0);
         autoRotate = false;
         setAutoRotateStrength(0.02);
         audio.playFocus();
