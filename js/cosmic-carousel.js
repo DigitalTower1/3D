@@ -4,6 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectionShader.js';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
 // ---------------------------------------------------------------------------
@@ -484,240 +485,6 @@ function createAudioController() {
 }
 
 // ---------------------------------------------------------------------------
-//  Utility: volumetric cone per spotlight (effetto morbido)
-// ---------------------------------------------------------------------------
-function createVolumetricCone({ color, height = 6, radius = 2.4, opacity = 0.22 }) {
-    const geometry = new THREE.ConeGeometry(radius, height, 32, 1, true);
-    const material = new THREE.MeshBasicMaterial({
-        color,
-        transparent: true,
-        opacity,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.DoubleSide
-    });
-    const mesh = new THREE.Mesh(geometry, material);
-    mesh.renderOrder = -5;
-    return mesh;
-}
-
-// ---------------------------------------------------------------------------
-//  Utility: nebulose animate con shader leggero
-// ---------------------------------------------------------------------------
-function createNebulaField() {
-    const group = new THREE.Group();
-    const meshes = [];
-    const geometry = new THREE.PlaneGeometry(18, 12, 32, 32);
-    const palette = [
-        [0x46d9ff, 0x0b1e3f, 0xff914d],
-        [0x2dd4ff, 0x08122d, 0xffb36a],
-        [0x88f2ff, 0x0b1744, 0xff7e39]
-    ];
-
-    for (let i = 0; i < 3; i++) {
-        const [c1, c2, c3] = palette[i];
-        const material = new THREE.ShaderMaterial({
-            transparent: true,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending,
-            uniforms: {
-                time: { value: 0 },
-                colorA: { value: new THREE.Color(c1) },
-                colorB: { value: new THREE.Color(c2) },
-                colorC: { value: new THREE.Color(c3) },
-                intensity: { value: 0.65 }
-            },
-            vertexShader: `
-                varying vec2 vUv;
-                uniform float time;
-                void main(){
-                    vUv = uv;
-                    vec3 displaced = position;
-                    displaced.z += sin((uv.x + uv.y + time * 0.15) * 6.2831) * 0.35;
-                    displaced.x += sin((uv.y + time * 0.2) * 6.2831) * 0.1;
-                    gl_Position = projectionMatrix * modelViewMatrix * vec4(displaced, 1.0);
-                }
-            `,
-            fragmentShader: `
-                varying vec2 vUv;
-                uniform vec3 colorA;
-                uniform vec3 colorB;
-                uniform vec3 colorC;
-                uniform float intensity;
-                void main(){
-                    float dist = distance(vUv, vec2(0.5));
-                    float glow = smoothstep(0.6, 0.0, dist);
-                    float pulse = 0.6 + 0.4 * sin((vUv.x + vUv.y) * 6.2831 + intensity * 3.1415);
-                    vec3 base = mix(colorB, colorA, pow(glow, 0.6));
-                    base = mix(base, colorC, vUv.x * 0.8);
-                    float alpha = glow * pulse * intensity;
-                    if(alpha < 0.01) discard;
-                    gl_FragColor = vec4(base, alpha);
-                }
-            `
-        });
-        const mesh = new THREE.Mesh(geometry.clone(), material);
-        mesh.position.set((i - 1) * 12, 2 - i * 0.6, -18 - i * 6);
-        mesh.rotation.set(0, Math.PI * 0.08 * (i - 1), 0);
-        group.add(mesh);
-        meshes.push(mesh);
-    }
-
-    geometry.dispose();
-
-    let elapsed = 0;
-    return {
-        group,
-        update(delta) {
-            elapsed += delta;
-            meshes.forEach((mesh, idx) => {
-                mesh.material.uniforms.time.value = elapsed * (0.4 + idx * 0.12);
-                mesh.material.uniforms.intensity.value = 0.55 + Math.sin(elapsed * 1.4 + idx) * 0.08;
-            });
-        },
-        dispose() {
-            meshes.forEach((mesh) => {
-                mesh.geometry.dispose();
-                mesh.material.dispose();
-            });
-        }
-    };
-}
-
-// ---------------------------------------------------------------------------
-//  Utility: comete leggere animate
-// ---------------------------------------------------------------------------
-function createCometField(count = 12) {
-    const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(count * 3);
-    const velocities = new Float32Array(count * 3);
-    for (let i = 0; i < count; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 40;
-        positions[i * 3 + 1] = Math.random() * 12 + 4;
-        positions[i * 3 + 2] = Math.random() * -40 - 12;
-        velocities[i * 3] = 2 + Math.random() * 1.5;
-        velocities[i * 3 + 1] = -0.4 - Math.random() * 0.3;
-        velocities[i * 3 + 2] = 6 + Math.random() * 2.5;
-    }
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    const cometMaterial = new THREE.PointsMaterial({
-        color: 0xffcbaa,
-        size: 0.35,
-        transparent: true,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        opacity: 0.85
-    });
-
-    const points = new THREE.Points(geometry, cometMaterial);
-    points.renderOrder = 10;
-
-    return {
-        points,
-        update(delta) {
-            const array = geometry.attributes.position.array;
-            for (let i = 0; i < count; i++) {
-                const idx = i * 3;
-                array[idx] += velocities[idx] * delta;
-                array[idx + 1] += velocities[idx + 1] * delta;
-                array[idx + 2] += velocities[idx + 2] * delta;
-                if (array[idx] > 28 || array[idx + 2] > 10) {
-                    array[idx] = -30 - Math.random() * 10;
-                    array[idx + 1] = Math.random() * 14 + 2;
-                    array[idx + 2] = -30 - Math.random() * 18;
-                }
-            }
-            geometry.attributes.position.needsUpdate = true;
-        },
-        dispose() {
-            geometry.dispose();
-            cometMaterial.dispose();
-        }
-    };
-}
-
-// ---------------------------------------------------------------------------
-//  Utility: campo stellare multistrato realistico
-// ---------------------------------------------------------------------------
-function createStarField() {
-    const group = new THREE.Group();
-    const layersConfig = [
-        { count: 680, radius: 120, size: 0.16, opacity: 0.58, twinkleSpeed: 0.35, tintA: 0x8fc5ff, tintB: 0xffb07d },
-        { count: 260, radius: 72, size: 0.28, opacity: 0.88, twinkleSpeed: 0.6, tintA: 0xd7efff, tintB: 0xffe6a8 }
-    ];
-
-    const geometries = [];
-    const materials = [];
-
-    layersConfig.forEach((layer, index) => {
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(layer.count * 3);
-        const colors = new Float32Array(layer.count * 3);
-        const colorA = new THREE.Color(layer.tintA);
-        const colorB = new THREE.Color(layer.tintB);
-
-        for (let i = 0; i < layer.count; i++) {
-            const r = layer.radius * Math.pow(Math.random(), 0.52);
-            const theta = Math.random() * Math.PI * 2;
-            const phi = Math.acos(THREE.MathUtils.randFloatSpread(2));
-            const sinPhi = Math.sin(phi);
-            const x = r * Math.cos(theta) * sinPhi;
-            const y = r * Math.cos(phi) * 0.58;
-            const z = r * Math.sin(theta) * sinPhi;
-            const offset = i * 3;
-            positions[offset] = x;
-            positions[offset + 1] = y;
-            positions[offset + 2] = z;
-
-            const mix = Math.random();
-            colors[offset] = THREE.MathUtils.lerp(colorA.r, colorB.r, mix);
-            colors[offset + 1] = THREE.MathUtils.lerp(colorA.g, colorB.g, mix);
-            colors[offset + 2] = THREE.MathUtils.lerp(colorA.b, colorB.b, mix);
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.PointsMaterial({
-            vertexColors: true,
-            size: layer.size,
-            sizeAttenuation: true,
-            transparent: true,
-            depthWrite: false,
-            opacity: layer.opacity,
-            blending: THREE.AdditiveBlending
-        });
-
-        const points = new THREE.Points(geometry, material);
-        points.frustumCulled = false;
-        points.renderOrder = 5 + index;
-        group.add(points);
-        geometries.push(geometry);
-        materials.push(material);
-    });
-
-    group.rotation.x = 0.08;
-
-    return {
-        group,
-        update(delta, now) {
-            group.rotation.y += delta * 0.018;
-            group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, 0.08, 0.02);
-            materials.forEach((material, idx) => {
-                const layer = layersConfig[idx];
-                const pulse = Math.sin(now * 0.0012 * layer.twinkleSpeed + idx) * 0.12;
-                material.opacity = THREE.MathUtils.clamp(layer.opacity + pulse, 0.22, 1);
-            });
-        },
-        dispose() {
-            geometries.forEach((geometry) => geometry.dispose());
-            materials.forEach((material) => material.dispose());
-        }
-    };
-}
-
-// ---------------------------------------------------------------------------
 //  Funzione principale: crea carosello cosmico orbitante
 // ---------------------------------------------------------------------------
 export function createCosmicCarousel({
@@ -797,189 +564,83 @@ export function createCosmicCarousel({
     // -----------------------------
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.useLegacyLights = false;
+    renderer.physicallyCorrectLights = true;
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.35;
+    renderer.toneMappingExposure = 1.25;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x010314);
-    scene.fog = new THREE.FogExp2(0x010314, 0.012);
+    scene.background = null;
 
-    const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-    const cameraRestOffset = new THREE.Vector3(0, 1.55, 8.3);
-    const cameraFocusShift = new THREE.Vector3(0, -0.42, -1.55);
-    camera.position.copy(cameraRestOffset);
+    const pmremGenerator = new THREE.PMREMGenerator(renderer);
+    pmremGenerator.compileEquirectangularShader();
+    let environmentTexture = null;
+    let environmentRenderTarget = null;
+    new RGBELoader()
+        .setPath('./assets/3d/env/')
+        .load(
+            'solitude_night_4k.hdr',
+            (hdr) => {
+                environmentRenderTarget = pmremGenerator.fromEquirectangular(hdr);
+                environmentTexture = environmentRenderTarget.texture;
+                scene.environment = environmentTexture;
+                scene.background = environmentTexture;
+                hdr.dispose();
+                pmremGenerator.dispose();
+            },
+            undefined,
+            () => {
+                pmremGenerator.dispose();
+                scene.background = new THREE.Color(0x05070d);
+            }
+        );
+
+    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 200);
+    const cameraIdleOffset = new THREE.Vector3(0.1, 1.6, 8.2);
+    const cameraFocusOffset = new THREE.Vector3(-0.15, 1.2, 5.1);
+    camera.position.copy(cameraIdleOffset);
     scene.add(camera);
-    const cameraLookTarget = new THREE.Vector3(0, 1.1, 0);
-    let cameraLookBaseY = 1.1;
+    const cameraLookTarget = new THREE.Vector3(0, 1.05, 0);
+    let cameraLookBaseY = 1.05;
 
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.6, 0.85, 0.5);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.8, 0.42);
     composer.addPass(bloomPass);
     const lutPass = new ShaderPass(ColorCorrectionShader);
-    lutPass.uniforms.powRGB.value.set(1.2, 1.05, 1.25);
-    lutPass.uniforms.mulRGB.value.set(1.12, 1.04, 1.26);
-    lutPass.uniforms.addRGB.value.set(0.02, 0.01, -0.02);
+    lutPass.uniforms.powRGB.value.set(1.08, 1.02, 1.12);
+    lutPass.uniforms.mulRGB.value.set(1.06, 1.02, 1.18);
+    lutPass.uniforms.addRGB.value.set(0.008, 0.006, -0.01);
     composer.addPass(lutPass);
 
     // -----------------------------
-    //  Luci: sole e luna + rim ambient
+    //  Illuminazione fisica
     // -----------------------------
-    const ambient = new THREE.HemisphereLight(0x1a3556, 0x02030b, 0.55);
+    const ambient = new THREE.AmbientLight(0x1a2233, 0.45);
     scene.add(ambient);
 
-    const sunLight = new THREE.SpotLight(0xffd3a4, 2.6, 68, Math.PI / 4.6, 0.32, 1.05);
-    sunLight.position.set(8, 12, 7);
-    sunLight.penumbra = 0.55;
-    sunLight.target.position.set(-0.4, 1.2, 0);
-    scene.add(sunLight);
-    scene.add(sunLight.target);
+    const keyLight = new THREE.DirectionalLight(0xffddb1, 2.2);
+    keyLight.position.set(6.5, 7.8, 5.2);
+    keyLight.target.position.set(0, 1.2, 0);
+    scene.add(keyLight);
+    scene.add(keyLight.target);
 
-    const moonLight = new THREE.SpotLight(0x7cd4ff, 1.5, 54, Math.PI / 5.2, 0.5, 1.05);
-    moonLight.position.set(-10, 7.5, -5.5);
-    moonLight.penumbra = 0.48;
-    moonLight.target.position.set(0.2, 1.6, 0);
-    scene.add(moonLight);
-    scene.add(moonLight.target);
+    const rimLight = new THREE.DirectionalLight(0x7cc7ff, 1.4);
+    rimLight.position.set(-5.2, 3.6, -4.8);
+    rimLight.target.position.set(0, 1.4, 0);
+    scene.add(rimLight);
+    scene.add(rimLight.target);
 
-    const fillLight = new THREE.PointLight(0x0b1c33, 1.15, 38, 1.6);
-    fillLight.position.set(-4.6, 2.8, 6.2);
+    const fillLight = new THREE.PointLight(0x27496d, 0.9, 40, 2.2);
+    fillLight.position.set(-2.4, 2.1, 6.4);
     scene.add(fillLight);
 
-    const sunCone = createVolumetricCone({ color: 0xffa76d, height: 14, radius: 6, opacity: 0.22 });
-    sunCone.position.copy(sunLight.position.clone().multiplyScalar(0.82));
-    sunCone.lookAt(sunLight.target.position);
-    scene.add(sunCone);
-
-    const moonCone = createVolumetricCone({ color: 0x69cfff, height: 12, radius: 5, opacity: 0.18 });
-    moonCone.position.copy(moonLight.position.clone().multiplyScalar(0.76));
-    moonCone.lookAt(moonLight.target.position);
-    scene.add(moonCone);
-
-    const rimBackLight = new THREE.DirectionalLight(0x1e88ff, 0.45);
-    rimBackLight.position.set(4, 4.2, -7);
-    rimBackLight.target.position.set(0, 1.8, 0);
-    scene.add(rimBackLight);
-    scene.add(rimBackLight.target);
-
-    // -----------------------------
-    //  Background cosmico animato
-    // -----------------------------
-    const galaxyGeo = new THREE.SphereGeometry(90, 64, 64);
-    const galaxyMat = new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        uniforms: {
-            time: { value: 0 },
-            colorA: { value: new THREE.Color(0x08153b) },
-            colorB: { value: new THREE.Color(0x1c2b64) },
-            colorC: { value: new THREE.Color(0x0f2f4b) }
-        },
-        vertexShader: `
-            varying vec2 vUv;
-            void main(){
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
-            }
-        `,
-        fragmentShader: `
-            varying vec2 vUv;
-            uniform float time;
-            uniform vec3 colorA;
-            uniform vec3 colorB;
-            uniform vec3 colorC;
-            float hash(vec2 p){
-                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-            }
-            float noise(vec2 p){
-                vec2 i = floor(p);
-                vec2 f = fract(p);
-                float a = hash(i);
-                float b = hash(i + vec2(1.0, 0.0));
-                float c = hash(i + vec2(0.0, 1.0));
-                float d = hash(i + vec2(1.0, 1.0));
-                vec2 u = f * f * (3.0 - 2.0 * f);
-                return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
-            }
-            float fbm(vec2 p){
-                float value = 0.0;
-                float amplitude = 0.5;
-                float frequency = 1.0;
-                for(int i = 0; i < 5; i++){
-                    value += amplitude * noise(p * frequency);
-                    frequency *= 2.3;
-                    amplitude *= 0.52;
-                }
-                return value;
-            }
-            void main(){
-                vec2 uv = vUv * 2.0 - 1.0;
-                vec2 polar = vec2(length(uv), atan(uv.y, uv.x));
-                float nebula = fbm(uv * 3.2 + time * 0.03);
-                float swirl = fbm(vec2(polar.x * 5.0, polar.y * 1.3 + time * 0.05));
-                float dust = fbm(uv * 6.5 - time * 0.015);
-                float gradient = smoothstep(-0.15, 1.05, nebula + swirl * 0.6);
-                vec3 base = mix(colorA, colorB, gradient);
-                base = mix(base, colorC, clamp(dust * 1.3, 0.0, 1.0));
-                float starNoise = noise(uv * 150.0 + time * 0.18);
-                float stars = smoothstep(0.92, 1.0, starNoise) * (0.6 + dust * 0.4);
-                vec3 starCol = mix(vec3(0.95, 0.76, 0.48), vec3(0.42, 0.8, 1.0), clamp(uv.y * 0.5 + 0.5, 0.0, 1.0));
-                vec3 color = base + starCol * stars * 1.25;
-                gl_FragColor = vec4(color, 1.0);
-            }
-        `
-    });
-    const galaxy = new THREE.Mesh(galaxyGeo, galaxyMat);
-    galaxy.frustumCulled = false;
-    scene.add(galaxy);
-
-    const nebulaField = createNebulaField();
-    scene.add(nebulaField.group);
-
-    const cometField = createCometField(16);
-    scene.add(cometField.points);
-
-    // -----------------------------
-    //  Stelle stratificate con twinkle realistico
-    // -----------------------------
-    const starField = createStarField();
-    scene.add(starField.group);
-
-    // -----------------------------
-    //  Sole & luna emissivi con bloom
-    // -----------------------------
-    const sunMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(1.4, 36, 36),
-        new THREE.MeshPhysicalMaterial({
-            color: 0xffd8a0,
-            emissive: 0xffc27a,
-            emissiveIntensity: 1.65,
-            roughness: 0.42,
-            metalness: 0.0,
-            clearcoat: 0.35,
-            clearcoatRoughness: 0.28
-        })
-    );
-    sunMesh.position.copy(sunLight.position);
-    scene.add(sunMesh);
-
-    const moonMesh = new THREE.Mesh(
-        new THREE.SphereGeometry(0.9, 32, 32),
-        new THREE.MeshPhysicalMaterial({
-            color: 0xbfd4ff,
-            emissive: 0x7aa6ff,
-            emissiveIntensity: 0.48,
-            roughness: 0.68,
-            metalness: 0.05,
-            transmission: 0,
-            reflectivity: 0.18
-        })
-    );
-    moonMesh.position.copy(moonLight.position).multiplyScalar(0.6);
-    scene.add(moonMesh);
+    const bounceLight = new THREE.PointLight(0x0f1b2d, 0.6, 28, 2.5);
+    bounceLight.position.set(2.4, -1.2, -4.6);
+    scene.add(bounceLight);
 
     // -----------------------------
     //  Carosello 3D orbitante
@@ -1117,13 +778,20 @@ export function createCosmicCarousel({
     let isClosing = false;
     let hasInteracted = false;
     const tmpCameraDir = new THREE.Vector3();
+    const tmpCameraOffset = new THREE.Vector3();
+    const tmpDesiredCamera = new THREE.Vector3();
+    const tmpLookBase = new THREE.Vector3();
+    const tmpLookBlend = new THREE.Vector3();
+    const focusAnchor = new THREE.Vector3();
 
     const autoRotateStrength = { value: 1 };
 
     const focusState = { value: 0 };
     const focusTimeline = gsap.timeline({ paused: true });
-    focusTimeline.to(lutPass.uniforms.mulRGB.value, { x: 1.26, y: 1.04, z: 1.32, duration: 1.2, ease: 'power4.inOut' }, 0);
-    focusTimeline.to(lutPass.uniforms.powRGB.value, { x: 1.4, y: 1.1, z: 1.6, duration: 1.2, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(lutPass.uniforms.mulRGB.value, { x: 1.18, y: 1.05, z: 1.28, duration: 1.2, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(lutPass.uniforms.powRGB.value, { x: 1.28, y: 1.08, z: 1.42, duration: 1.2, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(lutPass.uniforms.addRGB.value, { x: 0.02, y: 0.012, z: -0.018, duration: 1.2, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(bloomPass, { strength: 0.9, radius: 0.95, threshold: 0.55, duration: 1.15, ease: 'power4.inOut' }, 0);
     focusTimeline.to(focusState, { value: 1, duration: 1.15, ease: 'power4.inOut' }, 0);
     focusTimeline.eventCallback('onReverseComplete', () => {
         focusState.value = 0;
@@ -1150,22 +818,26 @@ export function createCosmicCarousel({
     function refreshCardVisual(group) {
         if (!group) return;
         const { visual, glow, rimMaterial, isActive, isHover } = group.userData;
-        const scaleTarget = isActive ? 1.12 : isHover ? 1.05 : 1;
-        const tiltX = isActive ? THREE.MathUtils.degToRad(-3) : isHover ? THREE.MathUtils.degToRad(-5) : 0;
-        const tiltZ = isActive ? THREE.MathUtils.degToRad(4) : isHover ? THREE.MathUtils.degToRad(5.5) : 0;
-        const glowOpacity = isActive ? 1.45 : isHover ? 1.12 : 0.72;
+        const scaleTarget = isActive ? 1.18 : isHover ? 1.07 : 1;
+        const tiltX = isActive ? THREE.MathUtils.degToRad(-6) : isHover ? THREE.MathUtils.degToRad(-4) : 0;
+        const tiltZ = isActive ? THREE.MathUtils.degToRad(6.5) : isHover ? THREE.MathUtils.degToRad(4.2) : 0;
+        const glowOpacity = isActive ? 1.5 : isHover ? 1.15 : 0.7;
+        gsap.killTweensOf(visual.scale);
+        gsap.killTweensOf(visual.rotation);
+        gsap.killTweensOf(glow.material);
         gsap.to(visual.scale, { x: scaleTarget, y: scaleTarget, z: scaleTarget, duration: 0.55, ease: 'power4.out' });
-        gsap.to(visual.rotation, { x: tiltX, y: 0, z: tiltZ, duration: 0.65, ease: 'power4.out' });
-        gsap.to(glow.material, { opacity: glowOpacity, duration: 0.5, ease: 'power2.out' });
-        animateRimStrength(rimMaterial, isActive ? 3.1 : isHover ? 2.2 : 1.4);
+        gsap.to(visual.rotation, { x: tiltX, y: 0, z: tiltZ, duration: 0.6, ease: 'power4.out' });
+        gsap.to(glow.material, { opacity: glowOpacity, duration: 0.45, ease: 'power2.out' });
+        animateRimStrength(rimMaterial, isActive ? 3.2 : isHover ? 2.25 : 1.4);
     }
 
     function flipCard(group, showBack) {
         if (!group) return;
         const { pivot } = group.userData;
+        gsap.killTweensOf(pivot.rotation);
         gsap.to(pivot.rotation, {
             y: showBack ? Math.PI : 0,
-            duration: 0.8,
+            duration: 0.78,
             ease: 'power4.inOut'
         });
     }
@@ -1187,6 +859,7 @@ export function createCosmicCarousel({
             autoRotate = true;
         }
         setAutoRotateStrength(overlayHovered ? 0.18 : 1);
+        focusAnchor.set(0, cameraLookBaseY, 0);
     }
 
     function activateCard(group) {
@@ -1203,6 +876,7 @@ export function createCosmicCarousel({
         activeGroup = group;
         activeGroup.userData.isActive = true;
         refreshCardVisual(activeGroup);
+        focusAnchor.copy(activeGroup.position);
         flipCard(activeGroup, true);
         rotationTween?.kill?.();
         const desiredBase = -group.userData.baseAngle;
@@ -1219,7 +893,7 @@ export function createCosmicCarousel({
             onUpdate: () => { targetRotation = rotationProxy.value; },
             onComplete: () => { rotationTween = null; }
         });
-        focusTimeline.timeScale(1).play(0);
+        focusTimeline.timeScale(1).restart(true);
         autoRotate = false;
         setAutoRotateStrength(0.02);
         audio.playFocus();
@@ -1404,7 +1078,7 @@ export function createCosmicCarousel({
         const width = overlay.clientWidth;
         const height = overlay.clientHeight;
         renderer.setSize(width, height, false);
-        const ratioCap = width < 720 ? 1.3 : 1.6;
+        const ratioCap = width < 720 ? 1.2 : 1.6;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, ratioCap));
         composer.setSize(width, height);
         if (composer.setPixelRatio) {
@@ -1414,16 +1088,20 @@ export function createCosmicCarousel({
         camera.updateProjectionMatrix();
 
         const mobile = width < 720;
-        const desiredZ = mobile ? 9.6 : 8.2;
-        const desiredY = mobile ? 1.25 : 1.55;
-        const desiredLookY = mobile ? 0.95 : 1.1;
-        gsap.to(cameraRestOffset, { x: 0, y: desiredY, z: desiredZ, duration: 0.8, ease: 'power2.out' });
-        cameraFocusShift.set(0, mobile ? -0.26 : -0.42, mobile ? -1.05 : -1.55);
-        cameraLookBaseY = desiredLookY;
+        const idleTarget = mobile
+            ? { x: 0.06, y: 1.35, z: 9.3 }
+            : { x: 0.12, y: 1.62, z: 8.0 };
+        const focusTarget = mobile
+            ? { x: -0.04, y: 1.05, z: 5.6 }
+            : { x: -0.18, y: 1.18, z: 5.05 };
+        gsap.to(cameraIdleOffset, { ...idleTarget, duration: 0.8, ease: 'power2.out' });
+        gsap.to(cameraFocusOffset, { ...focusTarget, duration: 0.8, ease: 'power2.out' });
+        cameraLookBaseY = mobile ? 0.94 : 1.05;
     }
     updateRendererSize();
-    camera.position.set(cameraRestOffset.x, cameraRestOffset.y - 0.6, cameraRestOffset.z + 6);
+    camera.position.set(cameraIdleOffset.x, cameraIdleOffset.y - 0.5, cameraIdleOffset.z + 5.2);
     cameraLookTarget.set(0, cameraLookBaseY, 0);
+    focusAnchor.set(0, cameraLookBaseY, 0);
     let resizeObserver = null;
     if ('ResizeObserver' in window) {
         resizeObserver = new ResizeObserver(updateRendererSize);
@@ -1445,23 +1123,31 @@ export function createCosmicCarousel({
         }
         currentRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, 0.12);
 
-        const cameraDir = tmpCameraDir.copy(cameraRestOffset)
-            .addScaledVector(cameraFocusShift, focusState.value)
-            .normalize();
+        const focusAmount = focusState.value;
+        const cameraBaseOffset = tmpCameraOffset.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
+        const cameraDir = tmpCameraDir.copy(cameraBaseOffset).normalize();
+        tmpDesiredCamera.copy(cameraBaseOffset);
+        if (!activeGroup) {
+            focusAnchor.set(0, cameraLookBaseY, 0);
+        }
 
         cardGroups.forEach((group) => {
             const angle = group.userData.baseAngle + currentRotation;
-            const focus = group === activeGroup ? focusState.value : 0;
-            const orbitRadius = cardRadius - focus * 0.65;
+            const focus = group === activeGroup ? focusAmount : 0;
+            const orbitRadius = cardRadius - focus * 0.95;
             const baseX = Math.cos(angle) * orbitRadius;
             const baseZ = Math.sin(angle) * orbitRadius;
             const baseY = Math.sin(angle * 2.0) * 0.35;
-            const pull = focus * 1.25;
+            const pull = focus * 1.35;
             const x = baseX + cameraDir.x * pull;
-            const y = baseY + cameraDir.y * pull + focus * 0.24;
+            const y = baseY + cameraDir.y * pull + focus * 0.3;
             const z = baseZ + cameraDir.z * pull;
             group.position.set(x, y, z);
-            group.lookAt(cameraDir.x * 4, 0.12 + focus * 0.18, cameraDir.z * 4);
+            const lookY = THREE.MathUtils.lerp(0.18, 0.52, focus);
+            group.lookAt(tmpDesiredCamera.x, lookY, tmpDesiredCamera.z);
+            if (group === activeGroup) {
+                group.getWorldPosition(focusAnchor);
+            }
             group.userData.lod?.update(camera);
         });
     }
@@ -1493,32 +1179,28 @@ export function createCosmicCarousel({
         const delta = (now - previousTime) / 1000;
         previousTime = now;
 
-        galaxyMat.uniforms.time.value += delta * 0.4;
-        nebulaField.update(delta);
-        cometField.update(delta);
-        starField.update(delta, now);
-        sunMesh.rotation.y += delta * 0.2;
-        moonMesh.rotation.y += delta * 0.15;
-        sunCone.material.opacity = 0.18 + Math.sin(now * 0.00085) * 0.05;
-        moonCone.material.opacity = 0.16 + Math.cos(now * 0.0009) * 0.04;
-
         updateCarousel(delta);
         updateHover();
 
         const parallaxLerp = overlayHovered ? 0.12 : 0.08;
         parallaxCurrent.lerp(parallaxTarget, parallaxLerp);
-        const baseX = cameraRestOffset.x + cameraFocusShift.x * focusState.value;
-        const baseY = cameraRestOffset.y + cameraFocusShift.y * focusState.value;
-        const baseZ = cameraRestOffset.z + cameraFocusShift.z * focusState.value;
-        const desiredX = baseX + parallaxCurrent.x * 1.35;
-        const desiredY = baseY + parallaxCurrent.y * 0.8;
-        const desiredZ = baseZ + parallaxCurrent.y * -0.4;
-        camera.position.x += (desiredX - camera.position.x) * 0.08;
-        camera.position.y += (desiredY - camera.position.y) * 0.08;
-        camera.position.z += (desiredZ - camera.position.z) * 0.08;
-        cameraLookTarget.x += ((parallaxCurrent.x * 0.8) - cameraLookTarget.x) * 0.08;
-        const lookTargetY = cameraLookBaseY + parallaxCurrent.y * 0.35;
-        cameraLookTarget.y += (lookTargetY - cameraLookTarget.y) * 0.08;
+        const focusAmount = focusState.value;
+        const baseOffset = tmpDesiredCamera.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
+        const desiredX = baseOffset.x + parallaxCurrent.x * 1.25;
+        const desiredY = baseOffset.y + parallaxCurrent.y * 0.75;
+        const desiredZ = baseOffset.z + parallaxCurrent.y * -0.38;
+        camera.position.x += (desiredX - camera.position.x) * 0.085;
+        camera.position.y += (desiredY - camera.position.y) * 0.085;
+        camera.position.z += (desiredZ - camera.position.z) * 0.085;
+        tmpLookBase.set(0, cameraLookBaseY, 0);
+        tmpLookBlend.copy(tmpLookBase);
+        if (activeGroup) {
+            tmpLookBlend.lerp(focusAnchor, focusAmount);
+        }
+        tmpLookBlend.x += parallaxCurrent.x * 0.85;
+        tmpLookBlend.y += parallaxCurrent.y * 0.35;
+        tmpLookBlend.z += parallaxCurrent.y * -0.25;
+        cameraLookTarget.lerp(tmpLookBlend, 0.12);
         camera.lookAt(cameraLookTarget);
 
         composer.render();
@@ -1562,14 +1244,12 @@ export function createCosmicCarousel({
         overlay.remove();
         renderer.dispose();
         composer.dispose();
-        scene.remove(starField.group, galaxy, carouselGroup, sunMesh, moonMesh, nebulaField.group, cometField.points, sunCone, moonCone, sunLight, moonLight, sunLight.target, moonLight.target, ambient, fillLight, rimBackLight, rimBackLight.target);
-        nebulaField.dispose();
-        cometField.dispose();
-        sunCone.geometry.dispose();
-        sunCone.material.dispose();
-        moonCone.geometry.dispose();
-        moonCone.material.dispose();
-        starField.dispose();
+        scene.remove(carouselGroup, ambient, keyLight, keyLight.target, rimLight, rimLight.target, fillLight, bounceLight);
+        scene.environment = null;
+        scene.background = null;
+        environmentRenderTarget?.dispose?.();
+        environmentRenderTarget = null;
+        environmentTexture = null;
         cardGroups.forEach(({ userData }) => {
             userData.frontTexture?.dispose?.();
             userData.backTexture?.dispose?.();
@@ -1582,10 +1262,6 @@ export function createCosmicCarousel({
         bodyGeometry.dispose();
         faceGeometry.dispose();
         lowFaceGeometry.dispose();
-        sunMesh.material?.dispose?.();
-        moonMesh.material?.dispose?.();
-        galaxyGeo.dispose();
-        galaxyMat.dispose();
         audio.dispose();
     }
 
