@@ -7,26 +7,6 @@ import { ColorCorrectionShader } from 'three/examples/jsm/shaders/ColorCorrectio
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
 // ---------------------------------------------------------------------------
-//  Utility: gestione lazy per il caricamento di framer-motion (UMD globale)
-// ---------------------------------------------------------------------------
-let framerMotionPromise = null;
-function ensureFramerMotion() {
-    if (typeof window === 'undefined') return Promise.resolve(null);
-    if (window.framerMotion) return Promise.resolve(window.framerMotion);
-    if (!framerMotionPromise) {
-        framerMotionPromise = new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/framer-motion@11/dist/framer-motion.umd.min.js';
-            script.async = true;
-            script.onload = () => resolve(window.framerMotion || null);
-            script.onerror = () => reject(new Error('Impossibile caricare framer-motion'));
-            document.head.appendChild(script);
-        });
-    }
-    return framerMotionPromise;
-}
-
-// ---------------------------------------------------------------------------
 //  Utility: generazione texture 2D per le card (Canvas2D => Texture Three.js)
 // ---------------------------------------------------------------------------
 function createCardTexture(card) {
@@ -658,64 +638,83 @@ function createCometField(count = 12) {
 }
 
 // ---------------------------------------------------------------------------
-//  Utility: crea pannello dettagli tailwind e anima con framer-motion
+//  Utility: campo stellare multistrato realistico
 // ---------------------------------------------------------------------------
-function createDetailPanel(name) {
-    const panel = document.createElement('div');
-    panel.className = 'cosmic-carousel__detail pointer-events-auto';
-    panel.setAttribute('data-portal', name);
-    panel.innerHTML = `
-        <article class="cosmic-carousel__detail-card">
-            <header class="cosmic-carousel__detail-header">
-                <p class="cosmic-carousel__detail-subtitle"></p>
-                <h3 class="cosmic-carousel__detail-title"></h3>
-            </header>
-            <p class="cosmic-carousel__detail-text"></p>
-            <ul class="cosmic-carousel__detail-highlights"></ul>
-        </article>`;
-    panel.style.opacity = '0';
-    panel.style.pointerEvents = 'none';
-    return panel;
-}
+function createStarField() {
+    const group = new THREE.Group();
+    const layersConfig = [
+        { count: 680, radius: 120, size: 0.16, opacity: 0.58, twinkleSpeed: 0.35, tintA: 0x8fc5ff, tintB: 0xffb07d },
+        { count: 260, radius: 72, size: 0.28, opacity: 0.88, twinkleSpeed: 0.6, tintA: 0xd7efff, tintB: 0xffe6a8 }
+    ];
 
-function populateDetailPanel(panel, card) {
-    const title = panel.querySelector('.cosmic-carousel__detail-title');
-    const subtitle = panel.querySelector('.cosmic-carousel__detail-subtitle');
-    const text = panel.querySelector('.cosmic-carousel__detail-text');
-    const highlights = panel.querySelector('.cosmic-carousel__detail-highlights');
-    title.textContent = card.title;
-    subtitle.textContent = card.subtitle || '';
-    text.textContent = card.detail || card.summary || '';
-    highlights.innerHTML = '';
-    if (Array.isArray(card.highlights) && card.highlights.length) {
-        card.highlights.forEach((item) => {
-            const li = document.createElement('li');
-            li.innerHTML = `<span></span><p>${item}</p>`;
-            highlights.appendChild(li);
+    const geometries = [];
+    const materials = [];
+
+    layersConfig.forEach((layer, index) => {
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(layer.count * 3);
+        const colors = new Float32Array(layer.count * 3);
+        const colorA = new THREE.Color(layer.tintA);
+        const colorB = new THREE.Color(layer.tintB);
+
+        for (let i = 0; i < layer.count; i++) {
+            const r = layer.radius * Math.pow(Math.random(), 0.52);
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(THREE.MathUtils.randFloatSpread(2));
+            const sinPhi = Math.sin(phi);
+            const x = r * Math.cos(theta) * sinPhi;
+            const y = r * Math.cos(phi) * 0.58;
+            const z = r * Math.sin(theta) * sinPhi;
+            const offset = i * 3;
+            positions[offset] = x;
+            positions[offset + 1] = y;
+            positions[offset + 2] = z;
+
+            const mix = Math.random();
+            colors[offset] = THREE.MathUtils.lerp(colorA.r, colorB.r, mix);
+            colors[offset + 1] = THREE.MathUtils.lerp(colorA.g, colorB.g, mix);
+            colors[offset + 2] = THREE.MathUtils.lerp(colorA.b, colorB.b, mix);
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            vertexColors: true,
+            size: layer.size,
+            sizeAttenuation: true,
+            transparent: true,
+            depthWrite: false,
+            opacity: layer.opacity,
+            blending: THREE.AdditiveBlending
         });
-    }
-    highlights.style.display = highlights.childElementCount ? 'grid' : 'none';
-}
 
-async function animatePanelIn(panel) {
-    const framer = await ensureFramerMotion().catch(() => null);
-    if (!framer || !framer.animate) {
-        gsap.to(panel, { opacity: 1, duration: 0.5, ease: 'power2.out' });
-        return;
-    }
-    panel.style.opacity = '1';
-    panel.style.pointerEvents = 'auto';
-    framer.animate(panel, { opacity: [0, 1], y: [-16, 0] }, { duration: 0.55, ease: 'easeOut' });
-}
+        const points = new THREE.Points(geometry, material);
+        points.frustumCulled = false;
+        points.renderOrder = 5 + index;
+        group.add(points);
+        geometries.push(geometry);
+        materials.push(material);
+    });
 
-async function animatePanelOut(panel) {
-    const framer = await ensureFramerMotion().catch(() => null);
-    if (!framer || !framer.animate) {
-        gsap.to(panel, { opacity: 0, duration: 0.4, ease: 'power1.in' });
-        return;
-    }
-    panel.style.pointerEvents = 'none';
-    framer.animate(panel, { opacity: [panel.style.opacity || 1, 0], y: [0, -12] }, { duration: 0.45, ease: 'easeIn' });
+    group.rotation.x = 0.08;
+
+    return {
+        group,
+        update(delta, now) {
+            group.rotation.y += delta * 0.018;
+            group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, 0.08, 0.02);
+            materials.forEach((material, idx) => {
+                const layer = layersConfig[idx];
+                const pulse = Math.sin(now * 0.0012 * layer.twinkleSpeed + idx) * 0.12;
+                material.opacity = THREE.MathUtils.clamp(layer.opacity + pulse, 0.22, 1);
+            });
+        },
+        dispose() {
+            geometries.forEach((geometry) => geometry.dispose());
+            materials.forEach((material) => material.dispose());
+        }
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -773,7 +772,7 @@ export function createCosmicCarousel({
 
     const instructions = document.createElement('span');
     instructions.className = 'cosmic-carousel__hud-instructions';
-    instructions.textContent = 'Drag per orbitare • Hover per mettere in pausa • Clic per approfondire';
+    instructions.textContent = 'Drag per orbitare • Hover per mettere in pausa • Clic per flip & focus';
     instructions.style.opacity = '0';
 
     hudActions.appendChild(exitButton);
@@ -781,15 +780,7 @@ export function createCosmicCarousel({
     hud.appendChild(hudInfo);
     hud.appendChild(hudActions);
 
-    const detailPanel = createDetailPanel(name);
-
-    const chromeSpacer = document.createElement('div');
-    chromeSpacer.className = 'cosmic-carousel__spacer';
-    chromeSpacer.style.pointerEvents = 'none';
-
     chrome.appendChild(hud);
-    chrome.appendChild(chromeSpacer);
-    chrome.appendChild(detailPanel);
 
     overlay.appendChild(canvas);
     overlay.appendChild(chrome);
@@ -805,19 +796,21 @@ export function createCosmicCarousel({
     //  Setup Three.js
     // -----------------------------
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.useLegacyLights = false;
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.4;
+    renderer.toneMappingExposure = 1.35;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x020616);
-    scene.fog = new THREE.FogExp2(0x020616, 0.016);
+    scene.background = new THREE.Color(0x010314);
+    scene.fog = new THREE.FogExp2(0x010314, 0.012);
 
     const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 200);
-    const cameraBaseOffset = new THREE.Vector3(0, 1.55, 8.3);
-    camera.position.copy(cameraBaseOffset);
+    const cameraRestOffset = new THREE.Vector3(0, 1.55, 8.3);
+    const cameraFocusShift = new THREE.Vector3(0, -0.42, -1.55);
+    camera.position.copy(cameraRestOffset);
     scene.add(camera);
     const cameraLookTarget = new THREE.Vector3(0, 1.1, 0);
     let cameraLookBaseY = 1.1;
@@ -836,36 +829,42 @@ export function createCosmicCarousel({
     // -----------------------------
     //  Luci: sole e luna + rim ambient
     // -----------------------------
-    const ambient = new THREE.AmbientLight(0x0f2640, 0.72);
+    const ambient = new THREE.HemisphereLight(0x1a3556, 0x02030b, 0.55);
     scene.add(ambient);
 
-    const sunLight = new THREE.SpotLight(0xffc27c, 2.1, 48, Math.PI / 5.2, 0.45, 1.2);
-    sunLight.position.set(8, 12, 6);
-    sunLight.castShadow = false;
-    sunLight.target.position.set(0, 1, 0);
+    const sunLight = new THREE.SpotLight(0xffd3a4, 2.6, 68, Math.PI / 4.6, 0.32, 1.05);
+    sunLight.position.set(8, 12, 7);
+    sunLight.penumbra = 0.55;
+    sunLight.target.position.set(-0.4, 1.2, 0);
     scene.add(sunLight);
     scene.add(sunLight.target);
 
-    const moonLight = new THREE.SpotLight(0x6bd4ff, 1.35, 42, Math.PI / 4.8, 0.52, 1.1);
-    moonLight.position.set(-9, 6, -4);
-    moonLight.castShadow = false;
-    moonLight.target.position.set(0, 1.2, 0);
+    const moonLight = new THREE.SpotLight(0x7cd4ff, 1.5, 54, Math.PI / 5.2, 0.5, 1.05);
+    moonLight.position.set(-10, 7.5, -5.5);
+    moonLight.penumbra = 0.48;
+    moonLight.target.position.set(0.2, 1.6, 0);
     scene.add(moonLight);
     scene.add(moonLight.target);
 
+    const fillLight = new THREE.PointLight(0x0b1c33, 1.15, 38, 1.6);
+    fillLight.position.set(-4.6, 2.8, 6.2);
+    scene.add(fillLight);
+
     const sunCone = createVolumetricCone({ color: 0xffa76d, height: 14, radius: 6, opacity: 0.22 });
     sunCone.position.copy(sunLight.position.clone().multiplyScalar(0.82));
-    sunCone.lookAt(0, 0.4, 0);
+    sunCone.lookAt(sunLight.target.position);
     scene.add(sunCone);
 
     const moonCone = createVolumetricCone({ color: 0x69cfff, height: 12, radius: 5, opacity: 0.18 });
     moonCone.position.copy(moonLight.position.clone().multiplyScalar(0.76));
-    moonCone.lookAt(0, 0.6, 0);
+    moonCone.lookAt(moonLight.target.position);
     scene.add(moonCone);
 
-    const rimBackLight = new THREE.PointLight(0x1e88ff, 0.6, 30);
-    rimBackLight.position.set(0, 3.4, -6);
+    const rimBackLight = new THREE.DirectionalLight(0x1e88ff, 0.45);
+    rimBackLight.position.set(4, 4.2, -7);
+    rimBackLight.target.position.set(0, 1.8, 0);
     scene.add(rimBackLight);
+    scene.add(rimBackLight.target);
 
     // -----------------------------
     //  Background cosmico animato
@@ -892,17 +891,44 @@ export function createCosmicCarousel({
             uniform vec3 colorA;
             uniform vec3 colorB;
             uniform vec3 colorC;
+            float hash(vec2 p){
+                return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+            }
             float noise(vec2 p){
-                return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453);
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                float a = hash(i);
+                float b = hash(i + vec2(1.0, 0.0));
+                float c = hash(i + vec2(0.0, 1.0));
+                float d = hash(i + vec2(1.0, 1.0));
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+            }
+            float fbm(vec2 p){
+                float value = 0.0;
+                float amplitude = 0.5;
+                float frequency = 1.0;
+                for(int i = 0; i < 5; i++){
+                    value += amplitude * noise(p * frequency);
+                    frequency *= 2.3;
+                    amplitude *= 0.52;
+                }
+                return value;
             }
             void main(){
-                float n = noise(vUv * 25.0 + time * 0.05);
-                float nebula = smoothstep(0.2, 0.9, n);
-                float stars = step(0.985, noise(vUv * 450.0 + time * 0.15));
-                vec3 base = mix(colorA, colorB, nebula);
-                base = mix(base, colorC, sin((vUv.x + time * 0.04) * 3.1415));
-                vec3 starCol = mix(vec3(1.0,0.76,0.4), vec3(0.4,0.8,1.0), fract(vUv.x + time * 0.2));
-                gl_FragColor = vec4(base + starCol * stars, 1.0);
+                vec2 uv = vUv * 2.0 - 1.0;
+                vec2 polar = vec2(length(uv), atan(uv.y, uv.x));
+                float nebula = fbm(uv * 3.2 + time * 0.03);
+                float swirl = fbm(vec2(polar.x * 5.0, polar.y * 1.3 + time * 0.05));
+                float dust = fbm(uv * 6.5 - time * 0.015);
+                float gradient = smoothstep(-0.15, 1.05, nebula + swirl * 0.6);
+                vec3 base = mix(colorA, colorB, gradient);
+                base = mix(base, colorC, clamp(dust * 1.3, 0.0, 1.0));
+                float starNoise = noise(uv * 150.0 + time * 0.18);
+                float stars = smoothstep(0.92, 1.0, starNoise) * (0.6 + dust * 0.4);
+                vec3 starCol = mix(vec3(0.95, 0.76, 0.48), vec3(0.42, 0.8, 1.0), clamp(uv.y * 0.5 + 0.5, 0.0, 1.0));
+                vec3 color = base + starCol * stars * 1.25;
+                gl_FragColor = vec4(color, 1.0);
             }
         `
     });
@@ -917,42 +943,40 @@ export function createCosmicCarousel({
     scene.add(cometField.points);
 
     // -----------------------------
-    //  Stelle instanziate (performance)
+    //  Stelle stratificate con twinkle realistico
     // -----------------------------
-    const starGeometry = new THREE.BufferGeometry();
-    const starCount = 480;
-    const positions = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 120;
-        positions[i * 3 + 1] = Math.random() * 40 - 12;
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 120;
-    }
-    starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const starMaterial = new THREE.PointsMaterial({
-        color: 0xffffff,
-        size: 0.18,
-        sizeAttenuation: true,
-        transparent: true,
-        depthWrite: false,
-        opacity: 0.85
-    });
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    stars.frustumCulled = true;
-    scene.add(stars);
+    const starField = createStarField();
+    scene.add(starField.group);
 
     // -----------------------------
     //  Sole & luna emissivi con bloom
     // -----------------------------
     const sunMesh = new THREE.Mesh(
         new THREE.SphereGeometry(1.4, 36, 36),
-        new THREE.MeshBasicMaterial({ color: 0xffdd99 })
+        new THREE.MeshPhysicalMaterial({
+            color: 0xffd8a0,
+            emissive: 0xffc27a,
+            emissiveIntensity: 1.65,
+            roughness: 0.42,
+            metalness: 0.0,
+            clearcoat: 0.35,
+            clearcoatRoughness: 0.28
+        })
     );
     sunMesh.position.copy(sunLight.position);
     scene.add(sunMesh);
 
     const moonMesh = new THREE.Mesh(
         new THREE.SphereGeometry(0.9, 32, 32),
-        new THREE.MeshPhongMaterial({ color: 0xbfd9ff, emissive: 0x7aa6ff, emissiveIntensity: 0.6 })
+        new THREE.MeshPhysicalMaterial({
+            color: 0xbfd4ff,
+            emissive: 0x7aa6ff,
+            emissiveIntensity: 0.48,
+            roughness: 0.68,
+            metalness: 0.05,
+            transmission: 0,
+            reflectivity: 0.18
+        })
     );
     moonMesh.position.copy(moonLight.position).multiplyScalar(0.6);
     scene.add(moonMesh);
@@ -1092,12 +1116,18 @@ export function createCosmicCarousel({
     let overlayHovered = false;
     let isClosing = false;
     let hasInteracted = false;
+    const tmpCameraDir = new THREE.Vector3();
 
     const autoRotateStrength = { value: 1 };
 
+    const focusState = { value: 0 };
     const focusTimeline = gsap.timeline({ paused: true });
     focusTimeline.to(lutPass.uniforms.mulRGB.value, { x: 1.26, y: 1.04, z: 1.32, duration: 1.2, ease: 'power4.inOut' }, 0);
     focusTimeline.to(lutPass.uniforms.powRGB.value, { x: 1.4, y: 1.1, z: 1.6, duration: 1.2, ease: 'power4.inOut' }, 0);
+    focusTimeline.to(focusState, { value: 1, duration: 1.15, ease: 'power4.inOut' }, 0);
+    focusTimeline.eventCallback('onReverseComplete', () => {
+        focusState.value = 0;
+    });
 
     function handleFirstInteraction() {
         if (hasInteracted) return;
@@ -1120,14 +1150,14 @@ export function createCosmicCarousel({
     function refreshCardVisual(group) {
         if (!group) return;
         const { visual, glow, rimMaterial, isActive, isHover } = group.userData;
-        const scaleTarget = isActive ? 1.08 : isHover ? 1.04 : 1;
-        const tiltX = isActive ? THREE.MathUtils.degToRad(-4) : isHover ? THREE.MathUtils.degToRad(-6) : 0;
-        const tiltZ = isActive ? THREE.MathUtils.degToRad(3) : isHover ? THREE.MathUtils.degToRad(4) : 0;
-        const glowOpacity = isActive ? 1.35 : isHover ? 1.1 : 0.7;
-        gsap.to(visual.scale, { x: scaleTarget, y: scaleTarget, z: scaleTarget, duration: 0.5, ease: 'power4.out' });
-        gsap.to(visual.rotation, { x: tiltX, y: 0, z: tiltZ, duration: 0.6, ease: 'power4.out' });
-        gsap.to(glow.material, { opacity: glowOpacity, duration: 0.45, ease: 'power2.out' });
-        animateRimStrength(rimMaterial, isActive ? 2.8 : isHover ? 2.1 : 1.4);
+        const scaleTarget = isActive ? 1.12 : isHover ? 1.05 : 1;
+        const tiltX = isActive ? THREE.MathUtils.degToRad(-3) : isHover ? THREE.MathUtils.degToRad(-5) : 0;
+        const tiltZ = isActive ? THREE.MathUtils.degToRad(4) : isHover ? THREE.MathUtils.degToRad(5.5) : 0;
+        const glowOpacity = isActive ? 1.45 : isHover ? 1.12 : 0.72;
+        gsap.to(visual.scale, { x: scaleTarget, y: scaleTarget, z: scaleTarget, duration: 0.55, ease: 'power4.out' });
+        gsap.to(visual.rotation, { x: tiltX, y: 0, z: tiltZ, duration: 0.65, ease: 'power4.out' });
+        gsap.to(glow.material, { opacity: glowOpacity, duration: 0.5, ease: 'power2.out' });
+        animateRimStrength(rimMaterial, isActive ? 3.1 : isHover ? 2.2 : 1.4);
     }
 
     function flipCard(group, showBack) {
@@ -1145,9 +1175,11 @@ export function createCosmicCarousel({
         activeGroup.userData.isActive = false;
         flipCard(activeGroup, false);
         refreshCardVisual(activeGroup);
-        animatePanelOut(detailPanel);
-        detailPanel.style.pointerEvents = 'none';
-        focusTimeline.reverse();
+        if (focusTimeline.progress() > 0) {
+            focusTimeline.timeScale(1).reverse();
+        } else {
+            focusState.value = 0;
+        }
         rotationTween?.kill?.();
         rotationTween = null;
         activeGroup = null;
@@ -1186,10 +1218,7 @@ export function createCosmicCarousel({
             onUpdate: () => { targetRotation = rotationProxy.value; },
             onComplete: () => { rotationTween = null; }
         });
-        populateDetailPanel(detailPanel, group.userData.card);
-        detailPanel.style.pointerEvents = 'auto';
-        animatePanelIn(detailPanel);
-        focusTimeline.play();
+        focusTimeline.timeScale(1).play();
         autoRotate = false;
         setAutoRotateStrength(0.02);
         audio.playFocus();
@@ -1366,12 +1395,12 @@ export function createCosmicCarousel({
         const desiredZ = mobile ? 9.6 : 8.2;
         const desiredY = mobile ? 1.25 : 1.55;
         const desiredLookY = mobile ? 0.95 : 1.1;
-        gsap.to(cameraBaseOffset, { z: desiredZ, y: desiredY, duration: 0.8, ease: 'power2.out' });
-        cameraBaseOffset.x = 0;
+        gsap.to(cameraRestOffset, { x: 0, y: desiredY, z: desiredZ, duration: 0.8, ease: 'power2.out' });
+        cameraFocusShift.set(0, mobile ? -0.26 : -0.42, mobile ? -1.05 : -1.55);
         cameraLookBaseY = desiredLookY;
     }
     updateRendererSize();
-    camera.position.set(cameraBaseOffset.x, cameraBaseOffset.y - 0.6, cameraBaseOffset.z + 6);
+    camera.position.set(cameraRestOffset.x, cameraRestOffset.y - 0.6, cameraRestOffset.z + 6);
     cameraLookTarget.set(0, cameraLookBaseY, 0);
     let resizeObserver = null;
     if ('ResizeObserver' in window) {
@@ -1394,13 +1423,23 @@ export function createCosmicCarousel({
         }
         currentRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, 0.12);
 
-        cardGroups.forEach((group, index) => {
+        const cameraDir = tmpCameraDir.copy(cameraRestOffset)
+            .addScaledVector(cameraFocusShift, focusState.value)
+            .normalize();
+
+        cardGroups.forEach((group) => {
             const angle = group.userData.baseAngle + currentRotation;
-            const x = Math.cos(angle) * cardRadius;
-            const z = Math.sin(angle) * cardRadius;
-            const y = Math.sin(angle * 2.0) * 0.35;
+            const focus = group === activeGroup ? focusState.value : 0;
+            const orbitRadius = cardRadius - focus * 0.65;
+            const baseX = Math.cos(angle) * orbitRadius;
+            const baseZ = Math.sin(angle) * orbitRadius;
+            const baseY = Math.sin(angle * 2.0) * 0.35;
+            const pull = focus * 1.25;
+            const x = baseX + cameraDir.x * pull;
+            const y = baseY + cameraDir.y * pull + focus * 0.24;
+            const z = baseZ + cameraDir.z * pull;
             group.position.set(x, y, z);
-            group.lookAt(0, 0, 0);
+            group.lookAt(cameraDir.x * 4, 0.12 + focus * 0.18, cameraDir.z * 4);
             group.userData.lod?.update(camera);
         });
     }
@@ -1435,11 +1474,9 @@ export function createCosmicCarousel({
         galaxyMat.uniforms.time.value += delta * 0.4;
         nebulaField.update(delta);
         cometField.update(delta);
-        stars.rotation.y += delta * 0.03;
+        starField.update(delta, now);
         sunMesh.rotation.y += delta * 0.2;
         moonMesh.rotation.y += delta * 0.15;
-        const twinkle = 0.72 + Math.sin(now * 0.0016) * 0.1;
-        starMaterial.opacity = THREE.MathUtils.clamp(twinkle, 0.55, 0.92);
         sunCone.material.opacity = 0.18 + Math.sin(now * 0.00085) * 0.05;
         moonCone.material.opacity = 0.16 + Math.cos(now * 0.0009) * 0.04;
 
@@ -1448,9 +1485,12 @@ export function createCosmicCarousel({
 
         const parallaxLerp = overlayHovered ? 0.12 : 0.08;
         parallaxCurrent.lerp(parallaxTarget, parallaxLerp);
-        const desiredX = cameraBaseOffset.x + parallaxCurrent.x * 1.35;
-        const desiredY = cameraBaseOffset.y + parallaxCurrent.y * 0.8;
-        const desiredZ = cameraBaseOffset.z + parallaxCurrent.y * -0.4;
+        const baseX = cameraRestOffset.x + cameraFocusShift.x * focusState.value;
+        const baseY = cameraRestOffset.y + cameraFocusShift.y * focusState.value;
+        const baseZ = cameraRestOffset.z + cameraFocusShift.z * focusState.value;
+        const desiredX = baseX + parallaxCurrent.x * 1.35;
+        const desiredY = baseY + parallaxCurrent.y * 0.8;
+        const desiredZ = baseZ + parallaxCurrent.y * -0.4;
         camera.position.x += (desiredX - camera.position.x) * 0.08;
         camera.position.y += (desiredY - camera.position.y) * 0.08;
         camera.position.z += (desiredZ - camera.position.z) * 0.08;
@@ -1471,6 +1511,8 @@ export function createCosmicCarousel({
 
     function destroy() {
         releaseActiveCard();
+        focusTimeline.pause(0);
+        focusState.value = 0;
         rotationTween?.kill?.();
         rotationTween = null;
         cancelAnimationFrame(animationFrame);
@@ -1498,13 +1540,14 @@ export function createCosmicCarousel({
         overlay.remove();
         renderer.dispose();
         composer.dispose();
-        scene.remove(stars, galaxy, carouselGroup, sunMesh, moonMesh, nebulaField.group, cometField.points, sunCone, moonCone, sunLight, moonLight, sunLight.target, moonLight.target);
+        scene.remove(starField.group, galaxy, carouselGroup, sunMesh, moonMesh, nebulaField.group, cometField.points, sunCone, moonCone, sunLight, moonLight, sunLight.target, moonLight.target, ambient, fillLight, rimBackLight, rimBackLight.target);
         nebulaField.dispose();
         cometField.dispose();
         sunCone.geometry.dispose();
         sunCone.material.dispose();
         moonCone.geometry.dispose();
         moonCone.material.dispose();
+        starField.dispose();
         cardGroups.forEach(({ userData }) => {
             userData.frontTexture?.dispose?.();
             userData.backTexture?.dispose?.();
@@ -1517,8 +1560,6 @@ export function createCosmicCarousel({
         bodyGeometry.dispose();
         faceGeometry.dispose();
         lowFaceGeometry.dispose();
-        starGeometry.dispose();
-        starMaterial.dispose();
         sunMesh.material?.dispose?.();
         moonMesh.material?.dispose?.();
         galaxyGeo.dispose();
