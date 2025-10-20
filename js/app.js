@@ -748,7 +748,7 @@ const wormholeReturnEase = (t) => {
     window.addEventListener('click', (event) => {
         // evita i click sulla card
         const topEl = document.elementFromPoint(event.clientX, event.clientY);
-        if (topEl && topEl.closest && topEl.closest('.warp-card')) return;
+        if (topEl && topEl.closest && topEl.closest('.warp-card, .cosmic-carousel-overlay')) return;
 
         if (!sceneInteractive) return;
 
@@ -861,7 +861,7 @@ const wormholeReturnEase = (t) => {
                 warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
                 bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
 
-                if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
+                if (!document.querySelector('.warp-card, .cosmic-carousel-overlay') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
                 camera.position.copy(camEnd);
