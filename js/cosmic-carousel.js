@@ -41,6 +41,58 @@ const VignetteShader = {
 };
 
 // ---------------------------------------------------------------------------
+//  Utility helpers per il disegno canvas
+// ---------------------------------------------------------------------------
+
+function roundedRect(ctx, x, y, width, height, radius) {
+    if (!ctx) return;
+    const r = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    if (!ctx || !text) return;
+    const paragraphs = String(text).split(/\n+/);
+    let cursorY = y;
+    paragraphs.forEach((paragraph, idx) => {
+        const words = paragraph.split(/\s+/).filter(Boolean);
+        let line = '';
+        if (!words.length) {
+            cursorY += lineHeight;
+        }
+        words.forEach((word) => {
+            const testLine = line ? `${line} ${word}` : word;
+            const metrics = ctx.measureText(testLine);
+            if (maxWidth && metrics.width > maxWidth && line) {
+                ctx.fillText(line, x, cursorY);
+                cursorY += lineHeight;
+                line = word;
+            } else {
+                line = testLine;
+            }
+        });
+        if (line) {
+            ctx.fillText(line, x, cursorY);
+            cursorY += lineHeight;
+        }
+        if (idx < paragraphs.length - 1) {
+            cursorY += lineHeight * 0.35;
+        }
+    });
+    return cursorY;
+}
+
+// ---------------------------------------------------------------------------
 //  Utility: generazione texture 2D per le card (Canvas2D => Texture Three.js)
 // ---------------------------------------------------------------------------
 
