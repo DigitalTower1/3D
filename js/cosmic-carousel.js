@@ -661,6 +661,30 @@ export function createCosmicCarousel({
 
     const introTimeline = gsap.timeline({ delay: 0.22, defaults: { ease: 'power4.out' } });
 
+    const CARD_VISUAL_PRESETS = {
+        idle: {
+            scale: 1,
+            tiltX: 0,
+            tiltZ: 0,
+            glow: 0.7,
+            rim: 1.4
+        },
+        hover: {
+            scale: 1.07,
+            tiltX: THREE.MathUtils.degToRad(-4.2),
+            tiltZ: THREE.MathUtils.degToRad(4.6),
+            glow: 1.18,
+            rim: 2.35
+        },
+        active: {
+            scale: 1.18,
+            tiltX: THREE.MathUtils.degToRad(-6.2),
+            tiltZ: THREE.MathUtils.degToRad(6.8),
+            glow: 1.55,
+            rim: 3.25
+        }
+    };
+
     cards.forEach((card, index) => {
         const cardRoot = new THREE.Group();
         cardRoot.name = card.title;
@@ -813,30 +837,6 @@ export function createCosmicCarousel({
             gsap.to(shader.uniforms.rimStrength, { value, duration, ease });
         }
     }
-
-    const CARD_VISUAL_PRESETS = {
-        idle: {
-            scale: 1,
-            tiltX: 0,
-            tiltZ: 0,
-            glow: 0.7,
-            rim: 1.4
-        },
-        hover: {
-            scale: 1.07,
-            tiltX: THREE.MathUtils.degToRad(-4.2),
-            tiltZ: THREE.MathUtils.degToRad(4.6),
-            glow: 1.18,
-            rim: 2.35
-        },
-        active: {
-            scale: 1.18,
-            tiltX: THREE.MathUtils.degToRad(-6.2),
-            tiltZ: THREE.MathUtils.degToRad(6.8),
-            glow: 1.55,
-            rim: 3.25
-        }
-    };
 
     function applyCardPreset(group, presetKey, { immediate = false } = {}) {
         const preset = CARD_VISUAL_PRESETS[presetKey] || CARD_VISUAL_PRESETS.idle;
