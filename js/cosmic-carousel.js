@@ -697,7 +697,6 @@ export function createCosmicCarousel({
     //  Setup Three.js
     // -----------------------------
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.useLegacyLights = false;
     renderer.physicallyCorrectLights = true;
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -851,6 +850,33 @@ export function createCosmicCarousel({
     const lowFaceGeometry = new THREE.PlaneGeometry(cardWidth * 0.9, cardHeight * 0.9, 1, 1);
 
     const introTimeline = gsap.timeline({ delay: 0.22, defaults: { ease: 'power4.out' } });
+
+    // -----------------------------
+    //  Stato interazione e animazioni (dichiarato prima dell'utilizzo)
+    // -----------------------------
+    const pointer = new THREE.Vector2();
+    const parallaxTarget = new THREE.Vector2();
+    const parallaxCurrent = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
+    let hoveredGroup = null;
+    let activeGroup = null;
+    let needsRaycast = false;
+    let isPointerDown = false;
+    let dragStartX = 0;
+    const rotationState = { current: 0, target: 0, velocity: 0 };
+    let rotationTween = null;
+    let autoRotate = true;
+    let animationFrame = null;
+    let overlayHovered = false;
+    let isClosing = false;
+    let hasInteracted = false;
+    const tmpCameraDir = new THREE.Vector3();
+    const tmpCameraOffset = new THREE.Vector3();
+    const tmpDesiredCamera = new THREE.Vector3();
+    const tmpLookBase = new THREE.Vector3();
+    const tmpLookBlend = new THREE.Vector3();
+    const focusAnchor = new THREE.Vector3();
+    const tmpTangent = new THREE.Vector3();
 
     const CARD_VISUAL_PRESETS = {
         idle: {
@@ -1009,33 +1035,6 @@ export function createCosmicCarousel({
         introTimeline.fromTo(visual.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 1.05 }, index * 0.08);
         introTimeline.fromTo(glow.material, { opacity: 0 }, { opacity: glow.material.opacity, duration: 0.8 }, index * 0.08 + 0.1);
     });
-
-    // -----------------------------
-    //  Stato interazione e animazioni
-    // -----------------------------
-    let pointer = new THREE.Vector2();
-    const parallaxTarget = new THREE.Vector2();
-    const parallaxCurrent = new THREE.Vector2();
-    const raycaster = new THREE.Raycaster();
-    let hoveredGroup = null;
-    let activeGroup = null;
-    let needsRaycast = false;
-    let isPointerDown = false;
-    let dragStartX = 0;
-    const rotationState = { current: 0, target: 0, velocity: 0 };
-    let rotationTween = null;
-    let autoRotate = true;
-    let animationFrame = null;
-    let overlayHovered = false;
-    let isClosing = false;
-    let hasInteracted = false;
-    const tmpCameraDir = new THREE.Vector3();
-    const tmpCameraOffset = new THREE.Vector3();
-    const tmpDesiredCamera = new THREE.Vector3();
-    const tmpLookBase = new THREE.Vector3();
-    const tmpLookBlend = new THREE.Vector3();
-    const focusAnchor = new THREE.Vector3();
-    const tmpTangent = new THREE.Vector3();
 
     const autoRotateStrength = { value: 1 };
 
