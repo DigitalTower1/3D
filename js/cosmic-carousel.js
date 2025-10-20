@@ -751,6 +751,7 @@ export function createCosmicCarousel({
         carouselGroup.add(cardRoot);
         cardGroups.push(cardRoot);
         interactableMeshes.push(frontFace, backFace);
+        syncCardVisual(cardRoot, { immediate: true });
         introTimeline.fromTo(cardRoot.position, { y: y + 1.4, x: x * 1.08, z: z * 1.08 }, { y, x, z, duration: 1.2 }, index * 0.08);
         introTimeline.fromTo(visual.scale, { x: 0.3, y: 0.3, z: 0.3 }, { x: 1, y: 1, z: 1, duration: 1.05 }, index * 0.08);
         introTimeline.fromTo(glow.material, { opacity: 0 }, { opacity: glow.material.opacity, duration: 0.8 }, index * 0.08 + 0.1);
@@ -768,9 +769,7 @@ export function createCosmicCarousel({
     let needsRaycast = false;
     let isPointerDown = false;
     let dragStartX = 0;
-    let rotationVelocity = 0;
-    let currentRotation = 0;
-    let targetRotation = 0;
+    const rotationState = { current: 0, target: 0, velocity: 0 };
     let rotationTween = null;
     let autoRotate = true;
     let animationFrame = null;
@@ -807,53 +806,114 @@ export function createCosmicCarousel({
         gsap.to(autoRotateStrength, { value, duration: 0.6, ease: 'power2.out' });
     }
 
-    function animateRimStrength(material, value) {
+    function animateRimStrength(material, value, { duration = 0.6, ease = 'power2.out' } = {}) {
         material.userData.targetRimStrength = value;
         const shader = material.userData.shader;
         if (shader && shader.uniforms?.rimStrength) {
-            gsap.to(shader.uniforms.rimStrength, { value, duration: 0.6, ease: 'power2.out' });
+            gsap.to(shader.uniforms.rimStrength, { value, duration, ease });
         }
     }
 
-    function refreshCardVisual(group) {
-        if (!group) return;
-        const { visual, glow, rimMaterial, isActive, isHover } = group.userData;
-        const scaleTarget = isActive ? 1.18 : isHover ? 1.07 : 1;
-        const tiltX = isActive ? THREE.MathUtils.degToRad(-6) : isHover ? THREE.MathUtils.degToRad(-4) : 0;
-        const tiltZ = isActive ? THREE.MathUtils.degToRad(6.5) : isHover ? THREE.MathUtils.degToRad(4.2) : 0;
-        const glowOpacity = isActive ? 1.5 : isHover ? 1.15 : 0.7;
+    const CARD_VISUAL_PRESETS = {
+        idle: {
+            scale: 1,
+            tiltX: 0,
+            tiltZ: 0,
+            glow: 0.7,
+            rim: 1.4
+        },
+        hover: {
+            scale: 1.07,
+            tiltX: THREE.MathUtils.degToRad(-4.2),
+            tiltZ: THREE.MathUtils.degToRad(4.6),
+            glow: 1.18,
+            rim: 2.35
+        },
+        active: {
+            scale: 1.18,
+            tiltX: THREE.MathUtils.degToRad(-6.2),
+            tiltZ: THREE.MathUtils.degToRad(6.8),
+            glow: 1.55,
+            rim: 3.25
+        }
+    };
+
+    function applyCardPreset(group, presetKey, { immediate = false } = {}) {
+        const preset = CARD_VISUAL_PRESETS[presetKey] || CARD_VISUAL_PRESETS.idle;
+        const { visual, glow, rimMaterial } = group.userData;
+        const duration = immediate ? 0.001 : (presetKey === 'active' ? 0.58 : 0.42);
         gsap.killTweensOf(visual.scale);
         gsap.killTweensOf(visual.rotation);
         gsap.killTweensOf(glow.material);
-        gsap.to(visual.scale, { x: scaleTarget, y: scaleTarget, z: scaleTarget, duration: 0.55, ease: 'power4.out' });
-        gsap.to(visual.rotation, { x: tiltX, y: 0, z: tiltZ, duration: 0.6, ease: 'power4.out' });
-        gsap.to(glow.material, { opacity: glowOpacity, duration: 0.45, ease: 'power2.out' });
-        animateRimStrength(rimMaterial, isActive ? 3.2 : isHover ? 2.25 : 1.4);
+        gsap.to(visual.scale, {
+            x: preset.scale,
+            y: preset.scale,
+            z: preset.scale,
+            duration,
+            ease: 'power3.out'
+        });
+        gsap.to(visual.rotation, {
+            x: preset.tiltX,
+            y: 0,
+            z: preset.tiltZ,
+            duration,
+            ease: 'power3.out'
+        });
+        gsap.to(glow.material, {
+            opacity: preset.glow,
+            duration: Math.max(0.3, duration * 0.75),
+            ease: 'power2.out'
+        });
+        animateRimStrength(rimMaterial, preset.rim, { duration: Math.max(0.28, duration * 0.85) });
     }
 
-    function flipCard(group, showBack) {
+    function syncCardVisual(group, { immediate = false } = {}) {
+        if (!group) return;
+        const presetKey = group.userData.isActive ? 'active' : group.userData.isHover ? 'hover' : 'idle';
+        applyCardPreset(group, presetKey, { immediate });
+    }
+
+    function flipCard(group, showBack, { immediate = false } = {}) {
         if (!group) return;
         const { pivot } = group.userData;
         gsap.killTweensOf(pivot.rotation);
+        gsap.killTweensOf(pivot.position);
+        if (immediate) {
+            pivot.rotation.y = showBack ? Math.PI : 0;
+            pivot.position.z = showBack ? -0.04 : 0;
+            return;
+        }
         gsap.to(pivot.rotation, {
             y: showBack ? Math.PI : 0,
-            duration: 0.78,
-            ease: 'power4.inOut'
+            duration: 0.88,
+            ease: 'expo.inOut',
+            overwrite: true
+        });
+        gsap.to(pivot.position, {
+            z: showBack ? -0.04 : 0,
+            duration: 0.68,
+            ease: 'power3.out'
         });
     }
 
-    function releaseActiveCard() {
+    function releaseActiveCard({ immediate = false } = {}) {
         if (!activeGroup) return;
         activeGroup.userData.isActive = false;
-        flipCard(activeGroup, false);
-        refreshCardVisual(activeGroup);
+        flipCard(activeGroup, false, { immediate });
+        syncCardVisual(activeGroup, { immediate });
         if (focusTimeline.progress() > 0) {
-            focusTimeline.timeScale(1).reverse();
+            if (immediate) {
+                focusTimeline.pause(0);
+                focusState.value = 0;
+            } else {
+                focusTimeline.timeScale(1).reverse();
+            }
         } else {
             focusState.value = 0;
         }
         rotationTween?.kill?.();
         rotationTween = null;
+        rotationState.velocity = 0;
         activeGroup = null;
         if (!isPointerDown) {
             autoRotate = true;
@@ -871,27 +931,28 @@ export function createCosmicCarousel({
         if (activeGroup) {
             flipCard(activeGroup, false);
             activeGroup.userData.isActive = false;
-            refreshCardVisual(activeGroup);
+            syncCardVisual(activeGroup);
         }
         activeGroup = group;
         activeGroup.userData.isActive = true;
-        refreshCardVisual(activeGroup);
+        syncCardVisual(activeGroup);
         focusAnchor.copy(activeGroup.position);
         flipCard(activeGroup, true);
         rotationTween?.kill?.();
+        rotationState.velocity = 0;
         const desiredBase = -group.userData.baseAngle;
         const twoPi = Math.PI * 2;
         let desiredRotation = desiredBase;
-        let current = targetRotation;
+        let current = rotationState.target;
         while (desiredRotation - current > Math.PI) desiredRotation -= twoPi;
         while (desiredRotation - current < -Math.PI) desiredRotation += twoPi;
-        const rotationProxy = { value: targetRotation };
+        const rotationProxy = { value: rotationState.target };
         rotationTween = gsap.to(rotationProxy, {
             value: desiredRotation,
             duration: 1.1,
             ease: 'power4.inOut',
-            onUpdate: () => { targetRotation = rotationProxy.value; },
-            onComplete: () => { rotationTween = null; }
+            onUpdate: () => { rotationState.target = rotationProxy.value; },
+            onComplete: () => { rotationTween = null; rotationState.velocity = 0; }
         });
         focusTimeline.timeScale(1).restart(true);
         autoRotate = false;
@@ -937,7 +998,7 @@ export function createCosmicCarousel({
         handleFirstInteraction();
         isPointerDown = true;
         autoRotate = false;
-        rotationVelocity = 0;
+        rotationState.velocity = 0;
         const { clientX } = extractClientCoords(event);
         dragStartX = clientX || 0;
         overlay.classList.add('is-dragging');
@@ -945,6 +1006,9 @@ export function createCosmicCarousel({
         rotationTween = null;
         setAutoRotateStrength(0.06);
         needsRaycast = true;
+        if (event.pointerId !== undefined && overlay.setPointerCapture) {
+            try { overlay.setPointerCapture(event.pointerId); } catch (err) { /* ignore */ }
+        }
     }
 
     function onPointerMoveDrag(event) {
@@ -952,14 +1016,14 @@ export function createCosmicCarousel({
         const clientX = event.clientX || (event.touches && event.touches[0].clientX) || 0;
         const deltaX = clientX - dragStartX;
         dragStartX = clientX;
-        rotationVelocity = THREE.MathUtils.clamp(deltaX * 0.0035, -0.25, 0.25);
-        targetRotation += rotationVelocity;
+        rotationState.velocity = THREE.MathUtils.clamp(deltaX * 0.0035, -0.25, 0.25);
+        rotationState.target += rotationState.velocity;
     }
 
-    function onPointerUp() {
+    function onPointerUp(event) {
         isPointerDown = false;
-        if (Math.abs(rotationVelocity) < 0.01) {
-            rotationVelocity = 0;
+        if (Math.abs(rotationState.velocity) < 0.01) {
+            rotationState.velocity = 0;
         }
         if (!activeGroup) {
             autoRotate = true;
@@ -967,6 +1031,9 @@ export function createCosmicCarousel({
         }
         overlay.classList.remove('is-dragging');
         needsRaycast = true;
+        if (event && event.pointerId !== undefined && overlay.releasePointerCapture) {
+            try { overlay.releasePointerCapture(event.pointerId); } catch (err) { /* ignore */ }
+        }
     }
 
     function onCanvasClick() {
@@ -992,7 +1059,7 @@ export function createCosmicCarousel({
         parallaxTarget.set(0, 0);
         if (hoveredGroup && !hoveredGroup.userData.isActive) {
             hoveredGroup.userData.isHover = false;
-            refreshCardVisual(hoveredGroup);
+            syncCardVisual(hoveredGroup);
         }
         hoveredGroup = null;
         needsRaycast = true;
@@ -1049,7 +1116,7 @@ export function createCosmicCarousel({
         rotationTween = null;
         if (hoveredGroup) {
             hoveredGroup.userData.isHover = false;
-            refreshCardVisual(hoveredGroup);
+            syncCardVisual(hoveredGroup);
             hoveredGroup = null;
         }
         audio.fadeOut();
@@ -1115,13 +1182,13 @@ export function createCosmicCarousel({
     // -----------------------------
     function updateCarousel(delta) {
         if (autoRotate) {
-            targetRotation += delta * 0.12 * autoRotateStrength.value;
+            rotationState.target += delta * 0.12 * autoRotateStrength.value;
         }
-        if (!isPointerDown && Math.abs(rotationVelocity) > 0.0001) {
-            targetRotation += rotationVelocity;
-            rotationVelocity = THREE.MathUtils.lerp(rotationVelocity, 0, 0.08);
+        if (!isPointerDown && Math.abs(rotationState.velocity) > 0.0001) {
+            rotationState.target += rotationState.velocity;
+            rotationState.velocity = THREE.MathUtils.damp(rotationState.velocity, 0, 6, delta);
         }
-        currentRotation = THREE.MathUtils.lerp(currentRotation, targetRotation, 0.12);
+        rotationState.current = THREE.MathUtils.damp(rotationState.current, rotationState.target, 6, delta);
 
         const focusAmount = focusState.value;
         const cameraBaseOffset = tmpCameraOffset.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
@@ -1132,7 +1199,7 @@ export function createCosmicCarousel({
         }
 
         cardGroups.forEach((group) => {
-            const angle = group.userData.baseAngle + currentRotation;
+            const angle = group.userData.baseAngle + rotationState.current;
             const focus = group === activeGroup ? focusAmount : 0;
             const orbitRadius = cardRadius - focus * 0.95;
             const baseX = Math.cos(angle) * orbitRadius;
@@ -1162,13 +1229,13 @@ export function createCosmicCarousel({
 
         if (hoveredGroup) {
             hoveredGroup.userData.isHover = false;
-            refreshCardVisual(hoveredGroup);
+            syncCardVisual(hoveredGroup);
         }
 
         hoveredGroup = newGroup;
         if (hoveredGroup) {
             hoveredGroup.userData.isHover = true;
-            refreshCardVisual(hoveredGroup);
+            syncCardVisual(hoveredGroup);
             audio.playHover();
         }
     }
@@ -1182,16 +1249,17 @@ export function createCosmicCarousel({
         updateCarousel(delta);
         updateHover();
 
-        const parallaxLerp = overlayHovered ? 0.12 : 0.08;
-        parallaxCurrent.lerp(parallaxTarget, parallaxLerp);
+        const parallaxEase = overlayHovered ? 6 : 4;
+        parallaxCurrent.x = THREE.MathUtils.damp(parallaxCurrent.x, parallaxTarget.x, parallaxEase, delta);
+        parallaxCurrent.y = THREE.MathUtils.damp(parallaxCurrent.y, parallaxTarget.y, parallaxEase, delta);
         const focusAmount = focusState.value;
         const baseOffset = tmpDesiredCamera.copy(cameraIdleOffset).lerp(cameraFocusOffset, focusAmount);
         const desiredX = baseOffset.x + parallaxCurrent.x * 1.25;
         const desiredY = baseOffset.y + parallaxCurrent.y * 0.75;
         const desiredZ = baseOffset.z + parallaxCurrent.y * -0.38;
-        camera.position.x += (desiredX - camera.position.x) * 0.085;
-        camera.position.y += (desiredY - camera.position.y) * 0.085;
-        camera.position.z += (desiredZ - camera.position.z) * 0.085;
+        camera.position.x = THREE.MathUtils.damp(camera.position.x, desiredX, 7, delta);
+        camera.position.y = THREE.MathUtils.damp(camera.position.y, desiredY, 7, delta);
+        camera.position.z = THREE.MathUtils.damp(camera.position.z, desiredZ, 7, delta);
         tmpLookBase.set(0, cameraLookBaseY, 0);
         tmpLookBlend.copy(tmpLookBase);
         if (activeGroup) {
@@ -1200,7 +1268,9 @@ export function createCosmicCarousel({
         tmpLookBlend.x += parallaxCurrent.x * 0.85;
         tmpLookBlend.y += parallaxCurrent.y * 0.35;
         tmpLookBlend.z += parallaxCurrent.y * -0.25;
-        cameraLookTarget.lerp(tmpLookBlend, 0.12);
+        cameraLookTarget.x = THREE.MathUtils.damp(cameraLookTarget.x, tmpLookBlend.x, 6, delta);
+        cameraLookTarget.y = THREE.MathUtils.damp(cameraLookTarget.y, tmpLookBlend.y, 6, delta);
+        cameraLookTarget.z = THREE.MathUtils.damp(cameraLookTarget.z, tmpLookBlend.z, 6, delta);
         camera.lookAt(cameraLookTarget);
 
         composer.render();
@@ -1214,7 +1284,7 @@ export function createCosmicCarousel({
     gsap.fromTo(instructions, { opacity: 0 }, { opacity: 0.85, duration: 1.2, ease: 'power2.out', delay: 0.6 });
 
     function destroy() {
-        releaseActiveCard();
+        releaseActiveCard({ immediate: true });
         focusTimeline.pause(0);
         focusState.value = 0;
         rotationTween?.kill?.();

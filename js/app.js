@@ -115,7 +115,7 @@ const wormholeReturnEase = (t) => {
     const rgbeLoader = new RGBELoader();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-    rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
+    rgbeLoader.load('./assets/3d/env/solitude_night_4k.hdr', (tex) => {
         tex.mapping = THREE.EquirectangularReflectionMapping;
         const envMap = pmremGenerator.fromEquirectangular(tex).texture;
         scene.environment = envMap;
