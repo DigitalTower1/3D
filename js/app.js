@@ -17,6 +17,7 @@ import { FilmPass } from 'three/examples/jsm/postprocessing/FilmPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 import { createEmbeddedAudio } from './audio-data.js';
+import { createCosmicCarousel } from './cosmic-carousel.js';
 
     // -------------------------
     // DEBUG SWITCH (true/false)
@@ -114,7 +115,7 @@ const wormholeReturnEase = (t) => {
     const rgbeLoader = new RGBELoader();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-    rgbeLoader.load('./assets/3d/env/sunset.hdr', (tex) => {
+    rgbeLoader.load('./assets/3d/env/solitude_night_4k.hdr', (tex) => {
         tex.mapping = THREE.EquirectangularReflectionMapping;
         const envMap = pmremGenerator.fromEquirectangular(tex).texture;
         scene.environment = envMap;
@@ -278,206 +279,95 @@ const wormholeReturnEase = (t) => {
 
     const CARD_LIBRARY = {
         Portfolio: {
-            layout: 'spline',
-            splineSrc: './assets/3d/menu/portfolio_fullscreen.spline',
-            title: 'Portfolio — Esperienza 3D',
-            description: 'Sfoglia i nostri progetti in un ambiente immersivo creato per raccontare ogni dettaglio visivo.'
+            layout: 'cosmic-carousel',
+            title: 'Portfolio Orbitale',
+            description: 'Esplora i progetti iconici sospesi nell’orbita dell’agenzia: esperienze immersive, installazioni interattive e campagne ibride.',
+            cards: [
+                {
+                    key: 'portfolio-aurora',
+                    title: 'Aurora Immersiva',
+                    subtitle: 'Brand Experience Multisensoriale',
+                    summary: 'Installazione XR con tracciamento volumetrico e reattività sonora per il lancio di un flagship store.',
+                    detail: 'Un corridoio di luce olografica sincronizzato con sensori biometrici che adatta colori, audio e micro-narrazioni alla presenza del visitatore.',
+                    highlights: ['Volumetric capture realtime', 'Audio spazializzato 7.1', 'Integrazione con CRM live'],
+                    tags: ['XR', 'Retail', 'Realtime']
+                },
+                {
+                    key: 'portfolio-zenith',
+                    title: 'Zenith Atlas',
+                    subtitle: 'Data Sculpture Interattiva',
+                    summary: 'Visualizzazione olografica dei KPI aziendali con interazione gestuale e narrativa guidata.',
+                    detail: 'Un atlante 3D che fonde arte e analytics: ogni pianeta rappresenta una business unit, esplorabile con gesture o controller aptici.',
+                    highlights: ['AI narrative engine', 'Controller aptico', 'Raccolta insights live'],
+                    tags: ['DataViz', 'Installation', 'AI']
+                },
+                {
+                    key: 'portfolio-nova',
+                    title: 'Nova Lab',
+                    subtitle: 'Metaverse Collaboration',
+                    summary: 'Spazio collaborativo persistente per workshop immersivi e onboarding globale.',
+                    detail: 'Un ambiente multi-utente con avatar realistici, lavagne 3D e streaming volumetrico per sessioni creative distribuite.',
+                    highlights: ['Avatar fotorealistici', 'Streaming volumetrico', 'Board 3D collaborativa'],
+                    tags: ['Metaverse', 'Collaboration', 'WebRTC']
+                },
+                {
+                    key: 'portfolio-voyager',
+                    title: 'Voyager Pop-up',
+                    subtitle: 'Esperienza Phygital Nomade',
+                    summary: 'Evento itinerante con set olografico e NFT dinamici generati in loco.',
+                    detail: 'Ogni tappa crea artefatti digitali unici legati alla location, con gamification e drops AR in tempo reale.',
+                    highlights: ['NFT generativi', 'Tracking location aware', 'AR multi-device'],
+                    tags: ['Event', 'NFT', 'AR']
+                }
+            ]
         },
         Consulenza: CONTACT_DECK,
         Contatti: CONTACT_DECK,
         'Chi Siamo': {
-            layout: 'spline',
-            splineSrc: './assets/3d/menu/chi_siamo.spline',
-            title: 'Chi Siamo — Esperienza 3D',
-            description: 'Esplora il nostro spazio immersivo e incontra il team direttamente all’interno del portale.'
+            layout: 'cosmic-carousel',
+            title: 'Chi Siamo — Crew Stellare',
+            description: 'Incontra l’equipaggio che guida l’agenzia tra strategie orbitanti e prototipi luminosi.',
+            cards: [
+                {
+                    key: 'team-directors',
+                    title: 'Creative Command',
+                    subtitle: 'Direzione Creativa Orbitale',
+                    summary: 'Un collettivo di art director e tecnologi che uniscono estetica cinematografica e prototipazione rapida.',
+                    detail: 'Guidiamo ogni progetto con moodboard immersivi, storyboard volumetrici e sprint XR per trasformare intuizioni in esperienze tangibili.',
+                    highlights: ['XR sprint studio', 'Moodboard volumetrici', 'Pipeline realtime'],
+                    tags: ['Creative', 'XR', 'Direction']
+                },
+                {
+                    key: 'team-strategy',
+                    title: 'Strategy Orbital Lab',
+                    subtitle: 'Strategia & Analisi Predittiva',
+                    summary: 'Analisti, service designer e strategist che misurano ogni esperienza con metriche ibride.',
+                    detail: 'Uniamo modelli predittivi, behavioural design e growth frameworks per trasformare insight in roadmap misurabili.',
+                    highlights: ['Predictive analytics', 'Behavioural design', 'Growth framework'],
+                    tags: ['Strategy', 'Data', 'Insights']
+                },
+                {
+                    key: 'team-tech',
+                    title: 'Hypertech Guild',
+                    subtitle: 'Engineering & DevOps',
+                    summary: 'Team full stack specializzato in grafica realtime, cloud 3D e integrazioni edge.',
+                    detail: 'Costruiamo pipeline scalabili con cloud rendering, microservizi 3D e automazioni ML per esperienze always-on.',
+                    highlights: ['Cloud rendering', 'Edge automation', 'Realtime pipelines'],
+                    tags: ['Engineering', 'Cloud', 'Realtime']
+                },
+                {
+                    key: 'team-care',
+                    title: 'Client Stellar Care',
+                    subtitle: 'Account & Produzione',
+                    summary: 'Producers e account manager che mantengono l’orbita del progetto stabile e trasparente.',
+                    detail: 'Utilizziamo dashboard interattive, rituali di co-creazione e supporto 24/7 per ogni missione.',
+                    highlights: ['Dashboard immersive', 'Rituali co-creazione', 'Supporto 24/7'],
+                    tags: ['Production', 'Account', 'Operations']
+                }
+            ]
         }
     };
 
-    let splineViewerLoaderPromise = null;
-
-    function ensureSplineViewerModule() {
-        if (typeof window === 'undefined') {
-            return Promise.reject(new Error('Viewer non disponibile in questo contesto.'));
-        }
-        const registry = window.customElements;
-        if (registry && typeof registry.get === 'function' && registry.get('spline-viewer')) {
-            return Promise.resolve();
-        }
-        if (!splineViewerLoaderPromise) {
-            splineViewerLoaderPromise = new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.type = 'module';
-                script.src = 'https://unpkg.com/@splinetool/viewer@1.10.82/build/spline-viewer.js';
-                script.onload = () => resolve();
-                script.onerror = () => {
-                    splineViewerLoaderPromise = null;
-                    reject(new Error('Impossibile caricare il viewer Spline ufficiale.'));
-                };
-                (document.head || document.body || document.documentElement).appendChild(script);
-            });
-        }
-        return splineViewerLoaderPromise;
-    }
-
-    function showSplineExperience(name, config) {
-        const overlay = document.createElement('div');
-        overlay.className = 'warp-card';
-        overlay.dataset.mode = 'spline';
-        overlay.innerHTML = `
-        <div class="card-stage" data-layout="spline" data-deck="${name}">
-          <div class="card-backdrop"></div>
-          ${config.title ? `<header class="spline-header"><h2>${config.title}</h2>${config.description ? `<p>${config.description}</p>` : ''}</header>` : ''}
-          <div class="spline-frame">
-            <div class="spline-loader">Caricamento esperienza 3D…</div>
-          </div>
-          <div class="card-actions" data-actions="spline" data-has-nav="false">
-            <button type="button" class="card-actions__exit" data-action="exit">Esci dal portale</button>
-          </div>
-        </div>`;
-        document.body.appendChild(overlay);
-        playPortalBackground(name);
-
-        const stage = overlay.querySelector('.card-stage');
-        const frame = overlay.querySelector('.spline-frame');
-        const loaderEl = overlay.querySelector('.spline-loader');
-        const exitBtn = overlay.querySelector('[data-action="exit"]');
-
-        let viewer = null;
-        let overlayClosed = false;
-
-        const handleViewerLoading = () => {
-            if (!loaderEl) return;
-            loaderEl.classList.remove('has-error');
-            loaderEl.classList.remove('is-hidden');
-            loaderEl.textContent = 'Caricamento esperienza 3D…';
-        };
-
-        const handleViewerReady = () => {
-            if (!loaderEl) return;
-            loaderEl.classList.add('is-hidden');
-        };
-
-        const handleViewerError = (event) => {
-            if (!loaderEl) return;
-            loaderEl.classList.remove('is-hidden');
-            loaderEl.classList.add('has-error');
-            loaderEl.textContent = event?.detail?.error?.message || event?.detail?.message || 'Impossibile caricare l’esperienza 3D.';
-        };
-
-        const detachViewerListeners = () => {
-            if (!viewer) return;
-            viewer.removeEventListener('load-start', handleViewerLoading);
-            viewer.removeEventListener('load-complete', handleViewerReady);
-            viewer.removeEventListener('error', handleViewerError);
-            viewer.removeEventListener('load', handleViewerReady);
-        };
-
-        ensureSplineViewerModule()
-            .then(() => {
-                if (overlayClosed) return;
-                viewer = document.createElement('spline-viewer');
-                viewer.setAttribute('url', config.splineSrc);
-                viewer.setAttribute('loading', 'eager');
-                viewer.addEventListener('load-start', handleViewerLoading);
-                viewer.addEventListener('load-complete', handleViewerReady);
-                viewer.addEventListener('load', handleViewerReady);
-                viewer.addEventListener('error', handleViewerError);
-                frame.insertBefore(viewer, loaderEl);
-            })
-            .catch((error) => {
-                log('Spline viewer load failed', error);
-                if (loaderEl) {
-                    loaderEl.classList.add('has-error');
-                    loaderEl.textContent = 'Impossibile inizializzare il visualizzatore 3D.';
-                }
-            });
-
-        const updateStageMetrics = () => {
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
-            const marginX = Math.max(18, Math.min(150, vw * 0.065));
-            const marginY = Math.max(70, Math.min(220, vh * 0.16));
-            const stageWidth = Math.max(360, Math.min(1200, vw - marginX * 2));
-            const stageHeight = Math.max(420, Math.min(vh - marginY, 760));
-            const stagePadding = Math.max(20, Math.min(52, stageWidth * 0.042));
-            const baseWidth = Math.max(320, Math.min(stageWidth * 0.92, 900));
-            const frameHeight = Math.max(320, Math.min(stageHeight - 140, vh - marginY * 2 - 80));
-
-            stage.style.setProperty('--stage-width', `${stageWidth}px`);
-            stage.style.setProperty('--stage-height', `${stageHeight}px`);
-            stage.style.setProperty('--stage-padding', `${stagePadding}px`);
-            stage.style.setProperty('--panel-base-width', `${baseWidth}px`);
-            stage.style.setProperty('--frame-width', `${baseWidth}px`);
-            stage.style.setProperty('--frame-height', `${frameHeight}px`);
-        };
-
-        const onResize = () => updateStageMetrics();
-
-        const handleKeydown = (ev) => {
-            if (ev.key === 'Escape') {
-                ev.preventDefault();
-                handleExit(ev);
-            }
-        };
-
-        const handleOverlayClick = (ev) => {
-            if (ev.target === overlay) {
-                handleExit(ev);
-            }
-        };
-
-        const closeOverlay = () => {
-            if (overlayClosed) return;
-            overlayClosed = true;
-            if (exitBtn) {
-                exitBtn.removeEventListener('click', handleExit);
-            }
-            window.removeEventListener('resize', onResize);
-            window.removeEventListener('keydown', handleKeydown);
-            overlay.removeEventListener('click', handleOverlayClick);
-            detachViewerListeners();
-            if (viewer && typeof viewer.dispose === 'function') {
-                try {
-                    viewer.dispose();
-                } catch (err) {
-                    log('Errore dispose viewer', err);
-                }
-            }
-            stopPortalBackground(name);
-            gsap.to(overlay, {
-                opacity: 0,
-                duration: 0.8,
-                ease: 'power2.in',
-                onComplete: () => overlay.remove()
-            });
-        };
-
-        const handleExit = (event) => {
-            if (event) event.preventDefault();
-            if (overlayClosed) return;
-            try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
-            try {
-                warpSound.pause();
-                warpSound.currentTime = 0;
-                warpSound.play();
-            } catch (err) { /* noop */ }
-            closeOverlay();
-            requestAnimationFrame(() => animateReturnHome());
-        };
-
-        if (exitBtn) {
-            exitBtn.addEventListener('click', handleExit);
-        }
-
-        overlay.addEventListener('click', handleOverlayClick);
-        window.addEventListener('resize', onResize);
-        window.addEventListener('keydown', handleKeydown);
-        updateStageMetrics();
-
-        gsap.fromTo(overlay, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: 'power2.out' });
-
-        return { close: handleExit };
-    }
 
     const flareMat = new THREE.ShaderMaterial({
         transparent: true,
@@ -858,7 +748,7 @@ const wormholeReturnEase = (t) => {
     window.addEventListener('click', (event) => {
         // evita i click sulla card
         const topEl = document.elementFromPoint(event.clientX, event.clientY);
-        if (topEl && topEl.closest && topEl.closest('.warp-card')) return;
+        if (topEl && topEl.closest && topEl.closest('.warp-card, .cosmic-carousel-overlay')) return;
 
         if (!sceneInteractive) return;
 
@@ -971,7 +861,7 @@ const wormholeReturnEase = (t) => {
                 warpPass.uniforms.pulse.value = 0.55 + Math.sin(phase * Math.PI * 2.0) * 0.35;
                 bloom.strength = THREE.MathUtils.lerp(0.55, 1.15, phase);
 
-                if (!document.querySelector('.warp-card') && phase >= 0.75) showCard(name);
+                if (!document.querySelector('.warp-card, .cosmic-carousel-overlay') && phase >= 0.75) showCard(name);
             },
             onComplete: () => {
                 camera.position.copy(camEnd);
@@ -1114,9 +1004,25 @@ const wormholeReturnEase = (t) => {
         const deckConfig = CARD_LIBRARY[name];
         if (!deckConfig) return;
 
-        if (deckConfig?.splineSrc) {
-            showSplineExperience(name, deckConfig);
-            return;
+        if (deckConfig.layout === 'cosmic-carousel') {
+            playPortalBackground(name);
+            const carousel = createCosmicCarousel({
+                name,
+                title: deckConfig.title,
+                description: deckConfig.description,
+                cards: deckConfig.cards,
+                onRequestClose: () => {
+                    try { clickSound.currentTime = 0; clickSound.play(); } catch (err) { /* noop */ }
+                    try {
+                        warpSound.pause();
+                        warpSound.currentTime = 0;
+                        warpSound.play();
+                    } catch (err) { /* noop */ }
+                    stopPortalBackground(name);
+                    requestAnimationFrame(() => animateReturnHome());
+                }
+            });
+            return carousel;
         }
 
         const deck = deckConfig?.cards ? [...deckConfig.cards] : [];
