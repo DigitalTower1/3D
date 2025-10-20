@@ -8,13 +8,45 @@ import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
+const VignetteShader = {
+    uniforms: {
+        tDiffuse: { value: null },
+        offset: { value: 1.15 },
+        darkness: { value: 1.35 },
+        tint: { value: new THREE.Vector3(1.08, 0.98, 0.88) }
+    },
+    vertexShader: `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        varying vec2 vUv;
+        uniform sampler2D tDiffuse;
+        uniform float offset;
+        uniform float darkness;
+        uniform vec3 tint;
+        void main() {
+            vec4 color = texture2D(tDiffuse, vUv);
+            vec2 position = vUv - vec2(0.5);
+            float len = length(position);
+            float vignette = smoothstep(0.5, offset, len);
+            float vig = clamp(1.0 - vignette * darkness, 0.0, 1.0);
+            vec3 graded = color.rgb * tint;
+            gl_FragColor = vec4(graded * vig, color.a);
+        }
+    `
+};
+
 // ---------------------------------------------------------------------------
 //  Utility: generazione texture 2D per le card (Canvas2D => Texture Three.js)
 // ---------------------------------------------------------------------------
 function createCardTexture(card) {
     const baseWidth = 1024;
     const baseHeight = 1536;
-    const scale = window.devicePixelRatio > 1 ? 0.75 : 0.6;
+    const scale = window.devicePixelRatio > 1 ? 0.82 : 0.68;
     const width = Math.round(baseWidth * scale);
     const height = Math.round(baseHeight * scale);
     const canvas = document.createElement('canvas');
@@ -25,117 +57,104 @@ function createCardTexture(card) {
 
     ctx.clearRect(0, 0, baseWidth, baseHeight);
 
-    const background = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
-    background.addColorStop(0, '#01050f');
-    background.addColorStop(0.45, '#08152a');
-    background.addColorStop(1, '#01030b');
-    ctx.fillStyle = background;
+    const deepGradient = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    deepGradient.addColorStop(0, '#030910');
+    deepGradient.addColorStop(0.35, '#06162a');
+    deepGradient.addColorStop(1, '#02050b');
+    ctx.fillStyle = deepGradient;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
+    const nebula = ctx.createRadialGradient(baseWidth * 0.2, baseHeight * 0.15, 80, baseWidth * 0.2, baseHeight * 0.15, baseWidth * 0.8);
+    nebula.addColorStop(0, 'rgba(72, 195, 255, 0.45)');
+    nebula.addColorStop(0.45, 'rgba(17, 61, 115, 0.35)');
+    nebula.addColorStop(1, 'rgba(6, 18, 34, 0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = nebula;
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    ctx.globalCompositeOperation = 'source-over';
+
     ctx.save();
-    ctx.shadowColor = 'rgba(94, 211, 255, 0.35)';
+    ctx.shadowColor = 'rgba(124, 226, 255, 0.35)';
     ctx.shadowBlur = 48;
-    ctx.fillStyle = 'rgba(9, 17, 32, 0.92)';
-    roundedRect(ctx, 48, 48, baseWidth - 96, baseHeight - 96, 88);
+    roundedRect(ctx, 56, 56, baseWidth - 112, baseHeight - 112, 92);
+    ctx.fillStyle = 'rgba(10, 18, 32, 0.94)';
     ctx.fill();
     ctx.shadowBlur = 0;
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = 'rgba(146, 223, 255, 0.45)';
+    ctx.lineWidth = 3.6;
+    ctx.strokeStyle = 'rgba(162, 230, 255, 0.45)';
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    roundedRect(ctx, 96, 112, baseWidth - 192, baseHeight - 256, 76);
-    const glassGradient = ctx.createLinearGradient(96, 112, baseWidth - 96, baseHeight - 220);
-    glassGradient.addColorStop(0, 'rgba(28, 46, 72, 0.92)');
-    glassGradient.addColorStop(0.5, 'rgba(14, 28, 48, 0.8)');
-    glassGradient.addColorStop(1, 'rgba(6, 15, 30, 0.94)');
+    roundedRect(ctx, 104, 120, baseWidth - 208, baseHeight - 270, 78);
+    const glassGradient = ctx.createLinearGradient(104, 120, baseWidth - 104, baseHeight - 220);
+    glassGradient.addColorStop(0, 'rgba(24, 46, 74, 0.94)');
+    glassGradient.addColorStop(0.48, 'rgba(13, 30, 52, 0.82)');
+    glassGradient.addColorStop(1, 'rgba(9, 20, 38, 0.94)');
     ctx.fillStyle = glassGradient;
     ctx.fill();
-    const innerSheen = ctx.createLinearGradient(96, 112, baseWidth - 96, baseHeight - 256);
-    innerSheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
-    innerSheen.addColorStop(0.35, 'rgba(255, 255, 255, 0.05)');
-    innerSheen.addColorStop(0.78, 'rgba(255, 255, 255, 0.22)');
-    ctx.globalAlpha = 0.55;
-    ctx.fillStyle = innerSheen;
+    const sheen = ctx.createLinearGradient(104, 120, baseWidth - 104, baseHeight - 220);
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)');
+    sheen.addColorStop(0.4, 'rgba(255, 255, 255, 0.08)');
+    sheen.addColorStop(0.82, 'rgba(255, 255, 255, 0.26)');
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = sheen;
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
 
     ctx.save();
-    ctx.beginPath();
-    roundedRect(ctx, 120, 160, baseWidth - 240, 260, 60);
-    const headerGradient = ctx.createLinearGradient(120, 160, baseWidth - 120, 420);
-    headerGradient.addColorStop(0, 'rgba(18, 34, 58, 0.92)');
-    headerGradient.addColorStop(1, 'rgba(10, 20, 36, 0.86)');
-    ctx.fillStyle = headerGradient;
+    const highlight = ctx.createLinearGradient(140, 168, baseWidth - 140, 420);
+    highlight.addColorStop(0, 'rgba(55, 118, 178, 0.46)');
+    highlight.addColorStop(0.4, 'rgba(148, 210, 255, 0.34)');
+    highlight.addColorStop(1, 'rgba(255, 178, 120, 0.22)');
+    ctx.globalCompositeOperation = 'screen';
+    roundedRect(ctx, 140, 168, baseWidth - 280, 280, 62);
+    ctx.fillStyle = highlight;
     ctx.fill();
-    ctx.lineWidth = 2.4;
-    ctx.strokeStyle = 'rgba(99, 193, 255, 0.5)';
+    ctx.restore();
+
+    ctx.save();
+    ctx.lineWidth = 2.8;
+    ctx.strokeStyle = 'rgba(115, 211, 255, 0.55)';
+    ctx.beginPath();
+    ctx.moveTo(180, 470);
+    ctx.lineTo(baseWidth - 180, 470);
     ctx.stroke();
     ctx.restore();
 
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    const streakGradient = ctx.createLinearGradient(120, 160, baseWidth - 120, 380);
-    streakGradient.addColorStop(0, 'rgba(128, 222, 255, 0.12)');
-    streakGradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.18)');
-    streakGradient.addColorStop(1, 'rgba(255, 182, 123, 0.08)');
-    ctx.fillStyle = streakGradient;
-    ctx.fillRect(120, 160, baseWidth - 240, 260);
-    ctx.restore();
-
-    ctx.save();
-    ctx.fillStyle = 'rgba(140, 213, 255, 0.8)';
-    ctx.shadowColor = 'rgba(140, 213, 255, 0.9)';
-    ctx.shadowBlur = 24;
-    ctx.fillRect(142, 190, 12, 180);
-    ctx.restore();
-
-    ctx.fillStyle = '#f4fbff';
-    ctx.font = '600 88px "Poppins", sans-serif';
+    ctx.fillStyle = '#f6fbff';
+    ctx.font = '700 92px "Poppins", sans-serif';
     ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(5, 12, 25, 0.65)';
-    ctx.shadowBlur = 14;
-    wrapText(ctx, card.title.toUpperCase(), 190, 190, baseWidth - 360, 94);
+    ctx.shadowColor = 'rgba(6, 12, 24, 0.7)';
+    ctx.shadowBlur = 16;
+    wrapText(ctx, card.title.toUpperCase(), 200, 196, baseWidth - 400, 102);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = 'rgba(201, 229, 255, 0.94)';
-    ctx.font = '500 48px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 190, 360, baseWidth - 360, 60);
+    ctx.fillStyle = 'rgba(194, 228, 255, 0.96)';
+    ctx.font = '500 52px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 200, 380, baseWidth - 400, 66);
 
-    ctx.save();
-    ctx.strokeStyle = 'rgba(80, 180, 255, 0.55)';
-    ctx.shadowBlur = 18;
-    ctx.shadowColor = 'rgba(56, 189, 248, 0.65)';
-    ctx.lineWidth = 5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(170, 470);
-    ctx.lineTo(baseWidth - 170, 470);
-    ctx.stroke();
-    ctx.restore();
+    ctx.fillStyle = 'rgba(225, 236, 255, 0.92)';
+    ctx.font = '400 42px "Poppins", sans-serif';
+    wrapText(ctx, card.summary || card.detail || '', 190, 520, baseWidth - 360, 60);
 
-    ctx.fillStyle = 'rgba(218, 236, 255, 0.92)';
-    ctx.font = '400 40px "Poppins", sans-serif';
-    wrapText(ctx, card.summary || card.detail || '', 170, 520, baseWidth - 340, 58);
-
-    const highlights = Array.isArray(card.highlights) ? card.highlights.slice(0, 3) : [];
+    const highlights = Array.isArray(card.highlights) ? card.highlights.slice(0, 4) : [];
     if (highlights.length) {
-        ctx.font = '500 36px "Poppins", sans-serif';
+        ctx.font = '500 38px "Poppins", sans-serif';
         let hy = 780;
-        highlights.forEach((item) => {
+        highlights.forEach((item, idx) => {
             ctx.save();
-            ctx.fillStyle = 'rgba(74, 182, 255, 0.72)';
-            ctx.shadowColor = 'rgba(74, 182, 255, 0.75)';
-            ctx.shadowBlur = 16;
-            ctx.beginPath();
-            ctx.arc(180, hy + 18, 8, 0, Math.PI * 2);
+            const pulse = ctx.createLinearGradient(180, hy, 220, hy + 48);
+            pulse.addColorStop(0, 'rgba(122, 221, 255, 0.9)');
+            pulse.addColorStop(1, 'rgba(255, 171, 120, 0.8)');
+            ctx.fillStyle = pulse;
+            roundedRect(ctx, 180, hy, 28, 48, 18);
             ctx.fill();
             ctx.restore();
-            ctx.fillStyle = 'rgba(219, 235, 255, 0.95)';
-            wrapText(ctx, item, 220, hy, baseWidth - 380, 50);
-            hy += 86;
+            ctx.fillStyle = 'rgba(208, 232, 255, 0.95)';
+            wrapText(ctx, item, 230, hy + 6, baseWidth - 420, 56);
+            hy += idx % 2 === 0 ? 82 : 86;
         });
     }
 
@@ -143,49 +162,49 @@ function createCardTexture(card) {
     if (tags.length) {
         ctx.save();
         const footerY = baseHeight - 260;
-        roundedRect(ctx, 150, footerY, baseWidth - 300, 190, 56);
-        const footerGradient = ctx.createLinearGradient(150, footerY, baseWidth - 150, footerY + 190);
-        footerGradient.addColorStop(0, 'rgba(12, 26, 46, 0.88)');
-        footerGradient.addColorStop(1, 'rgba(22, 42, 68, 0.82)');
+        roundedRect(ctx, 160, footerY, baseWidth - 320, 192, 60);
+        const footerGradient = ctx.createLinearGradient(160, footerY, baseWidth - 160, footerY + 192);
+        footerGradient.addColorStop(0, 'rgba(18, 38, 62, 0.92)');
+        footerGradient.addColorStop(1, 'rgba(28, 60, 92, 0.86)');
         ctx.fillStyle = footerGradient;
         ctx.fill();
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = 'rgba(112, 205, 255, 0.4)';
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = 'rgba(136, 215, 255, 0.52)';
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = '500 34px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(214, 234, 255, 0.95)';
-        let x = 200;
-        const y = baseHeight - 210;
+        ctx.font = '500 36px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(215, 236, 255, 0.96)';
+        let x = 210;
+        const y = baseHeight - 212;
         tags.forEach((tag) => {
             const label = `#${tag}`;
             const textWidth = ctx.measureText(label).width;
-            const pillWidth = textWidth + 72;
-            const pillHeight = 68;
+            const pillWidth = textWidth + 80;
+            const pillHeight = 70;
             ctx.save();
             const pillGradient = ctx.createLinearGradient(x, y, x + pillWidth, y + pillHeight);
-            pillGradient.addColorStop(0, 'rgba(45, 94, 160, 0.8)');
-            pillGradient.addColorStop(1, 'rgba(28, 67, 122, 0.7)');
-            roundedRect(ctx, x, y, pillWidth, pillHeight, 40);
+            pillGradient.addColorStop(0, 'rgba(58, 114, 176, 0.82)');
+            pillGradient.addColorStop(1, 'rgba(38, 76, 142, 0.78)');
+            roundedRect(ctx, x, y, pillWidth, pillHeight, 42);
             ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(133, 208, 255, 0.55)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(152, 220, 255, 0.55)';
+            ctx.lineWidth = 2.2;
             ctx.stroke();
             ctx.restore();
-            ctx.fillText(label, x + 32, y + 18);
-            x += pillWidth + 32;
+            ctx.fillText(label, x + 36, y + 20);
+            x += pillWidth + 36;
         });
     }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 120; i++) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
-        const radius = Math.random() * 1.8 + 0.6;
-        ctx.fillStyle = `rgba(138, 220, 255, ${0.08 + Math.random() * 0.25})`;
+        const radius = Math.random() * 2 + 0.4;
+        ctx.fillStyle = `rgba(130, 220, 255, ${0.05 + Math.random() * 0.25})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -204,7 +223,7 @@ function createCardTexture(card) {
 function createCardBackTexture(card) {
     const baseWidth = 1024;
     const baseHeight = 1536;
-    const scale = window.devicePixelRatio > 1 ? 0.6 : 0.5;
+    const scale = window.devicePixelRatio > 1 ? 0.68 : 0.58;
     const width = Math.round(baseWidth * scale);
     const height = Math.round(baseHeight * scale);
     const canvas = document.createElement('canvas');
@@ -214,103 +233,113 @@ function createCardBackTexture(card) {
     ctx.scale(scale, scale);
 
     const gradient = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
-    gradient.addColorStop(0, '#020814');
-    gradient.addColorStop(1, '#0a1a33');
+    gradient.addColorStop(0, '#030a15');
+    gradient.addColorStop(0.6, '#081a31');
+    gradient.addColorStop(1, '#02060c');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
+    const diagonal = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    diagonal.addColorStop(0, 'rgba(90, 198, 255, 0.25)');
+    diagonal.addColorStop(0.5, 'rgba(255, 180, 120, 0.15)');
+    diagonal.addColorStop(1, 'rgba(30, 66, 110, 0)');
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = diagonal;
+    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    ctx.globalCompositeOperation = 'source-over';
+
     ctx.save();
-    ctx.shadowColor = 'rgba(90, 198, 255, 0.28)';
-    ctx.shadowBlur = 36;
-    ctx.strokeStyle = 'rgba(150, 226, 255, 0.45)';
+    ctx.shadowColor = 'rgba(126, 220, 255, 0.32)';
+    ctx.shadowBlur = 44;
+    ctx.strokeStyle = 'rgba(156, 226, 255, 0.48)';
     ctx.lineWidth = 6;
-    roundedRect(ctx, 64, 64, baseWidth - 128, baseHeight - 128, 76);
+    roundedRect(ctx, 70, 70, baseWidth - 140, baseHeight - 140, 84);
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
-    roundedRect(ctx, 120, 200, baseWidth - 240, baseHeight - 360, 68);
-    const panelGradient = ctx.createLinearGradient(120, 200, baseWidth - 120, baseHeight - 220);
-    panelGradient.addColorStop(0, 'rgba(18, 32, 54, 0.92)');
-    panelGradient.addColorStop(0.5, 'rgba(11, 24, 44, 0.84)');
-    panelGradient.addColorStop(1, 'rgba(7, 14, 28, 0.94)');
+    roundedRect(ctx, 132, 210, baseWidth - 264, baseHeight - 380, 72);
+    const panelGradient = ctx.createLinearGradient(132, 210, baseWidth - 132, baseHeight - 240);
+    panelGradient.addColorStop(0, 'rgba(21, 38, 62, 0.92)');
+    panelGradient.addColorStop(0.45, 'rgba(13, 30, 52, 0.86)');
+    panelGradient.addColorStop(1, 'rgba(9, 18, 36, 0.94)');
     ctx.fillStyle = panelGradient;
     ctx.fill();
-    const panelSheen = ctx.createLinearGradient(120, 200, baseWidth - 120, baseHeight - 360);
-    panelSheen.addColorStop(0, 'rgba(255, 255, 255, 0.18)');
-    panelSheen.addColorStop(0.4, 'rgba(255, 255, 255, 0.04)');
-    panelSheen.addColorStop(0.8, 'rgba(255, 255, 255, 0.16)');
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = panelSheen;
+    const sheen = ctx.createLinearGradient(132, 210, baseWidth - 132, baseHeight - 380);
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+    sheen.addColorStop(0.38, 'rgba(255, 255, 255, 0.06)');
+    sheen.addColorStop(0.78, 'rgba(255, 255, 255, 0.18)');
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = sheen;
     ctx.fill();
     ctx.restore();
     ctx.globalAlpha = 1;
 
-    ctx.fillStyle = '#f3f9ff';
-    ctx.font = '600 92px "Poppins", sans-serif';
+    ctx.fillStyle = '#f4fbff';
+    ctx.font = '700 96px "Poppins", sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(4, 12, 22, 0.7)';
+    ctx.shadowColor = 'rgba(6, 12, 26, 0.72)';
     ctx.shadowBlur = 18;
-    ctx.fillText(card.title.toUpperCase(), baseWidth / 2, 230, baseWidth - 240);
+    ctx.fillText(card.title.toUpperCase(), baseWidth / 2, 240, baseWidth - 260);
     ctx.shadowBlur = 0;
 
     ctx.textAlign = 'left';
-    ctx.fillStyle = 'rgba(184, 220, 255, 0.95)';
-    ctx.font = '500 48px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 180, 440, baseWidth - 360, 58);
+    ctx.fillStyle = 'rgba(196, 226, 255, 0.96)';
+    ctx.font = '500 50px "Poppins", sans-serif';
+    wrapText(ctx, card.subtitle || '', 200, 460, baseWidth - 400, 62);
 
-    ctx.fillStyle = 'rgba(249, 168, 109, 0.92)';
-    ctx.font = '400 40px "Poppins", sans-serif';
-    const summary = card.summary || card.detail || '';
-    wrapText(ctx, summary, 180, 600, baseWidth - 360, 56);
+    ctx.fillStyle = 'rgba(255, 188, 132, 0.88)';
+    ctx.font = '400 42px "Poppins", sans-serif';
+    const summary = card.detail || card.summary || '';
+    wrapText(ctx, summary, 200, 640, baseWidth - 400, 58);
 
     const tags = Array.isArray(card.tags) ? card.tags : [];
     if (tags.length) {
         ctx.save();
-        const badgeY = baseHeight - 300;
-        roundedRect(ctx, 180, badgeY, baseWidth - 360, 180, 54);
-        const badgeGradient = ctx.createLinearGradient(180, badgeY, baseWidth - 180, badgeY + 180);
-        badgeGradient.addColorStop(0, 'rgba(22, 42, 70, 0.85)');
-        badgeGradient.addColorStop(1, 'rgba(12, 26, 46, 0.88)');
+        const badgeY = baseHeight - 310;
+        roundedRect(ctx, 200, badgeY, baseWidth - 400, 200, 58);
+        const badgeGradient = ctx.createLinearGradient(200, badgeY, baseWidth - 200, badgeY + 200);
+        badgeGradient.addColorStop(0, 'rgba(24, 48, 78, 0.9)');
+        badgeGradient.addColorStop(1, 'rgba(34, 66, 102, 0.84)');
         ctx.fillStyle = badgeGradient;
         ctx.fill();
-        ctx.lineWidth = 2.4;
-        ctx.strokeStyle = 'rgba(118, 204, 255, 0.45)';
+        ctx.lineWidth = 2.6;
+        ctx.strokeStyle = 'rgba(142, 220, 255, 0.5)';
         ctx.stroke();
         ctx.restore();
 
-        ctx.font = '500 34px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(215, 236, 255, 0.96)';
-        let x = 220;
-        const y = baseHeight - 250;
+        ctx.font = '500 36px "Poppins", sans-serif';
+        ctx.fillStyle = 'rgba(220, 238, 255, 0.96)';
+        let x = 240;
+        const y = baseHeight - 256;
         tags.forEach((tag) => {
             const label = `#${tag}`;
-            const widthLabel = ctx.measureText(label).width + 76;
-            const heightLabel = 68;
+            const w = ctx.measureText(label).width + 84;
+            const h = 72;
             ctx.save();
-            const pillGradient = ctx.createLinearGradient(x, y, x + widthLabel, y + heightLabel);
-            pillGradient.addColorStop(0, 'rgba(43, 96, 158, 0.78)');
-            pillGradient.addColorStop(1, 'rgba(27, 64, 118, 0.72)');
-            roundedRect(ctx, x, y, widthLabel, heightLabel, 40);
+            const pillGradient = ctx.createLinearGradient(x, y, x + w, y + h);
+            pillGradient.addColorStop(0, 'rgba(68, 124, 188, 0.82)');
+            pillGradient.addColorStop(1, 'rgba(48, 92, 156, 0.78)');
+            roundedRect(ctx, x, y, w, h, 44);
             ctx.fillStyle = pillGradient;
             ctx.fill();
-            ctx.strokeStyle = 'rgba(138, 214, 255, 0.55)';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = 'rgba(160, 224, 255, 0.55)';
+            ctx.lineWidth = 2.2;
             ctx.stroke();
             ctx.restore();
-            ctx.fillText(label, x + 34, y + 18);
-            x += widthLabel + 30;
+            ctx.fillText(label, x + 38, y + 22);
+            x += w + 40;
         });
     }
 
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < 80; i++) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
-        const radius = Math.random() * 1.6 + 0.6;
-        ctx.fillStyle = `rgba(140, 216, 255, ${0.08 + Math.random() * 0.22})`;
+        const radius = Math.random() * 1.8 + 0.5;
+        ctx.fillStyle = `rgba(138, 220, 255, ${0.06 + Math.random() * 0.22})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
@@ -673,11 +702,12 @@ export function createCosmicCarousel({
     renderer.shadowMap.enabled = false;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.18;
+    renderer.toneMappingExposure = 1.12;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
 
     const scene = new THREE.Scene();
     scene.background = null;
+    scene.fog = new THREE.FogExp2(0x04070d, 0.018);
 
     RectAreaLightUniformsLib.init();
 
@@ -704,9 +734,9 @@ export function createCosmicCarousel({
             }
         );
 
-    const camera = new THREE.PerspectiveCamera(52, 1, 0.1, 200);
-    const cameraIdleOffset = new THREE.Vector3(0.1, 1.6, 8.2);
-    const cameraFocusOffset = new THREE.Vector3(-0.15, 1.2, 5.1);
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 220);
+    const cameraIdleOffset = new THREE.Vector3(0.14, 1.82, 9.6);
+    const cameraFocusOffset = new THREE.Vector3(-0.22, 1.3, 5.45);
     camera.position.copy(cameraIdleOffset);
     scene.add(camera);
     const cameraLookTarget = new THREE.Vector3(0, 1.05, 0);
@@ -715,13 +745,18 @@ export function createCosmicCarousel({
     const composer = new EffectComposer(renderer);
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.32, 0.75, 0.62);
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.26, 0.78, 0.64);
     composer.addPass(bloomPass);
     const lutPass = new ShaderPass(ColorCorrectionShader);
-    lutPass.uniforms.powRGB.value.set(1.08, 1.02, 1.12);
-    lutPass.uniforms.mulRGB.value.set(1.06, 1.02, 1.18);
-    lutPass.uniforms.addRGB.value.set(0.008, 0.006, -0.01);
+    lutPass.uniforms.powRGB.value.set(1.12, 1.02, 1.18);
+    lutPass.uniforms.mulRGB.value.set(1.08, 1.0, 1.24);
+    lutPass.uniforms.addRGB.value.set(0.012, 0.004, -0.015);
     composer.addPass(lutPass);
+    const vignettePass = new ShaderPass(VignetteShader);
+    vignettePass.uniforms.offset.value = 1.05;
+    vignettePass.uniforms.darkness.value = 1.4;
+    vignettePass.uniforms.tint.value.set(1.08, 0.98, 0.9);
+    composer.addPass(vignettePass);
 
     // -----------------------------
     //  Illuminazione fisica
@@ -729,32 +764,32 @@ export function createCosmicCarousel({
     const lightRig = new THREE.Group();
     scene.add(lightRig);
 
-    const ambient = new THREE.AmbientLight(0x101b2c, 0.38);
+    const ambient = new THREE.AmbientLight(0x101b2c, 0.46);
     lightRig.add(ambient);
 
     const hemi = new THREE.HemisphereLight(0x1a3658, 0x05070c, 0.22);
     hemi.position.set(0, 6, 0);
     lightRig.add(hemi);
 
-    const keyLight = new THREE.DirectionalLight(0xffd6aa, 2.1);
-    keyLight.position.set(6.4, 7.2, 4.6);
+    const keyLight = new THREE.DirectionalLight(0xffd6aa, 2.3);
+    keyLight.position.set(7.2, 7.6, 5.4);
     keyLight.target.position.set(0, 1.2, 0);
     lightRig.add(keyLight);
     lightRig.add(keyLight.target);
 
-    const rimLight = new THREE.DirectionalLight(0x7abfff, 1.6);
-    rimLight.position.set(-5.6, 3.9, -4.8);
+    const rimLight = new THREE.DirectionalLight(0x7abfff, 1.75);
+    rimLight.position.set(-6.8, 4.4, -5.6);
     rimLight.target.position.set(0, 1.3, 0);
     lightRig.add(rimLight);
     lightRig.add(rimLight.target);
 
-    const coolRect = new THREE.RectAreaLight(0x76d4ff, 1.55, 4.6, 2.6);
-    coolRect.position.set(-2.6, 3.5, 4.2);
+    const coolRect = new THREE.RectAreaLight(0x76d4ff, 1.65, 4.8, 2.8);
+    coolRect.position.set(-3.1, 3.6, 4.6);
     coolRect.lookAt(0, 1.2, 0);
     lightRig.add(coolRect);
 
-    const warmRect = new THREE.RectAreaLight(0xffa475, 1.1, 3.6, 2.2);
-    warmRect.position.set(2.8, 2.7, -3.8);
+    const warmRect = new THREE.RectAreaLight(0xffa475, 1.28, 3.9, 2.4);
+    warmRect.position.set(3.5, 2.8, -4.1);
     warmRect.lookAt(0, 1.1, 0);
     lightRig.add(warmRect);
 
@@ -782,6 +817,22 @@ export function createCosmicCarousel({
     glintLight.position.set(0, 3.5, -6.4);
     lightRig.add(glintLight);
 
+    const amberLight = new THREE.PointLight(0xffb088, 0.52, 22, 1.9);
+    amberLight.position.set(1.4, 4.6, 2.4);
+    lightRig.add(amberLight);
+
+    const tealLight = new THREE.PointLight(0x4ab8ff, 0.58, 24, 1.75);
+    tealLight.position.set(-1.8, 3.9, -2.9);
+    lightRig.add(tealLight);
+
+    const hazePlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(18, 10),
+        new THREE.MeshBasicMaterial({ color: 0x0c1626, transparent: true, opacity: 0.22, depthWrite: false })
+    );
+    hazePlane.position.set(0, 2.4, -7.8);
+    hazePlane.lookAt(0, 2.2, 0);
+    scene.add(hazePlane);
+
     // -----------------------------
     //  Carosello 3D orbitante
     // -----------------------------
@@ -790,7 +841,7 @@ export function createCosmicCarousel({
 
     const cardGroups = [];
     const interactableMeshes = [];
-    const cardRadius = 4.1;
+    const cardRadius = 5.2;
     const cardHeight = 3.0;
     const cardWidth = 2.05;
     const cardDepth = 0.14;
@@ -806,25 +857,33 @@ export function createCosmicCarousel({
             scale: 1,
             tiltX: 0,
             tiltZ: 0,
-            glow: 0.55,
-            rim: 1.35,
-            shadow: 0.26
+            glow: 0.54,
+            rim: 1.3,
+            shadow: 0.24
         },
         hover: {
-            scale: 1.07,
-            tiltX: THREE.MathUtils.degToRad(-4.2),
-            tiltZ: THREE.MathUtils.degToRad(4.6),
-            glow: 0.85,
-            rim: 2.1,
-            shadow: 0.36
+            scale: 1.12,
+            tiltX: THREE.MathUtils.degToRad(-4.5),
+            tiltZ: THREE.MathUtils.degToRad(4.9),
+            glow: 0.92,
+            rim: 2.3,
+            shadow: 0.34
         },
         active: {
-            scale: 1.18,
-            tiltX: THREE.MathUtils.degToRad(-6.2),
-            tiltZ: THREE.MathUtils.degToRad(6.8),
-            glow: 1.15,
-            rim: 3,
+            scale: 1.26,
+            tiltX: THREE.MathUtils.degToRad(-6.8),
+            tiltZ: THREE.MathUtils.degToRad(7.2),
+            glow: 1.22,
+            rim: 3.2,
             shadow: 0.48
+        },
+        dim: {
+            scale: 0.92,
+            tiltX: THREE.MathUtils.degToRad(-1.2),
+            tiltZ: THREE.MathUtils.degToRad(1.2),
+            glow: 0.32,
+            rim: 0.92,
+            shadow: 0.18
         }
     };
 
@@ -930,7 +989,8 @@ export function createCosmicCarousel({
             frontMaterial,
             backMaterial,
             isActive: false,
-            isHover: false
+            isHover: false,
+            floatPhase: Math.random() * Math.PI * 2
         };
 
         const angle = (index / cards.length) * Math.PI * 2;
@@ -975,6 +1035,7 @@ export function createCosmicCarousel({
     const tmpLookBase = new THREE.Vector3();
     const tmpLookBlend = new THREE.Vector3();
     const focusAnchor = new THREE.Vector3();
+    const tmpTangent = new THREE.Vector3();
 
     const autoRotateStrength = { value: 1 };
 
@@ -988,6 +1049,8 @@ export function createCosmicCarousel({
     focusTimeline.eventCallback('onReverseComplete', () => {
         focusState.value = 0;
     });
+
+    let elapsedTime = 0;
 
     function handleFirstInteraction() {
         if (hasInteracted) return;
@@ -1040,26 +1103,34 @@ export function createCosmicCarousel({
                 ease: 'power2.out'
             });
         }
+        const frontTargets = {
+            idle: { emissive: 0.22, env: 1.42, transmission: 0.32, clearcoat: 0.75 },
+            hover: { emissive: 0.3, env: 1.62, transmission: 0.36, clearcoat: 0.84 },
+            active: { emissive: 0.38, env: 1.85, transmission: 0.4, clearcoat: 0.92 },
+            dim: { emissive: 0.18, env: 1.22, transmission: 0.28, clearcoat: 0.68 }
+        };
+        const backTargets = {
+            idle: { emissive: 0.16, env: 1.24 },
+            hover: { emissive: 0.21, env: 1.36 },
+            active: { emissive: 0.26, env: 1.52 },
+            dim: { emissive: 0.12, env: 1.1 }
+        };
         if (frontMaterial) {
-            const targetEmissive = presetKey === 'active' ? 0.36 : presetKey === 'hover' ? 0.28 : 0.22;
-            const targetEnv = presetKey === 'active' ? 1.75 : presetKey === 'hover' ? 1.55 : 1.45;
-            const targetTransmission = presetKey === 'active' ? 0.38 : presetKey === 'hover' ? 0.34 : 0.32;
-            const targetClearcoat = presetKey === 'active' ? 0.9 : presetKey === 'hover' ? 0.82 : 0.75;
+            const target = frontTargets[presetKey] || frontTargets.idle;
             gsap.to(frontMaterial, {
-                emissiveIntensity: targetEmissive,
-                envMapIntensity: targetEnv,
-                transmission: targetTransmission,
-                clearcoat: targetClearcoat,
+                emissiveIntensity: target.emissive,
+                envMapIntensity: target.env,
+                transmission: target.transmission,
+                clearcoat: target.clearcoat,
                 duration: Math.max(0.32, duration * 0.9),
                 ease: 'power2.out'
             });
         }
         if (backMaterial) {
-            const targetEmissive = presetKey === 'active' ? 0.24 : presetKey === 'hover' ? 0.2 : 0.16;
-            const targetEnv = presetKey === 'active' ? 1.45 : presetKey === 'hover' ? 1.32 : 1.25;
+            const target = backTargets[presetKey] || backTargets.idle;
             gsap.to(backMaterial, {
-                emissiveIntensity: targetEmissive,
-                envMapIntensity: targetEnv,
+                emissiveIntensity: target.emissive,
+                envMapIntensity: target.env,
                 duration: Math.max(0.32, duration * 0.9),
                 ease: 'power2.out'
             });
@@ -1069,7 +1140,14 @@ export function createCosmicCarousel({
 
     function syncCardVisual(group, { immediate = false } = {}) {
         if (!group) return;
-        const presetKey = group.userData.isActive ? 'active' : group.userData.isHover ? 'hover' : 'idle';
+        let presetKey = 'idle';
+        if (group.userData.isActive) {
+            presetKey = 'active';
+        } else if (group.userData.isHover) {
+            presetKey = 'hover';
+        } else if (activeGroup && group !== activeGroup) {
+            presetKey = 'dim';
+        }
         applyCardPreset(group, presetKey, { immediate });
     }
 
@@ -1098,9 +1176,10 @@ export function createCosmicCarousel({
 
     function releaseActiveCard({ immediate = false } = {}) {
         if (!activeGroup) return;
-        activeGroup.userData.isActive = false;
-        flipCard(activeGroup, false, { immediate });
-        syncCardVisual(activeGroup, { immediate });
+        const previous = activeGroup;
+        previous.userData.isActive = false;
+        flipCard(previous, false, { immediate });
+        syncCardVisual(previous, { immediate });
         if (focusTimeline.progress() > 0) {
             if (immediate) {
                 focusTimeline.pause(0);
@@ -1115,10 +1194,15 @@ export function createCosmicCarousel({
         rotationTween = null;
         rotationState.velocity = 0;
         activeGroup = null;
+        cardGroups.forEach((entry) => {
+            if (entry !== previous) {
+                syncCardVisual(entry, { immediate });
+            }
+        });
         if (!isPointerDown) {
             autoRotate = true;
         }
-        setAutoRotateStrength(overlayHovered ? 0.18 : 1);
+        setAutoRotateStrength(overlayHovered ? 0.06 : 1);
         focusAnchor.set(0, cameraLookBaseY, 0);
     }
 
@@ -1136,6 +1220,11 @@ export function createCosmicCarousel({
         activeGroup = group;
         activeGroup.userData.isActive = true;
         syncCardVisual(activeGroup);
+        cardGroups.forEach((entry) => {
+            if (entry !== activeGroup) {
+                syncCardVisual(entry);
+            }
+        });
         focusAnchor.copy(activeGroup.position);
         flipCard(activeGroup, true);
         rotationTween?.kill?.();
@@ -1204,7 +1293,7 @@ export function createCosmicCarousel({
         overlay.classList.add('is-dragging');
         rotationTween?.kill?.();
         rotationTween = null;
-        setAutoRotateStrength(0.06);
+        setAutoRotateStrength(0.03);
         needsRaycast = true;
         if (event.pointerId !== undefined && overlay.setPointerCapture) {
             try { overlay.setPointerCapture(event.pointerId); } catch (err) { /* ignore */ }
@@ -1227,7 +1316,7 @@ export function createCosmicCarousel({
         }
         if (!activeGroup) {
             autoRotate = true;
-            setAutoRotateStrength(overlayHovered ? 0.18 : 1);
+            setAutoRotateStrength(overlayHovered ? 0.06 : 1);
         }
         overlay.classList.remove('is-dragging');
         needsRaycast = true;
@@ -1246,7 +1335,7 @@ export function createCosmicCarousel({
         if (!activeGroup && !isPointerDown) {
             autoRotate = true;
         }
-        setAutoRotateStrength(0.18);
+        setAutoRotateStrength(0.05);
         needsRaycast = true;
     }
 
@@ -1356,17 +1445,17 @@ export function createCosmicCarousel({
 
         const mobile = width < 720;
         const idleTarget = mobile
-            ? { x: 0.06, y: 1.35, z: 9.3 }
-            : { x: 0.12, y: 1.62, z: 8.0 };
+            ? { x: 0.05, y: 1.55, z: 11.6 }
+            : { x: 0.14, y: 1.88, z: 9.8 };
         const focusTarget = mobile
-            ? { x: -0.04, y: 1.05, z: 5.6 }
-            : { x: -0.18, y: 1.18, z: 5.05 };
+            ? { x: -0.06, y: 1.18, z: 6.15 }
+            : { x: -0.22, y: 1.32, z: 5.5 };
         gsap.to(cameraIdleOffset, { ...idleTarget, duration: 0.8, ease: 'power2.out' });
         gsap.to(cameraFocusOffset, { ...focusTarget, duration: 0.8, ease: 'power2.out' });
         cameraLookBaseY = mobile ? 0.94 : 1.05;
     }
     updateRendererSize();
-    camera.position.set(cameraIdleOffset.x, cameraIdleOffset.y - 0.5, cameraIdleOffset.z + 5.2);
+    camera.position.set(cameraIdleOffset.x, cameraIdleOffset.y - 0.4, cameraIdleOffset.z + 6.4);
     cameraLookTarget.set(0, cameraLookBaseY, 0);
     focusAnchor.set(0, cameraLookBaseY, 0);
     let resizeObserver = null;
@@ -1397,18 +1486,35 @@ export function createCosmicCarousel({
         if (!activeGroup) {
             focusAnchor.set(0, cameraLookBaseY, 0);
         }
+        const activeAngle = activeGroup ? activeGroup.userData.baseAngle + rotationState.current : null;
 
         cardGroups.forEach((group) => {
             const angle = group.userData.baseAngle + rotationState.current;
             const focus = group === activeGroup ? focusAmount : 0;
-            const orbitRadius = cardRadius - focus * 0.95;
-            const baseX = Math.cos(angle) * orbitRadius;
-            const baseZ = Math.sin(angle) * orbitRadius;
-            const baseY = Math.sin(angle * 2.0) * 0.35;
-            const pull = focus * 1.35;
-            const x = baseX + cameraDir.x * pull;
-            const y = baseY + cameraDir.y * pull + focus * 0.3;
-            const z = baseZ + cameraDir.z * pull;
+            let orbitRadius = cardRadius - focus * 1.3;
+            let x = Math.cos(angle) * orbitRadius;
+            let z = Math.sin(angle) * orbitRadius;
+            const baseWave = Math.sin(angle * 2.0) * 0.3;
+            const floatWave = Math.sin(elapsedTime * 1.12 + group.userData.floatPhase) * (0.16 + focus * 0.08);
+            let y = baseWave + floatWave;
+
+            if (activeGroup && group !== activeGroup && activeAngle !== null) {
+                const diff = THREE.MathUtils.euclideanModulo(angle - activeAngle + Math.PI, Math.PI * 2) - Math.PI;
+                const closeness = 1 - Math.min(Math.abs(diff) / (Math.PI / 2), 1);
+                const pushRadius = focusAmount * closeness * 1.6;
+                orbitRadius = cardRadius + pushRadius;
+                x = Math.cos(angle) * orbitRadius;
+                z = Math.sin(angle) * orbitRadius;
+                const tangent = tmpTangent.set(-Math.sin(angle), 0, Math.cos(angle));
+                x += tangent.x * pushRadius * 0.85;
+                z += tangent.z * pushRadius * 0.85;
+                y += focusAmount * (0.2 + closeness * 0.35);
+            }
+
+            const pull = focus * 1.4;
+            x += cameraDir.x * pull;
+            y += cameraDir.y * pull + focus * 0.35;
+            z += cameraDir.z * pull;
             group.position.set(x, y, z);
             const lookY = THREE.MathUtils.lerp(0.18, 0.52, focus);
             group.lookAt(tmpDesiredCamera.x, lookY, tmpDesiredCamera.z);
@@ -1438,6 +1544,10 @@ export function createCosmicCarousel({
             syncCardVisual(hoveredGroup);
             audio.playHover();
         }
+        if (!activeGroup) {
+            const targetStrength = hoveredGroup ? 0.035 : (overlayHovered ? 0.05 : 1);
+            setAutoRotateStrength(targetStrength);
+        }
     }
 
     let previousTime = performance.now();
@@ -1445,6 +1555,7 @@ export function createCosmicCarousel({
         const now = performance.now();
         const delta = (now - previousTime) / 1000;
         previousTime = now;
+        elapsedTime += delta;
 
         updateCarousel(delta);
         updateHover();
@@ -1514,7 +1625,27 @@ export function createCosmicCarousel({
         overlay.remove();
         renderer.dispose();
         composer.dispose();
-        scene.remove(carouselGroup, ambient, keyLight, keyLight.target, rimLight, rimLight.target, fillLight, bounceLight);
+        scene.remove(
+            carouselGroup,
+            ambient,
+            keyLight,
+            keyLight.target,
+            rimLight,
+            rimLight.target,
+            hemi,
+            coolRect,
+            warmRect,
+            crystalSpot,
+            crystalSpot.target,
+            warmSpot,
+            warmSpot.target,
+            fillLight,
+            bounceLight,
+            glintLight,
+            amberLight,
+            tealLight,
+            hazePlane
+        );
         scene.environment = null;
         scene.background = null;
         environmentRenderTarget?.dispose?.();
@@ -1532,6 +1663,8 @@ export function createCosmicCarousel({
         bodyGeometry.dispose();
         faceGeometry.dispose();
         lowFaceGeometry.dispose();
+        hazePlane.geometry.dispose();
+        hazePlane.material.dispose();
         audio.dispose();
     }
 
