@@ -399,6 +399,85 @@ function createGlowPlane(color = 0x64caff, intensity = 0.9) {
     return mesh;
 }
 
+function createRimMaterial({
+    color = 0x06101c,
+    rimColor = 0x7cd1ff,
+    rimStrength = 1.1
+} = {}) {
+    const material = new THREE.MeshPhysicalMaterial({
+        color,
+        metalness: 0.22,
+        roughness: 0.36,
+        transmission: 0.24,
+        thickness: 0.28,
+        envMapIntensity: 1.1,
+        clearcoat: 0.72,
+        clearcoatRoughness: 0.34,
+        iridescence: 0.12,
+        iridescenceIOR: 1.12,
+        sheen: 0.18,
+        sheenColor: new THREE.Color(0x7cb8ff),
+        transparent: true,
+        opacity: 0.95
+    });
+
+    material.userData.rimColor = new THREE.Color(rimColor);
+    material.userData.targetRimStrength = rimStrength;
+
+    material.onBeforeCompile = (shader) => {
+        shader.uniforms.rimColor = { value: material.userData.rimColor };
+        shader.uniforms.rimStrength = { value: material.userData.targetRimStrength };
+
+        shader.vertexShader = shader.vertexShader
+            .replace(
+                '#include <common>',
+                `#include <common>\n                varying vec3 vWorldNormal;\n                varying vec3 vWorldPosition;`
+            )
+            .replace(
+                '#include <beginnormal_vertex>',
+                `#include <beginnormal_vertex>\n                vWorldNormal = normalize(mat3(modelMatrix) * objectNormal);`
+            )
+            .replace(
+                '#include <begin_vertex>',
+                `#include <begin_vertex>\n                vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;`
+            );
+
+        shader.fragmentShader = shader.fragmentShader
+            .replace(
+                '#include <common>',
+                `#include <common>\n                varying vec3 vWorldNormal;\n                varying vec3 vWorldPosition;\n                uniform vec3 rimColor;\n                uniform float rimStrength;`
+            )
+            .replace(
+                '#include <emissivemap_fragment>',
+                `#include <emissivemap_fragment>\n                vec3 viewDir = normalize(cameraPosition - vWorldPosition);\n                float rimDot = clamp(dot(normalize(vWorldNormal), viewDir), 0.0, 1.0);\n                float rim = pow(1.0 - rimDot, 2.6);\n                totalEmissiveRadiance += rimColor * rim * rimStrength;`
+            );
+
+        material.userData.shader = shader;
+    };
+
+    material.customProgramCacheKey = () => 'cosmic-rim-material-v1';
+
+    return material;
+}
+
+function animateRimStrength(material, target, { duration = 0.45, ease = 'power2.out' } = {}) {
+    if (!material) return;
+    material.userData.targetRimStrength = target;
+    const shader = material.userData.shader;
+    if (!shader?.uniforms?.rimStrength) return;
+    if (material.userData.rimTween) {
+        material.userData.rimTween.kill();
+    }
+    material.userData.rimTween = gsap.to(shader.uniforms.rimStrength, {
+        value: target,
+        duration,
+        ease,
+        onUpdate: () => {
+            material.needsUpdate = true;
+        }
+    });
+}
+
 let cachedShadowTexture = null;
 
 function getShadowTexture() {
