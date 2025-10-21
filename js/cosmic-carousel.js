@@ -355,6 +355,7 @@ class CinematicPostFX {
             maxblur: this.defaultMaxBlur,
             duration
         });
+        ctx.restore();
     }
 
     render(delta) {
@@ -490,6 +491,7 @@ function drawCardFace(card, side = 'front') {
             ctx.fillText(label, x, y);
             x += ctx.measureText(label).width + 70;
         });
+        ctx.restore();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
