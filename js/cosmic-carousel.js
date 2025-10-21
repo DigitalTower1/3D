@@ -369,23 +369,23 @@ class CinematicPostFX {
     }
 }
 
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+function wrapText(context, text, x, y, maxWidth, lineHeight) {
     if (!text) return y;
     const words = String(text).split(/\s+/).filter(Boolean);
     let line = '';
     let cursorY = y;
     words.forEach((word, index) => {
         const testLine = line ? `${line} ${word}` : word;
-        const metrics = ctx.measureText(testLine);
+        const metrics = context.measureText(testLine);
         if (metrics.width > maxWidth && line) {
-            ctx.fillText(line, x, cursorY);
+            context.fillText(line, x, cursorY);
             line = word;
             cursorY += lineHeight;
         } else {
             line = testLine;
         }
         if (index === words.length - 1 && line) {
-            ctx.fillText(line, x, cursorY);
+            context.fillText(line, x, cursorY);
         }
     });
     return cursorY + lineHeight;
@@ -399,12 +399,22 @@ function drawCardFace(card, side = 'front') {
     const canvas = document.createElement('canvas');
     canvas.width = Math.round(baseWidth * scale);
     canvas.height = Math.round(baseHeight * scale);
-    const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
+    const context = canvas.getContext('2d');
+    if (!context) {
+        const texture = new THREE.CanvasTexture(canvas);
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = 4;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.magFilter = THREE.LinearFilter;
+        texture.generateMipmaps = true;
+        texture.needsUpdate = true;
+        return texture;
+    }
+    context.scale(scale, scale);
 
-    ctx.clearRect(0, 0, baseWidth, baseHeight);
+    context.clearRect(0, 0, baseWidth, baseHeight);
 
-    const background = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    const background = context.createLinearGradient(0, 0, baseWidth, baseHeight);
     if (side === 'front') {
         background.addColorStop(0, '#061223');
         background.addColorStop(0.55, '#091b32');
@@ -414,67 +424,67 @@ function drawCardFace(card, side = 'front') {
         background.addColorStop(0.5, '#0a1f33');
         background.addColorStop(1, '#081524');
     }
-    ctx.fillStyle = background;
-    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    context.fillStyle = background;
+    context.fillRect(0, 0, baseWidth, baseHeight);
 
-    const lightSweep = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    const lightSweep = context.createLinearGradient(0, 0, baseWidth, baseHeight);
     lightSweep.addColorStop(0, 'rgba(120, 188, 240, 0.08)');
     lightSweep.addColorStop(0.5, 'rgba(240, 214, 178, 0.12)');
     lightSweep.addColorStop(1, 'rgba(30, 70, 110, 0.05)');
-    ctx.fillStyle = lightSweep;
-    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    context.fillStyle = lightSweep;
+    context.fillRect(0, 0, baseWidth, baseHeight);
 
-    const rimGlow = ctx.createRadialGradient(baseWidth * 0.15, baseHeight * 0.2, 0, baseWidth * 0.15, baseHeight * 0.2, baseWidth * 0.7);
+    const rimGlow = context.createRadialGradient(baseWidth * 0.15, baseHeight * 0.2, 0, baseWidth * 0.15, baseHeight * 0.2, baseWidth * 0.7);
     rimGlow.addColorStop(0, 'rgba(140, 210, 255, 0.18)');
     rimGlow.addColorStop(1, 'rgba(10, 22, 40, 0)');
-    ctx.fillStyle = rimGlow;
-    ctx.fillRect(0, 0, baseWidth, baseHeight);
+    context.fillStyle = rimGlow;
+    context.fillRect(0, 0, baseWidth, baseHeight);
 
-    ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.globalCompositeOperation = 'lighter';
+    context.save();
+    context.globalAlpha = 0.4;
+    context.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 90; i += 1) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
         const radius = Math.random() * 1.6 + 0.4;
-        ctx.fillStyle = `rgba(150, 220, 255, ${0.05 + Math.random() * 0.1})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-        ctx.fill();
+        context.fillStyle = `rgba(150, 220, 255, ${0.05 + Math.random() * 0.1})`;
+        context.beginPath();
+        context.arc(sx, sy, radius, 0, Math.PI * 2);
+        context.fill();
     }
-    ctx.restore();
+    context.restore();
 
     const paddingX = 160;
     const contentWidth = baseWidth - paddingX * 2;
     let cursorY = 260;
 
-    ctx.fillStyle = '#f0f7ff';
-    ctx.font = '800 118px "Poppins", sans-serif';
-    ctx.textBaseline = 'top';
+    context.fillStyle = '#f0f7ff';
+    context.font = '800 118px "Poppins", sans-serif';
+    context.textBaseline = 'top';
     const title = card.title || card.summary || 'Card';
-    cursorY = wrapText(ctx, title, paddingX, cursorY, contentWidth, 124);
+    cursorY = wrapText(context, title, paddingX, cursorY, contentWidth, 124);
 
     if (card.subtitle) {
-        ctx.fillStyle = 'rgba(214, 230, 255, 0.85)';
-        ctx.font = '600 70px "Poppins", sans-serif';
-        cursorY = wrapText(ctx, card.subtitle, paddingX, cursorY + 20, contentWidth, 92);
+        context.fillStyle = 'rgba(214, 230, 255, 0.85)';
+        context.font = '600 70px "Poppins", sans-serif';
+        cursorY = wrapText(context, card.subtitle, paddingX, cursorY + 20, contentWidth, 92);
     }
 
     const body = card.detail || card.summary || '';
     if (body) {
-        ctx.fillStyle = 'rgba(202, 220, 240, 0.85)';
-        ctx.font = '400 56px "Poppins", sans-serif';
-        cursorY = wrapText(ctx, body, paddingX, cursorY + 30, contentWidth, 78);
+        context.fillStyle = 'rgba(202, 220, 240, 0.85)';
+        context.font = '400 56px "Poppins", sans-serif';
+        cursorY = wrapText(context, body, paddingX, cursorY + 30, contentWidth, 78);
     }
 
     if (Array.isArray(card.highlights) && card.highlights.length) {
-        ctx.fillStyle = 'rgba(198, 220, 245, 0.9)';
-        ctx.font = '500 56px "Poppins", sans-serif';
+        context.fillStyle = 'rgba(198, 220, 245, 0.9)';
+        context.font = '500 56px "Poppins", sans-serif';
         const maxItems = Math.min(card.highlights.length, 3);
         let y = cursorY + 40;
         for (let i = 0; i < maxItems; i += 1) {
             const item = card.highlights[i];
-            ctx.fillText(`• ${item}`, paddingX, y);
+            context.fillText(`• ${item}`, paddingX, y);
             y += 86;
         }
         cursorY = y;
@@ -482,16 +492,15 @@ function drawCardFace(card, side = 'front') {
 
     const tags = Array.isArray(card.tags) ? card.tags.slice(0, 4) : [];
     if (tags.length) {
-        ctx.fillStyle = 'rgba(176, 212, 236, 0.85)';
-        ctx.font = '500 52px "Poppins", sans-serif';
+        context.fillStyle = 'rgba(176, 212, 236, 0.85)';
+        context.font = '500 52px "Poppins", sans-serif';
         let x = paddingX;
         const y = baseHeight - 240;
         tags.forEach((tag) => {
             const label = `#${tag}`;
-            ctx.fillText(label, x, y);
-            x += ctx.measureText(label).width + 70;
+            context.fillText(label, x, y);
+            x += context.measureText(label).width + 70;
         });
-        ctx.restore();
     }
 
     const texture = new THREE.CanvasTexture(canvas);
