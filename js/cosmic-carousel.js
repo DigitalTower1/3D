@@ -254,6 +254,7 @@ class RealisticLighting {
                 const envMap = this.pmremGenerator.fromEquirectangular(hdr).texture;
                 envMap.name = hasRetried ? 'NightSkyFallback' : 'SolitudeNightHDR';
                 this.scene.environment = envMap;
+                this.scene.background = envMap;
                 if (typeof onEnvironmentLoaded === 'function') {
                     onEnvironmentLoaded(envMap);
                 }
@@ -288,6 +289,10 @@ class RealisticLighting {
     }
 
     dispose() {
+        if (this.scene) {
+            this.scene.environment = null;
+            this.scene.background = null;
+        }
         if (this.pmremGenerator && typeof this.pmremGenerator.dispose === 'function') {
             this.pmremGenerator.dispose();
         }
