@@ -197,7 +197,11 @@ class RealisticCardMaterial {
     }
 
     dispose() {
-        this.materials.forEach((material) => material?.dispose?.());
+        this.materials.forEach((material) => {
+            if (material && typeof material.dispose === 'function') {
+                material.dispose();
+            }
+        });
         this.frontMesh = null;
         this.backMesh = null;
         this.edgeMesh = null;
@@ -241,7 +245,6 @@ class RealisticLighting {
 
         this.loadEnvironment(HDRI_LOCAL_URL, onEnvironmentLoaded);
     }
-}
 
     loadEnvironment(url, onEnvironmentLoaded, hasRetried = false) {
         const loader = new RGBELoader().setDataType(THREE.FloatType);
@@ -251,8 +254,12 @@ class RealisticLighting {
                 const envMap = this.pmremGenerator.fromEquirectangular(hdr).texture;
                 envMap.name = hasRetried ? 'NightSkyFallback' : 'SolitudeNightHDR';
                 this.scene.environment = envMap;
-                onEnvironmentLoaded?.(envMap);
-                hdr.dispose?.();
+                if (typeof onEnvironmentLoaded === 'function') {
+                    onEnvironmentLoaded(envMap);
+                }
+                if (hdr && typeof hdr.dispose === 'function') {
+                    hdr.dispose();
+                }
             },
             undefined,
             (error) => {
@@ -281,7 +288,9 @@ class RealisticLighting {
     }
 
     dispose() {
-        this.pmremGenerator?.dispose?.();
+        if (this.pmremGenerator && typeof this.pmremGenerator.dispose === 'function') {
+            this.pmremGenerator.dispose();
+        }
     }
 }
 
@@ -366,9 +375,15 @@ class CinematicPostFX {
     }
 
     dispose() {
-        this.composer?.dispose?.();
-        this.bokehPass?.renderTargetDepth?.dispose?.();
-        this.bokehPass?.renderTargetColor?.dispose?.();
+        if (this.composer && typeof this.composer.dispose === 'function') {
+            this.composer.dispose();
+        }
+        if (this.bokehPass && this.bokehPass.renderTargetDepth && typeof this.bokehPass.renderTargetDepth.dispose === 'function') {
+            this.bokehPass.renderTargetDepth.dispose();
+        }
+        if (this.bokehPass && this.bokehPass.renderTargetColor && typeof this.bokehPass.renderTargetColor.dispose === 'function') {
+            this.bokehPass.renderTargetColor.dispose();
+        }
     }
 }
 
@@ -726,7 +741,9 @@ export function createCosmicCarousel({
         selectable.push(mesh.children[0], mesh.children[1], mesh.children[2]);
         allCards.push(mesh);
         if (scene.environment) {
-            mesh.userData.materialController?.setEnvironment(scene.environment);
+            if (mesh.userData.materialController && typeof mesh.userData.materialController.setEnvironment === 'function') {
+                mesh.userData.materialController.setEnvironment(scene.environment);
+            }
         }
     });
 
@@ -751,7 +768,9 @@ export function createCosmicCarousel({
 
     function updateEnvMap(envMap) {
         allCards.forEach((card) => {
-            card.userData.materialController?.setEnvironment(envMap);
+            if (card.userData.materialController && typeof card.userData.materialController.setEnvironment === 'function') {
+                card.userData.materialController.setEnvironment(envMap);
+            }
         });
     }
 
@@ -861,7 +880,9 @@ export function createCosmicCarousel({
         raycaster.setFromCamera(pointer, camera);
         const intersections = raycaster.intersectObjects(selectable, false);
         if (intersections.length > 0) {
-            const top = intersections[0].object?.userData?.cardGroup;
+            const topObject = intersections[0].object;
+            const topUserData = topObject ? topObject.userData : undefined;
+            const top = topUserData ? topUserData.cardGroup : undefined;
             if (top) {
                 focusCard(top);
             }
@@ -924,7 +945,10 @@ export function createCosmicCarousel({
         starField.rotation.z += delta * 0.01;
 
         allCards.forEach((card) => {
-            card.userData.materialController?.update(camera, elapsed);
+            const controller = card.userData ? card.userData.materialController : undefined;
+            if (controller && typeof controller.update === 'function') {
+                controller.update(camera, elapsed);
+            }
         });
 
         lighting.update(camera, elapsed);
@@ -970,7 +994,7 @@ export function createCosmicCarousel({
         gsap.killTweensOf(camera.position);
         gsap.killTweensOf(cameraTarget);
         gsap.killTweensOf(bloomPass);
-        if (postFX.bokehPass?.uniforms) {
+        if (postFX.bokehPass && postFX.bokehPass.uniforms) {
             const { focus, aperture, maxblur } = postFX.bokehPass.uniforms;
             gsap.killTweensOf(focus);
             gsap.killTweensOf(aperture);
@@ -983,18 +1007,31 @@ export function createCosmicCarousel({
 
         setTimeout(() => {
             postFX.dispose();
-            lighting.dispose?.();
+            if (lighting && typeof lighting.dispose === 'function') {
+                lighting.dispose();
+            }
             renderer.dispose();
             carouselGroup.traverse((child) => {
                 if (child.isMesh) {
                     const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    materials.forEach((mat) => mat?.dispose?.());
+                    materials.forEach((mat) => {
+                        if (mat && typeof mat.dispose === 'function') {
+                            mat.dispose();
+                        }
+                    });
                 }
-                if (child.userData?.textures) {
-                    child.userData.textures.forEach((texture) => texture?.dispose?.());
+                if (child.userData && child.userData.textures) {
+                    child.userData.textures.forEach((texture) => {
+                        if (texture && typeof texture.dispose === 'function') {
+                            texture.dispose();
+                        }
+                    });
                 }
-                if (child.userData?.materialController) {
-                    child.userData.materialController.dispose();
+                if (child.userData && child.userData.materialController) {
+                    const controller = child.userData.materialController;
+                    if (controller && typeof controller.dispose === 'function') {
+                        controller.dispose();
+                    }
                 }
             });
             starFieldGeometry.dispose();
