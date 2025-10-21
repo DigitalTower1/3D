@@ -97,26 +97,38 @@ html, body {
     display: grid;
     place-items: center;
     background:
-        radial-gradient(circle at 35% 20%, rgba(34, 122, 255, 0.12), transparent 55%),
-        radial-gradient(circle at 70% 82%, rgba(255, 126, 65, 0.18), transparent 62%),
-        linear-gradient(160deg, rgba(1, 6, 18, 0.95), rgba(4, 14, 32, 0.92));
+        radial-gradient(circle at 28% 18%, rgba(88, 172, 255, 0.18), transparent 62%),
+        radial-gradient(circle at 78% 86%, rgba(255, 146, 94, 0.22), transparent 68%),
+        linear-gradient(150deg, rgba(2, 10, 24, 0.96), rgba(3, 18, 42, 0.94));
     overflow: hidden;
     pointer-events: auto;
     opacity: 0;
-    color: #e0f7ff;
+    color: #e4f6ff;
     cursor: grab;
     transform: scale(1.03);
     transition: opacity 0.7s ease, transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     touch-action: none;
+    box-shadow: inset 0 0 140px rgba(10, 24, 48, 0.65);
 }
 
 .cosmic-carousel-overlay::before {
     content: '';
     position: absolute;
-    inset: -40%;
-    background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"%3E%3Cdefs%3E%3CradialGradient id="g" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="rotate(45) scale(1 1)"%3E%3Cstop offset="0" stop-color="%23ffffff" stop-opacity="0.22"/%3E%3Cstop offset="1" stop-color="%23ffffff" stop-opacity="0"/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width="160" height="160" fill="url(%23g)"/%3E%3C/svg%3E');
-    opacity: 0.18;
+    inset: -35%;
+    background: url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160"%3E%3Cdefs%3E%3CradialGradient id="g" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="rotate(45) scale(1 1)"%3E%3Cstop offset="0" stop-color="%23ffffff" stop-opacity="0.28"/%3E%3Cstop offset="1" stop-color="%23ffffff" stop-opacity="0"/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width="160" height="160" fill="url(%23g)"/%3E%3C/svg%3E');
+    opacity: 0.22;
     animation: nebulaDrift 48s linear infinite;
+}
+
+.cosmic-carousel-overlay::after {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    background: radial-gradient(circle at 40% 40%, rgba(143, 220, 255, 0.25), transparent 60%),
+                radial-gradient(circle at 70% 60%, rgba(255, 163, 102, 0.18), transparent 65%);
+    mix-blend-mode: screen;
+    opacity: 0.3;
+    animation: auroraFlow 36s ease-in-out infinite alternate;
 }
 
 .cosmic-carousel-overlay.is-active {
@@ -141,7 +153,7 @@ html, body {
     height: 100%;
     display: block;
     touch-action: none;
-    filter: drop-shadow(0 20px 80px rgba(15, 118, 221, 0.35));
+    filter: drop-shadow(0 24px 96px rgba(30, 130, 255, 0.32));
 }
 
 .cosmic-carousel__chrome {
@@ -154,13 +166,15 @@ html, body {
     justify-content: space-between;
     padding: clamp(1.4rem, 3vw, 2.6rem);
     pointer-events: none;
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
 }
 
 .cosmic-carousel__hud {
     display: flex;
     justify-content: flex-end;
     align-items: flex-start;
-    text-shadow: 0 14px 35px rgba(3, 7, 18, 0.7);
+    text-shadow: 0 18px 45px rgba(3, 7, 18, 0.76);
     pointer-events: none;
 }
 
@@ -206,10 +220,10 @@ html, body {
     min-height: 3.1rem;
     min-width: 3.1rem;
     border-radius: 999px;
-    border: 1px solid rgba(148, 239, 255, 0.28);
-    background: linear-gradient(160deg, rgba(4, 13, 28, 0.82), rgba(13, 27, 46, 0.64));
-    box-shadow: 0 20px 48px rgba(2, 12, 27, 0.6);
-    color: #eaf7ff;
+    border: 1px solid rgba(132, 208, 255, 0.32);
+    background: linear-gradient(160deg, rgba(6, 18, 34, 0.82), rgba(18, 40, 68, 0.62));
+    box-shadow: 0 22px 52px rgba(2, 12, 27, 0.65);
+    color: #e8f8ff;
     font-family: 'Poppins', sans-serif;
     font-weight: 600;
     letter-spacing: 0.28em;
@@ -286,9 +300,9 @@ html, body {
 .cosmic-carousel__exit:focus-visible {
     padding-right: 1.7rem;
     transform: translateY(-2px) scale(1.05);
-    border-color: rgba(148, 239, 255, 0.65);
-    background: linear-gradient(150deg, rgba(8, 25, 44, 0.88), rgba(12, 74, 110, 0.62));
-    box-shadow: 0 30px 68px rgba(8, 47, 73, 0.65);
+    border-color: rgba(148, 229, 255, 0.68);
+    background: linear-gradient(150deg, rgba(10, 32, 56, 0.9), rgba(22, 96, 148, 0.64));
+    box-shadow: 0 30px 76px rgba(8, 47, 73, 0.68);
 }
 
 .cosmic-carousel__exit:hover::before,
@@ -320,10 +334,10 @@ html, body {
     transform: translate3d(-50%, -50%, 0);
     padding: clamp(2.3rem, 5vw, 3.2rem);
     border-radius: 26px;
-    background: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 215, 140, 0.16));
-    border: 1px solid rgba(255, 220, 160, 0.32);
-    box-shadow: 0 0 38px rgba(255, 210, 120, 0.18), inset 0 0 32px rgba(255, 210, 130, 0.12);
-    color: #fff4da;
+    background: linear-gradient(150deg, rgba(10, 24, 46, 0.78), rgba(12, 32, 58, 0.82));
+    border: 1px solid rgba(146, 209, 255, 0.26);
+    box-shadow: 0 24px 70px rgba(4, 12, 28, 0.72), inset 0 0 54px rgba(60, 118, 190, 0.22);
+    color: #ecf4ff;
     display: flex;
     flex-direction: column;
     gap: clamp(1.1rem, 3vw, 1.8rem);
@@ -421,7 +435,7 @@ html, body {
     z-index: 3;
     opacity: 1;
     animation: glowPulse 6s ease-in-out infinite alternate;
-    filter: drop-shadow(0 24px 60px rgba(255, 210, 130, 0.28));
+    filter: drop-shadow(0 24px 60px rgba(90, 170, 255, 0.32));
 }
 
 .card-panel.is-center .card-holo::after {
@@ -430,14 +444,14 @@ html, body {
 
 .card-panel.is-left {
     transform: translate3d(calc(-50% - var(--side-offset, 220px)), -50%, 0) scale(0.82) rotateY(10deg);
-    opacity: 0.22;
-    filter: blur(2px);
+    opacity: 0.3;
+    filter: blur(1.4px);
 }
 
 .card-panel.is-right {
     transform: translate3d(calc(-50% + var(--side-offset, 220px)), -50%, 0) scale(0.82) rotateY(-10deg);
-    opacity: 0.22;
-    filter: blur(2px);
+    opacity: 0.3;
+    filter: blur(1.4px);
 }
 
 .card-panel.is-left .card-nebula,
@@ -465,25 +479,26 @@ html, body {
 .card-title {
     font-family: 'Cinzel Decorative', serif;
     font-weight: 700;
-    font-size: clamp(1.9rem, 4.2vw, 2.5rem);
-    color: color-mix(in srgb, var(--card-accent) 80%, #fff8e1 20%);
-    text-shadow: 0 0 30px color-mix(in srgb, var(--card-accent) 45%, transparent);
+    font-size: clamp(1.9rem, 4.2vw, 2.6rem);
+    letter-spacing: 0.14em;
+    color: color-mix(in srgb, var(--card-accent) 70%, #eff8ff 30%);
+    text-shadow: 0 14px 40px rgba(6, 18, 38, 0.65);
 }
 
 .card-subtitle {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
-    font-size: clamp(0.82rem, 2vw, 0.96rem);
-    letter-spacing: 0.26em;
-    color: rgba(255, 244, 218, 0.68);
+    font-size: clamp(0.88rem, 2vw, 1rem);
+    letter-spacing: 0.22em;
+    color: rgba(214, 236, 255, 0.78);
 }
 
 .card-tagline {
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
-    font-size: clamp(0.75rem, 2.2vw, 0.92rem);
-    letter-spacing: 0.32em;
-    color: rgba(255, 240, 210, 0.72);
+    font-size: clamp(0.78rem, 2.2vw, 0.96rem);
+    letter-spacing: 0.26em;
+    color: rgba(214, 236, 255, 0.72);
 }
 
 .card-description {
@@ -491,9 +506,10 @@ html, body {
     width: min(100%, 620px);
     font-family: 'Montserrat', sans-serif;
     font-weight: 500;
-    font-size: clamp(1.02rem, 2.6vw, 1.12rem);
-    line-height: 1.75;
-    color: rgba(255, 247, 230, 0.9);
+    font-size: clamp(1.05rem, 2.6vw, 1.18rem);
+    line-height: 1.7;
+    color: rgba(231, 244, 255, 0.92);
+    text-shadow: 0 12px 36px rgba(5, 12, 26, 0.55);
     text-align: left;
 }
 
@@ -511,8 +527,8 @@ html, body {
     padding-left: 1.8rem;
     font-family: 'Montserrat', sans-serif;
     font-weight: 600;
-    font-size: clamp(0.95rem, 2.3vw, 1.08rem);
-    color: rgba(255, 248, 228, 0.9);
+    font-size: clamp(0.98rem, 2.3vw, 1.12rem);
+    color: rgba(225, 238, 255, 0.92);
     letter-spacing: 0.02em;
 }
 
@@ -521,11 +537,11 @@ html, body {
     position: absolute;
     left: 0;
     top: 50%;
-    width: 1rem;
-    height: 1rem;
+    width: 0.9rem;
+    height: 0.9rem;
     border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in srgb, var(--card-accent) 80%, #ffffff 20%), transparent 70%);
-    box-shadow: 0 0 20px color-mix(in srgb, var(--card-accent) 55%, transparent);
+    background: radial-gradient(circle at 35% 35%, rgba(255, 255, 255, 0.95), rgba(122, 188, 255, 0.55));
+    box-shadow: 0 0 18px rgba(144, 206, 255, 0.6);
     transform: translateY(-50%);
 }
 
@@ -684,6 +700,21 @@ html, body {
     0% { transform: rotate(0deg) scale(1); }
     50% { transform: rotate(180deg) scale(1.06); }
     100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes auroraFlow {
+    0% {
+        transform: scale(1) rotate(0deg);
+        opacity: 0.28;
+    }
+    50% {
+        transform: scale(1.08) rotate(3deg);
+        opacity: 0.4;
+    }
+    100% {
+        transform: scale(1.02) rotate(-2deg);
+        opacity: 0.24;
+    }
 }
 
 @keyframes pulseOrbit {
