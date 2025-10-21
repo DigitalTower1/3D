@@ -688,38 +688,22 @@ export function createCosmicCarousel({
     const chrome = document.createElement('div');
     chrome.className = 'cosmic-carousel__chrome';
 
-    const hud = document.createElement('div');
-    hud.className = 'cosmic-carousel__hud';
-
-    const hudInfo = document.createElement('div');
-    hudInfo.className = 'cosmic-carousel__hud-info';
-    hudInfo.innerHTML = `
-        <span class="cosmic-carousel__hud-badge">${name || 'Carosello 3D'}</span>
-        <h2>${title || 'Orbita Creativa'}</h2>
-        ${description ? `<p>${description}</p>` : ''}
-    `;
-
-    const hudActions = document.createElement('div');
-    hudActions.className = 'cosmic-carousel__hud-actions';
-
-    const instructions = document.createElement('span');
-    instructions.className = 'cosmic-carousel__hud-instructions';
-    instructions.textContent = 'Clicca una card per approfondire · Drag per orbitare';
-
     const exitButton = document.createElement('button');
     exitButton.type = 'button';
     exitButton.className = 'cosmic-carousel__exit';
     exitButton.innerHTML = `
-        <span>
-            <span class="cosmic-carousel__exit-icon">↩</span>
-            <span>Chiudi portale</span>
-        </span>
+        <span class="cosmic-carousel__exit-core" aria-hidden="true">×</span>
+        <span class="cosmic-carousel__exit-label" aria-hidden="true">Esci dal portale</span>
     `;
-    exitButton.setAttribute('aria-label', 'Chiudi il carosello e torna alla scena');
+    exitButton.setAttribute('aria-label', 'Esci dal portale');
 
+    const hud = document.createElement('div');
+    hud.className = 'cosmic-carousel__hud';
+
+    const hudActions = document.createElement('div');
+    hudActions.className = 'cosmic-carousel__hud-actions';
     hudActions.appendChild(exitButton);
-    hudActions.appendChild(instructions);
-    hud.appendChild(hudInfo);
+
     hud.appendChild(hudActions);
     chrome.appendChild(hud);
     overlay.appendChild(chrome);

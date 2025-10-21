@@ -8,7 +8,7 @@ import {
     UniformsUtils,
     WebGLRenderTarget
 } from 'three';
-import { Pass } from 'three/examples/jsm/postprocessing/Pass.js';
+import { Pass, FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
 import { LuminosityShader } from 'three/examples/jsm/shaders/LuminosityShader.js';
 import { ToneMapShader } from './ToneMapShader.js';
@@ -128,7 +128,7 @@ class AdaptiveToneMappingPass extends Pass {
             blending: NoBlending
         });
 
-        this.fsQuad = new Pass.FullScreenQuad(null);
+        this.fsQuad = new FullScreenQuad(null);
     }
 
     render(renderer, writeBuffer, readBuffer, deltaTime /*, maskActive*/) {
