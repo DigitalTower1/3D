@@ -354,6 +354,7 @@ class CinematicPostFX {
             maxblur: this.defaultMaxBlur,
             duration
         });
+        ctx.restore();
     }
 
     render(delta) {
