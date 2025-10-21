@@ -29,6 +29,42 @@ body {
     --overlay-bg: rgba(255, 255, 255, 0.92);
 }
 
+@property --card-tilt-x {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@property --card-tilt-y {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@property --card-tilt-z {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+}
+
+@property --card-raise {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --card-press {
+    syntax: '<length>';
+    inherits: false;
+    initial-value: 0px;
+}
+
+@property --card-scale {
+    syntax: '<number>';
+    inherits: false;
+    initial-value: 1;
+}
+
 /* -------------------------------------------------------
    Layout
 ------------------------------------------------------- */
@@ -60,6 +96,9 @@ body {
     display: grid;
     place-items: center;
     transform-style: preserve-3d;
+    --stage-pointer-tilt-x: 0deg;
+    --stage-pointer-tilt-y: 0deg;
+    --stage-pointer-depth: 0px;
 }
 
 .card-backdrop {
@@ -163,7 +202,6 @@ body {
     min-height: 480px;
     max-height: 520px;
     padding: clamp(1.6rem, 3vw, 2.2rem);
-    transform: translate3d(-50%, -50%, 0);
     transform-style: preserve-3d;
     border-radius: 20px;
     background: var(--card-bg);
@@ -175,7 +213,28 @@ body {
     gap: clamp(1rem, 2vw, 1.5rem);
     pointer-events: auto;
     overflow: hidden;
-    transition: opacity 0.4s ease, transform 0.6s ease, box-shadow 0.4s ease;
+    transition: opacity 0.4s ease, transform 0.6s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+    --card-shift-x: 0px;
+    --card-shift-y: 0px;
+    --card-shift-z: 0px;
+    --card-tilt-x: 0deg;
+    --card-tilt-y: 0deg;
+    --card-tilt-z: 0deg;
+    --card-raise: 0px;
+    --card-press: 0px;
+    --card-scale: 1;
+    --pointer-tilt-x: 0deg;
+    --pointer-tilt-y: 0deg;
+    transform:
+        translate3d(
+            calc(-50% + var(--card-shift-x)),
+            calc(-50% + var(--card-shift-y)),
+            calc(var(--card-shift-z) + var(--card-raise) - var(--card-press))
+        )
+        rotateX(calc(var(--card-tilt-x) + var(--pointer-tilt-x)))
+        rotateY(calc(var(--card-tilt-y) + var(--pointer-tilt-y)))
+        rotateZ(var(--card-tilt-z))
+        scale(var(--card-scale));
 }
 
 .card-panel::before,
@@ -184,21 +243,29 @@ body {
 }
 
 .card-panel.is-center {
+    --pointer-tilt-x: var(--stage-pointer-tilt-x, 0deg);
+    --pointer-tilt-y: var(--stage-pointer-tilt-y, 0deg);
+    --card-raise: var(--stage-pointer-depth, 0px);
     z-index: 3;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.22);
 }
 
 .card-panel.is-left {
-    transform: translate3d(calc(-50% - var(--side-offset, 220px)), -50%, 0) scale(0.9) rotateY(10deg);
+    --card-shift-x: calc(-1 * var(--side-offset, 220px));
+    --card-scale: 0.9;
+    --card-tilt-y: 10deg;
     opacity: 0.5;
 }
 
 .card-panel.is-right {
-    transform: translate3d(calc(-50% + var(--side-offset, 220px)), -50%, 0) scale(0.9) rotateY(-10deg);
+    --card-shift-x: var(--side-offset, 220px);
+    --card-scale: 0.9;
+    --card-tilt-y: -10deg;
     opacity: 0.5;
 }
 
 .card-panel.is-dragging {
+    --card-press: 0px;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
 }
 
@@ -220,6 +287,8 @@ body {
     overflow-y: auto;
     padding-right: clamp(0.2rem, 1vw, 0.6rem);
     scrollbar-width: thin;
+    transform-style: preserve-3d;
+    transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), filter 0.5s ease;
 }
 
 .card-panel .card-holo::-webkit-scrollbar {
@@ -233,6 +302,36 @@ body {
 
 .card-panel .card-nebula {
     display: none;
+}
+
+.card-panel[data-role="center"]:hover,
+.card-panel[data-role="center"]:focus-within {
+    --card-raise: calc(var(--stage-pointer-depth, 0px) + 18px);
+    --card-scale: 1.03;
+    --card-tilt-z: 0.6deg;
+    border-color: color-mix(in srgb, var(--card-border) 60%, var(--accent) 40%);
+    box-shadow: 0 26px 70px rgba(15, 23, 42, 0.25);
+}
+
+.card-panel[data-role="center"]:focus-within {
+    outline: 2px solid color-mix(in srgb, var(--accent) 40%, #ffffff 60%);
+    outline-offset: 4px;
+}
+
+.card-panel[data-role="center"]:active {
+    --card-press: 16px;
+    --card-scale: 0.985;
+    transition-duration: 0.28s;
+}
+
+.card-panel[data-role="center"]:hover .card-holo,
+.card-panel[data-role="center"]:focus-within .card-holo {
+    transform: rotateY(calc(var(--stage-pointer-tilt-y, 0deg) + 6deg)) translateZ(14px);
+    filter: drop-shadow(0 18px 32px rgba(37, 99, 235, 0.12));
+}
+
+.card-panel[data-role="center"]:active .card-holo {
+    transform: rotateY(calc(var(--stage-pointer-tilt-y, 0deg) + 14deg)) translateZ(18px);
 }
 
 /* -------------------------------------------------------
@@ -413,16 +512,29 @@ body {
     border-color: var(--accent);
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .card-panel,
+    .card-panel .card-holo {
+        transition-duration: 0.01ms !important;
+        transition-delay: 0ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
 /* -------------------------------------------------------
    Responsive
 ------------------------------------------------------- */
 @media (max-width: 1024px) {
     .card-panel.is-left {
-        transform: translate3d(calc(-50% - var(--side-offset, 200px)), -50%, 0) scale(0.92) rotateY(8deg);
+        --card-shift-x: calc(-1 * var(--side-offset, 200px));
+        --card-scale: 0.92;
+        --card-tilt-y: 8deg;
     }
 
     .card-panel.is-right {
-        transform: translate3d(calc(-50% + var(--side-offset, 200px)), -50%, 0) scale(0.92) rotateY(-8deg);
+        --card-shift-x: var(--side-offset, 200px);
+        --card-scale: 0.92;
+        --card-tilt-y: -8deg;
     }
 }
 
@@ -439,9 +551,15 @@ body {
         gap: 0.8rem;
     }
 
-    .card-panel.is-left,
+    .card-panel.is-left {
+        --card-shift-x: calc(-1 * var(--side-offset, 160px));
+        --card-scale: 0.88;
+        opacity: 0.4;
+    }
+
     .card-panel.is-right {
-        transform: translate3d(calc(-50% - var(--side-offset, 160px)), -50%, 0) scale(0.88);
+        --card-shift-x: var(--side-offset, 160px);
+        --card-scale: 0.88;
         opacity: 0.4;
     }
 }
@@ -468,9 +586,15 @@ body {
         padding: clamp(1.4rem, 5vw, 1.9rem);
     }
 
-    .card-panel.is-left,
+    .card-panel.is-left {
+        --card-shift-x: calc(-1 * var(--side-offset, 120px));
+        --card-scale: 0.85;
+        opacity: 0.35;
+    }
+
     .card-panel.is-right {
-        transform: translate3d(calc(-50% - var(--side-offset, 120px)), -50%, 0) scale(0.85);
+        --card-shift-x: var(--side-offset, 120px);
+        --card-scale: 0.85;
         opacity: 0.35;
     }
 
