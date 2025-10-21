@@ -421,10 +421,11 @@ function drawCardFace(card, side = 'front') {
     if (!context) {
         const texture = new THREE.CanvasTexture(canvas);
         texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = 4;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        texture.wrapS = THREE.ClampToEdgeWrapping;
+        texture.wrapT = THREE.ClampToEdgeWrapping;
+        texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.generateMipmaps = true;
+        texture.generateMipmaps = false;
         texture.needsUpdate = true;
         return texture;
     }
@@ -523,10 +524,11 @@ function drawCardFace(card, side = 'front') {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = 4;
-    texture.minFilter = THREE.LinearMipmapLinearFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.minFilter = THREE.LinearFilter;
     texture.magFilter = THREE.LinearFilter;
-    texture.generateMipmaps = true;
+    texture.generateMipmaps = false;
     texture.needsUpdate = true;
     return texture;
 }
@@ -688,7 +690,6 @@ export function createCosmicCarousel({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
     renderer.physicallyCorrectLights = true;
-    renderer.useLegacyLights = false;
     renderer.shadowMap.enabled = false;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 
