@@ -51,20 +51,20 @@ const VignetteShader = {
 class RealisticCardMaterial {
     constructor({ frontTexture, backTexture }) {
         const sharedPhysicalProps = {
-            metalness: 0.68,
-            roughness: 0.22,
-            clearcoat: 1,
-            clearcoatRoughness: 0.08,
-            transmission: 0.12,
-            thickness: 0.48,
-            ior: 1.52,
-            reflectivity: 0.82,
-            sheen: 0.55,
-            sheenRoughness: 0.32,
-            iridescence: 0.68,
-            iridescenceIOR: 1.32,
-            iridescenceThicknessRange: [180, 420],
-            envMapIntensity: 1.35,
+            metalness: 0.35,
+            roughness: 0.48,
+            clearcoat: 0.6,
+            clearcoatRoughness: 0.22,
+            transmission: 0.06,
+            thickness: 0.28,
+            ior: 1.48,
+            reflectivity: 0.55,
+            sheen: 0.35,
+            sheenRoughness: 0.4,
+            iridescence: 0.32,
+            iridescenceIOR: 1.28,
+            iridescenceThicknessRange: [160, 320],
+            envMapIntensity: 0.65,
             side: THREE.FrontSide,
             transparent: true,
             opacity: 1
@@ -73,42 +73,43 @@ class RealisticCardMaterial {
         this.frontMaterial = new THREE.MeshPhysicalMaterial({
             ...sharedPhysicalProps,
             map: frontTexture,
-            emissive: new THREE.Color(0x1a385b),
-            emissiveIntensity: 0.18,
-            specularIntensity: 0.65,
-            specularColor: new THREE.Color(0x9bd4ff),
-            attenuationColor: new THREE.Color(0x7fd3ff),
-            attenuationDistance: 1.2
+            emissive: new THREE.Color(0x112536),
+            emissiveIntensity: 0.08,
+            specularIntensity: 0.42,
+            specularColor: new THREE.Color(0x86b6d6),
+            attenuationColor: new THREE.Color(0x6da4c8),
+            attenuationDistance: 1.4
         });
 
         this.backMaterial = new THREE.MeshPhysicalMaterial({
             ...sharedPhysicalProps,
             map: backTexture,
-            emissive: new THREE.Color(0x0a1e30),
-            emissiveIntensity: 0.14,
-            sheenColor: new THREE.Color(0x244a74),
-            envMapIntensity: 0.95,
-            attenuationColor: new THREE.Color(0x4d6c94),
-            attenuationDistance: 1.35
+            emissive: new THREE.Color(0x0a1826),
+            emissiveIntensity: 0.06,
+            sheenColor: new THREE.Color(0x1b3857),
+            envMapIntensity: 0.5,
+            attenuationColor: new THREE.Color(0x3b5878),
+            attenuationDistance: 1.5
         });
 
         this.edgeMaterial = new THREE.MeshPhysicalMaterial({
             color: 0x090f1a,
-            metalness: 0.92,
-            roughness: 0.18,
-            clearcoat: 1,
-            clearcoatRoughness: 0.06,
-            envMapIntensity: 1.15,
-            specularIntensity: 0.9,
-            sheen: 0.35,
-            sheenColor: new THREE.Color(0x7aa0ff),
-            emissive: new THREE.Color(0x0d1b2f)
+            metalness: 0.6,
+            roughness: 0.35,
+            clearcoat: 0.45,
+            clearcoatRoughness: 0.18,
+            envMapIntensity: 0.6,
+            specularIntensity: 0.5,
+            sheen: 0.22,
+            sheenColor: new THREE.Color(0x5a7caa),
+            emissive: new THREE.Color(0x0b1625),
+            emissiveIntensity: 0.04
         });
 
         this.glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0x99e0ff,
+            color: 0x6fb4d6,
             transparent: true,
-            opacity: 0.28,
+            opacity: 0.16,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
             depthTest: false,
@@ -124,8 +125,8 @@ class RealisticCardMaterial {
         this._cameraVector = new THREE.Vector3();
         this._worldPosition = new THREE.Vector3();
         this._worldQuaternion = new THREE.Quaternion();
-        this._frontSheenColor = new THREE.Color(0x9bd4ff);
-        this._edgeSheenColor = new THREE.Color(0x7aa0ff);
+        this._frontSheenColor = new THREE.Color(0x7fa7c6);
+        this._edgeSheenColor = new THREE.Color(0x5a7caa);
     }
 
     bind({ group, front, back, edge, glow }) {
@@ -152,43 +153,43 @@ class RealisticCardMaterial {
 
         this.frontMesh.getWorldQuaternion(this._worldQuaternion);
         TEMP_NORMAL.copy(FRONT_NORMAL).applyQuaternion(this._worldQuaternion);
-        const fresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 2.6);
+        const fresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 2.2);
 
-        const breathing = 0.5 + Math.sin(elapsed * 0.8) * 0.1;
+        const breathing = 0.4 + Math.sin(elapsed * 0.8) * 0.08;
 
-        this.frontMaterial.clearcoatRoughness = THREE.MathUtils.lerp(0.03, 0.16, fresnel);
-        this.frontMaterial.iridescence = THREE.MathUtils.lerp(0.45, 1, fresnel * 1.2);
-        this.frontMaterial.iridescenceThicknessRange = [180, 380 + fresnel * 260];
-        this.frontMaterial.emissiveIntensity = 0.16 + fresnel * 0.7;
-        this.frontMaterial.envMapIntensity = 1.25 + fresnel * 0.45;
-        this.frontMaterial.sheen = THREE.MathUtils.lerp(0.5, 0.9, fresnel);
-        this._frontSheenColor.setHSL(0.58, 0.56, 0.72 + fresnel * 0.12);
+        this.frontMaterial.clearcoatRoughness = THREE.MathUtils.lerp(0.18, 0.32, fresnel);
+        this.frontMaterial.iridescence = THREE.MathUtils.lerp(0.2, 0.5, fresnel);
+        this.frontMaterial.iridescenceThicknessRange = [140, 260 + fresnel * 90];
+        this.frontMaterial.emissiveIntensity = 0.06 + fresnel * 0.2;
+        this.frontMaterial.envMapIntensity = 0.55 + fresnel * 0.3;
+        this.frontMaterial.sheen = THREE.MathUtils.lerp(0.28, 0.48, fresnel);
+        this._frontSheenColor.setHSL(0.56, 0.42, 0.64 + fresnel * 0.08);
         this.frontMaterial.sheenColor.copy(this._frontSheenColor);
 
         if (this.backMaterial && this.backMesh) {
             this.backMesh.getWorldQuaternion(this._worldQuaternion);
             TEMP_NORMAL.copy(BACK_NORMAL).applyQuaternion(this._worldQuaternion);
-            const backFresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 2.2);
-            this.backMaterial.envMapIntensity = 0.85 + backFresnel * 0.3;
-            this.backMaterial.iridescence = THREE.MathUtils.lerp(0.35, 0.72, backFresnel + breathing * 0.12);
-            this.backMaterial.emissiveIntensity = 0.12 + backFresnel * 0.4;
+            const backFresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 1.8);
+            this.backMaterial.envMapIntensity = 0.45 + backFresnel * 0.22;
+            this.backMaterial.iridescence = THREE.MathUtils.lerp(0.16, 0.42, backFresnel + breathing * 0.08);
+            this.backMaterial.emissiveIntensity = 0.05 + backFresnel * 0.18;
         }
 
         if (this.edgeMaterial) {
-            const pulse = 0.82 + Math.sin(elapsed * 1.6) * 0.08;
-            this.edgeMaterial.metalness = 0.88 + fresnel * 0.1;
-            this.edgeMaterial.roughness = THREE.MathUtils.lerp(0.12, 0.26, 1 - fresnel);
-            this.edgeMaterial.envMapIntensity = 1.05 + fresnel * 0.35;
-            this.edgeMaterial.sheen = 0.28 + fresnel * 0.22;
-            this._edgeSheenColor.setHSL(0.6, 0.4, 0.6 + fresnel * 0.2);
+            const pulse = 0.72 + Math.sin(elapsed * 1.4) * 0.05;
+            this.edgeMaterial.metalness = 0.58 + fresnel * 0.12;
+            this.edgeMaterial.roughness = THREE.MathUtils.lerp(0.32, 0.46, 1 - fresnel);
+            this.edgeMaterial.envMapIntensity = 0.5 + fresnel * 0.18;
+            this.edgeMaterial.sheen = 0.18 + fresnel * 0.16;
+            this._edgeSheenColor.setHSL(0.58, 0.36, 0.52 + fresnel * 0.12);
             this.edgeMaterial.sheenColor.copy(this._edgeSheenColor);
-            this.edgeMaterial.emissiveIntensity = pulse * 0.2;
+            this.edgeMaterial.emissiveIntensity = pulse * 0.08;
         }
 
         if (this.glowMaterial && this.glowMesh) {
-            const glowBase = 0.18 + fresnel * 0.55;
-            this.glowMaterial.opacity = THREE.MathUtils.clamp(glowBase + breathing * 0.08, 0.1, 0.85);
-            this.glowMesh.scale.setScalar(1.12 + fresnel * 0.22);
+            const glowBase = 0.08 + fresnel * 0.25;
+            this.glowMaterial.opacity = THREE.MathUtils.clamp(glowBase + breathing * 0.05, 0.06, 0.38);
+            this.glowMesh.scale.setScalar(1.08 + fresnel * 0.12);
         }
     }
 
@@ -208,17 +209,17 @@ class RealisticLighting {
         this.renderer = renderer;
         this.tempVector = new THREE.Vector3();
 
-        this.ambient = new THREE.HemisphereLight(0x1d283c, 0x010206, 0.38);
+        this.ambient = new THREE.HemisphereLight(0x1d283c, 0x010206, 0.32);
 
-        this.keyLight = new THREE.DirectionalLight(0xffad72, 2.25);
+        this.keyLight = new THREE.DirectionalLight(0xffad72, 1.45);
         this.keyLight.position.set(4.2, 6.5, 6.8);
         this.keyLight.target.position.set(0, 1.2, 0);
 
-        this.fillLight = new THREE.DirectionalLight(0xcbd7e6, 0.9);
+        this.fillLight = new THREE.DirectionalLight(0xcbd7e6, 0.7);
         this.fillLight.position.set(-3.2, 3.4, 2.2);
         this.fillLight.target.position.set(0, 1.1, 0);
 
-        this.rimLight = new THREE.DirectionalLight(0x74c8ff, 2.65);
+        this.rimLight = new THREE.DirectionalLight(0x74c8ff, 1.8);
         this.rimLight.position.set(-5.8, 4.2, -6.4);
         this.rimLight.target.position.set(0, 1.4, 0);
 
@@ -265,14 +266,14 @@ class RealisticLighting {
     }
 
     update(camera, elapsed = 0) {
-        const oscillation = Math.sin(elapsed * 0.6) * 0.1;
-        this.keyLight.intensity = 2.15 + oscillation * 0.6;
-        this.fillLight.intensity = 0.85 + Math.sin(elapsed * 0.8 + 1.4) * 0.12;
+        const oscillation = Math.sin(elapsed * 0.6) * 0.08;
+        this.keyLight.intensity = 1.35 + oscillation * 0.35;
+        this.fillLight.intensity = 0.65 + Math.sin(elapsed * 0.8 + 1.4) * 0.1;
 
-        this.tempVector.copy(camera.position).normalize().multiplyScalar(-7.2);
-        this.tempVector.y += 4.6;
-        this.rimLight.position.lerp(this.tempVector, 0.12);
-        this.rimLight.intensity = 2.45 + Math.abs(Math.sin(elapsed * 1.1)) * 0.35;
+        this.tempVector.copy(camera.position).normalize().multiplyScalar(-6.2);
+        this.tempVector.y += 4.2;
+        this.rimLight.position.lerp(this.tempVector, 0.1);
+        this.rimLight.intensity = 1.65 + Math.abs(Math.sin(elapsed * 1.1)) * 0.25;
     }
 
     dispose() {
@@ -368,21 +369,6 @@ class CinematicPostFX {
     }
 }
 
-function roundedRect(ctx, x, y, width, height, radius) {
-    const r = Math.min(radius, Math.min(width, height) / 2);
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + width - r, y);
-    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-    ctx.lineTo(x + width, y + height - r);
-    ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-    ctx.lineTo(x + r, y + height);
-    ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-}
-
 function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
     if (!text) return y;
     const words = String(text).split(/\s+/).filter(Boolean);
@@ -420,139 +406,93 @@ function drawCardFace(card, side = 'front') {
 
     const background = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
     if (side === 'front') {
-        background.addColorStop(0, '#050f1e');
-        background.addColorStop(0.55, '#061b38');
-        background.addColorStop(1, '#04101f');
+        background.addColorStop(0, '#061223');
+        background.addColorStop(0.55, '#091b32');
+        background.addColorStop(1, '#0a1422');
     } else {
-        background.addColorStop(0, '#041120');
-        background.addColorStop(0.55, '#08223b');
-        background.addColorStop(1, '#05121f');
+        background.addColorStop(0, '#071425');
+        background.addColorStop(0.5, '#0a1f33');
+        background.addColorStop(1, '#081524');
     }
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
 
-    const glowA = ctx.createRadialGradient(baseWidth * 0.2, baseHeight * 0.2, 10, baseWidth * 0.2, baseHeight * 0.2, baseWidth * 0.9);
-    glowA.addColorStop(0, 'rgba(124, 224, 255, 0.42)');
-    glowA.addColorStop(1, 'rgba(12, 32, 60, 0)');
-    const glowB = ctx.createRadialGradient(baseWidth * 0.84, baseHeight * 0.78, 16, baseWidth * 0.84, baseHeight * 0.78, baseWidth * 0.7);
-    glowB.addColorStop(0, 'rgba(255, 188, 136, 0.36)');
-    glowB.addColorStop(1, 'rgba(34, 46, 68, 0)');
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = glowA;
+    const lightSweep = ctx.createLinearGradient(0, 0, baseWidth, baseHeight);
+    lightSweep.addColorStop(0, 'rgba(120, 188, 240, 0.08)');
+    lightSweep.addColorStop(0.5, 'rgba(240, 214, 178, 0.12)');
+    lightSweep.addColorStop(1, 'rgba(30, 70, 110, 0.05)');
+    ctx.fillStyle = lightSweep;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
-    ctx.fillStyle = glowB;
+
+    const rimGlow = ctx.createRadialGradient(baseWidth * 0.15, baseHeight * 0.2, 0, baseWidth * 0.15, baseHeight * 0.2, baseWidth * 0.7);
+    rimGlow.addColorStop(0, 'rgba(140, 210, 255, 0.18)');
+    rimGlow.addColorStop(1, 'rgba(10, 22, 40, 0)');
+    ctx.fillStyle = rimGlow;
     ctx.fillRect(0, 0, baseWidth, baseHeight);
-    ctx.restore();
 
     ctx.save();
-    ctx.shadowColor = 'rgba(98, 210, 255, 0.35)';
-    ctx.shadowBlur = 48;
-    roundedRect(ctx, 80, 110, baseWidth - 160, baseHeight - 220, 120);
-    ctx.fillStyle = 'rgba(6, 16, 30, 0.95)';
-    ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(150, 230, 255, 0.42)';
-    ctx.lineWidth = 3.6;
-    ctx.stroke();
-    ctx.restore();
-
-    const innerGradient = ctx.createLinearGradient(160, 180, baseWidth - 160, baseHeight - 260);
-    innerGradient.addColorStop(0, 'rgba(16, 40, 72, 0.88)');
-    innerGradient.addColorStop(0.5, 'rgba(14, 32, 60, 0.94)');
-    innerGradient.addColorStop(1, 'rgba(12, 26, 48, 0.92)');
-    ctx.save();
-    roundedRect(ctx, 160, 190, baseWidth - 320, baseHeight - 340, 90);
-    ctx.fillStyle = innerGradient;
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(124, 220, 255, 0.45)';
-    ctx.lineWidth = 2.8;
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    const sheen = ctx.createLinearGradient(180, 210, baseWidth - 200, 360);
-    sheen.addColorStop(0, 'rgba(126, 224, 255, 0.45)');
-    sheen.addColorStop(1, 'rgba(255, 186, 130, 0.4)');
-    roundedRect(ctx, 200, 240, baseWidth - 400, 220, 60);
-    ctx.fillStyle = sheen;
-    ctx.fill();
-    ctx.restore();
-
-    ctx.fillStyle = '#e9f7ff';
-    ctx.font = '700 110px "Poppins", sans-serif';
-    ctx.textBaseline = 'top';
-    const title = String(card.title || '').toUpperCase();
-    wrapText(ctx, title, 240, 300, baseWidth - 480, 118);
-
-    ctx.fillStyle = 'rgba(191, 226, 255, 0.9)';
-    ctx.font = '600 64px "Poppins", sans-serif';
-    wrapText(ctx, card.subtitle || '', 240, 520, baseWidth - 480, 82);
-
-    ctx.fillStyle = 'rgba(212, 235, 255, 0.86)';
-    ctx.font = '400 52px "Poppins", sans-serif';
-    const body = side === 'front' ? (card.summary || card.detail || '') : (card.detail || card.summary || '');
-    const textEnd = wrapText(ctx, body, 240, 660, baseWidth - 480, 68);
-
-    const list = Array.isArray(card.highlights) ? card.highlights.slice(0, side === 'front' ? 2 : 4) : [];
-    if (list.length) {
-        ctx.save();
-        ctx.font = '500 50px "Poppins", sans-serif';
-        ctx.fillStyle = 'rgba(168, 228, 255, 0.92)';
-        let y = textEnd + 30;
-        list.forEach((item) => {
-            roundedRect(ctx, 240, y - 20, baseWidth - 480, 84, 42);
-            const glow = ctx.createLinearGradient(240, y - 20, baseWidth - 240, y + 64);
-            glow.addColorStop(0, 'rgba(70, 140, 220, 0.25)');
-            glow.addColorStop(1, 'rgba(240, 190, 120, 0.18)');
-            ctx.fillStyle = glow;
-            ctx.fill();
-            ctx.fillStyle = 'rgba(214, 238, 255, 0.96)';
-            ctx.fillText(item, 280, y + 12, baseWidth - 520);
-            y += 110;
-        });
-        ctx.restore();
-    }
-
-    const tags = Array.isArray(card.tags) ? card.tags.slice(0, 4) : [];
-    if (tags.length) {
-        ctx.save();
-        ctx.font = '500 46px "Poppins", sans-serif';
-        let x = 260;
-        const y = baseHeight - 280;
-        tags.forEach((tag) => {
-            const label = `#${tag}`;
-            const metrics = ctx.measureText(label).width;
-            const pillWidth = metrics + 120;
-            roundedRect(ctx, x, y, pillWidth, 92, 46);
-            const gradient = ctx.createLinearGradient(x, y, x + pillWidth, y + 92);
-            gradient.addColorStop(0, 'rgba(66, 140, 220, 0.85)');
-            gradient.addColorStop(1, 'rgba(236, 176, 130, 0.68)');
-            ctx.fillStyle = gradient;
-            ctx.fill();
-            ctx.strokeStyle = 'rgba(160, 228, 255, 0.45)';
-            ctx.lineWidth = 2.6;
-            ctx.stroke();
-            ctx.fillStyle = '#f4fbff';
-            ctx.fillText(label, x + 40, y + 28);
-            x += pillWidth + 32;
-        });
-        ctx.restore();
-    }
-
-    ctx.save();
+    ctx.globalAlpha = 0.4;
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < 180; i += 1) {
+    for (let i = 0; i < 90; i += 1) {
         const sx = Math.random() * baseWidth;
         const sy = Math.random() * baseHeight;
-        const radius = Math.random() * 2 + 0.6;
-        ctx.fillStyle = `rgba(140, 230, 255, ${0.05 + Math.random() * 0.2})`;
+        const radius = Math.random() * 1.6 + 0.4;
+        ctx.fillStyle = `rgba(150, 220, 255, ${0.05 + Math.random() * 0.1})`;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
     }
     ctx.restore();
+
+    const paddingX = 160;
+    const contentWidth = baseWidth - paddingX * 2;
+    let cursorY = 260;
+
+    ctx.fillStyle = '#f0f7ff';
+    ctx.font = '800 118px "Poppins", sans-serif';
+    ctx.textBaseline = 'top';
+    const title = card.title || card.summary || 'Card';
+    cursorY = wrapText(ctx, title, paddingX, cursorY, contentWidth, 124);
+
+    if (card.subtitle) {
+        ctx.fillStyle = 'rgba(214, 230, 255, 0.85)';
+        ctx.font = '600 70px "Poppins", sans-serif';
+        cursorY = wrapText(ctx, card.subtitle, paddingX, cursorY + 20, contentWidth, 92);
+    }
+
+    const body = card.detail || card.summary || '';
+    if (body) {
+        ctx.fillStyle = 'rgba(202, 220, 240, 0.85)';
+        ctx.font = '400 56px "Poppins", sans-serif';
+        cursorY = wrapText(ctx, body, paddingX, cursorY + 30, contentWidth, 78);
+    }
+
+    if (Array.isArray(card.highlights) && card.highlights.length) {
+        ctx.fillStyle = 'rgba(198, 220, 245, 0.9)';
+        ctx.font = '500 56px "Poppins", sans-serif';
+        const maxItems = Math.min(card.highlights.length, 3);
+        let y = cursorY + 40;
+        for (let i = 0; i < maxItems; i += 1) {
+            const item = card.highlights[i];
+            ctx.fillText(`• ${item}`, paddingX, y);
+            y += 86;
+        }
+        cursorY = y;
+    }
+
+    const tags = Array.isArray(card.tags) ? card.tags.slice(0, 4) : [];
+    if (tags.length) {
+        ctx.fillStyle = 'rgba(176, 212, 236, 0.85)';
+        ctx.font = '500 52px "Poppins", sans-serif';
+        let x = paddingX;
+        const y = baseHeight - 240;
+        tags.forEach((tag) => {
+            const label = `#${tag}`;
+            ctx.fillText(label, x, y);
+            x += ctx.measureText(label).width + 70;
+        });
+        ctx.restore();
+    }
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -852,7 +792,6 @@ export function createCosmicCarousel({
             maxblur: 0.02,
             duration: 0.95
         });
-        instructions.textContent = 'Card focalizzata · Clicca di nuovo per tornare al carosello';
     }
 
     function releaseFocus({ immediate = false } = {}) {
@@ -902,7 +841,6 @@ export function createCosmicCarousel({
             postFX.resetFocus(0.75);
         }
 
-        instructions.textContent = 'Clicca una card per approfondire · Drag per orbitare';
         targetRotationSpeed = DEFAULT_ROTATION_SPEED;
     }
 
