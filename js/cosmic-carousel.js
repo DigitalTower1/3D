@@ -241,6 +241,7 @@ class RealisticLighting {
 
         this.loadEnvironment(HDRI_LOCAL_URL, onEnvironmentLoaded);
     }
+}
 
     loadEnvironment(url, onEnvironmentLoaded, hasRetried = false) {
         const loader = new RGBELoader().setDataType(THREE.FloatType);
