@@ -1015,25 +1015,49 @@ export function createCosmicCarousel({
         }
     }
 
+    let activePointerId = null;
+    const lastPointerPosition = { x: 0, y: 0 };
+
     function handlePointerDown(event) {
-        if (event.target !== canvas) return;
+        if (event.target !== canvas || isPointerDown) return;
         isPointerDown = true;
         dragDistance = 0;
+        activePointerId = event.pointerId;
+        lastPointerPosition.x = event.clientX;
+        lastPointerPosition.y = event.clientY;
         overlay.classList.add('is-dragging');
     }
 
     function handlePointerMove(event) {
-        if (!isPointerDown) return;
-        dragDistance += Math.abs(event.movementX) + Math.abs(event.movementY);
-        const delta = event.movementX * 0.0045;
-        carouselGroup.rotation.y += delta;
+        if (!isPointerDown || event.pointerId !== activePointerId) return;
+
+        let deltaX = event.movementX;
+        let deltaY = event.movementY;
+
+        const shouldRecalculateDelta =
+            event.pointerType === 'touch' || (deltaX === 0 && deltaY === 0);
+
+        if (shouldRecalculateDelta) {
+            deltaX = event.clientX - lastPointerPosition.x;
+            deltaY = event.clientY - lastPointerPosition.y;
+        }
+
+        lastPointerPosition.x = event.clientX;
+        lastPointerPosition.y = event.clientY;
+
+        if (deltaX === 0 && deltaY === 0) return;
+
+        dragDistance += Math.abs(deltaX) + Math.abs(deltaY);
+        const deltaRotation = deltaX * 0.0045;
+        carouselGroup.rotation.y += deltaRotation;
         targetRotationSpeed = 0;
     }
 
     function handlePointerUp(event) {
-        if (!isPointerDown) return;
+        if (!isPointerDown || event.pointerId !== activePointerId) return;
         overlay.classList.remove('is-dragging');
         isPointerDown = false;
+        activePointerId = null;
         if (dragDistance < 6) {
             handleSelection(event);
         } else if (!focusedCard) {
