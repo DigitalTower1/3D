@@ -15,6 +15,9 @@ const CARD_THICKNESS = 0.05;
 const CAROUSEL_RADIUS = 3.6;
 const DEFAULT_ROTATION_SPEED = 0.22;
 
+const HDRI_LOCAL_URL = new URL('../assets/3d/env/solitude_night_4k.hdr', import.meta.url).href;
+const HDRI_FALLBACK_URL = 'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/hdri/night_sky.hdr';
+
 const TEMP_NORMAL = new THREE.Vector3();
 const FRONT_NORMAL = new THREE.Vector3(0, 0, 1);
 const BACK_NORMAL = new THREE.Vector3(0, 0, -1);
@@ -236,31 +239,32 @@ class RealisticLighting {
         this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
         this.pmremGenerator.compileEquirectangularShader();
 
-        this.loadEnvironment('./assets/3d/env/solitude_night_4k.hdr', onEnvironmentLoaded);
+        this.loadEnvironment(HDRI_LOCAL_URL, onEnvironmentLoaded);
     }
+}
 
-    loadEnvironment(path, onEnvironmentLoaded) {
-        new RGBELoader().setDataType(THREE.FloatType).load(
-            path,
+    loadEnvironment(url, onEnvironmentLoaded, hasRetried = false) {
+        const loader = new RGBELoader().setDataType(THREE.FloatType);
+        loader.load(
+            url,
             (hdr) => {
                 const envMap = this.pmremGenerator.fromEquirectangular(hdr).texture;
-                envMap.name = 'SolitudeNightHDR';
+                envMap.name = hasRetried ? 'NightSkyFallback' : 'SolitudeNightHDR';
                 this.scene.environment = envMap;
                 onEnvironmentLoaded?.(envMap);
                 hdr.dispose?.();
             },
             undefined,
-            () => {
-                new RGBELoader().load(
-                    'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/hdri/night_sky.hdr',
-                    (fallbackHdr) => {
-                        const envMap = this.pmremGenerator.fromEquirectangular(fallbackHdr).texture;
-                        envMap.name = 'NightSkyFallback';
-                        this.scene.environment = envMap;
-                        onEnvironmentLoaded?.(envMap);
-                        fallbackHdr.dispose?.();
-                    }
+            (error) => {
+                console.warn(
+                    `[CosmicCarousel] Unable to load HDR environment from ${url}.`,
+                    error
                 );
+                if (!hasRetried) {
+                    this.loadEnvironment(HDRI_FALLBACK_URL, onEnvironmentLoaded, true);
+                } else {
+                    console.error('[CosmicCarousel] Fallback HDR environment failed to load.', error);
+                }
             }
         );
     }
@@ -319,6 +323,15 @@ class CinematicPostFX {
         this.defaultFocus = this.bokehPass.uniforms.focus.value;
         this.defaultAperture = this.bokehPass.uniforms.aperture.value;
         this.defaultMaxBlur = this.bokehPass.uniforms.maxblur.value;
+
+        this.resetFocus = (duration = 0.7) => {
+            this.transitionFocus({
+                focus: this.defaultFocus,
+                aperture: this.defaultAperture,
+                maxblur: this.defaultMaxBlur,
+                duration
+            });
+        };
     }
 
     setSize(width, height) {
@@ -346,16 +359,6 @@ class CinematicPostFX {
         animateUniform(this.bokehPass.uniforms.focus, focus);
         animateUniform(this.bokehPass.uniforms.aperture, aperture);
         animateUniform(this.bokehPass.uniforms.maxblur, maxblur);
-    }
-
-    resetFocus(duration = 0.7) {
-        this.transitionFocus({
-            focus: this.defaultFocus,
-            aperture: this.defaultAperture,
-            maxblur: this.defaultMaxBlur,
-            duration
-        });
-        ctx.restore();
     }
 
     render(delta) {
