@@ -1181,6 +1181,9 @@ const wormholeReturnEase = (t) => {
         stage.dataset.layout = state.layoutMode;
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
+        stage.style.setProperty('--stage-pointer-tilt-x', '0deg');
+        stage.style.setProperty('--stage-pointer-tilt-y', '0deg');
+        stage.style.setProperty('--stage-pointer-depth', '0px');
 
         const detachActionListeners = () => {
             exitBindings.splice(0).forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
@@ -1507,11 +1510,12 @@ const wormholeReturnEase = (t) => {
                     clipPath: 'inset(0 0 0% 0 round 32px)',
                     duration: 1.0,
                     ease: 'expo.out',
-                    stagger: 0.08
+                    stagger: 0.08,
+                    onComplete: () => gsap.set(panels, { clearProps: 'transform' })
                 });
                 const actions = carouselEl.querySelectorAll('.card-actions');
                 if (actions.length) {
-                    gsap.fromTo(actions, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.75, ease: 'power3.out', stagger: 0.05 });
+                    gsap.fromTo(actions, { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.75, ease: 'power3.out', stagger: 0.05, onComplete: () => gsap.set(actions, { clearProps: 'transform' }) });
                 }
                 requestAnimationFrame(updateStageMetrics);
                 return;
@@ -1547,7 +1551,8 @@ const wormholeReturnEase = (t) => {
                     clipPath: 'inset(0 0 0% 0 round 32px)',
                     duration: 1.1,
                     ease: 'expo.out',
-                    stagger: 0.07
+                    stagger: 0.07,
+                    onComplete: () => gsap.set(panels, { clearProps: 'transform' })
                 });
             } else {
                 const directionSign = direction === 'left' ? -1 : 1;
@@ -1569,17 +1574,18 @@ const wormholeReturnEase = (t) => {
                     clipPath: 'inset(0 0 0 0 round 32px)',
                     duration: 0.9,
                     ease: 'power2.out',
-                    stagger: 0.05
+                    stagger: 0.05,
+                    onComplete: () => gsap.set(panels, { clearProps: 'transform' })
                 });
             }
 
             if (centerHolo) {
-                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.05, ease: 'expo.out' });
+                gsap.fromTo(centerHolo, { scale: 0.88 }, { scale: 1, duration: 1.05, ease: 'expo.out', onComplete: () => gsap.set(centerHolo, { clearProps: 'transform' }) });
             }
 
             const actions = carouselEl.querySelectorAll('.card-actions');
             if (actions.length) {
-                gsap.fromTo(actions, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.05 });
+                gsap.fromTo(actions, { opacity: 0, y: 22 }, { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', stagger: 0.05, onComplete: () => gsap.set(actions, { clearProps: 'transform' }) });
             }
 
             requestAnimationFrame(updateStageMetrics);
@@ -1592,24 +1598,20 @@ const wormholeReturnEase = (t) => {
             const y = (ev.clientY - rect.top) / rect.height - 0.5;
             stage.style.setProperty('--pointer-x', String(x));
             stage.style.setProperty('--pointer-y', String(y));
-            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
-            if (centerHolo) {
-                gsap.to(centerHolo, {
-                    rotateY: x * 16,
-                    rotateX: -y * 10,
-                    duration: 0.5,
-                    ease: 'power2.out'
-                });
-            }
+            const tiltY = (x * 14).toFixed(4);
+            const tiltX = (-y * 10).toFixed(4);
+            const depth = Math.min(32, Math.hypot(x, y) * 44);
+            stage.style.setProperty('--stage-pointer-tilt-x', `${tiltX}deg`);
+            stage.style.setProperty('--stage-pointer-tilt-y', `${tiltY}deg`);
+            stage.style.setProperty('--stage-pointer-depth', `${depth.toFixed(4)}px`);
         };
 
         const handleLeave = () => {
             stage.style.setProperty('--pointer-x', '0');
             stage.style.setProperty('--pointer-y', '0');
-            const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
-            if (centerHolo) {
-                gsap.to(centerHolo, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'power2.out' });
-            }
+            stage.style.setProperty('--stage-pointer-tilt-x', '0deg');
+            stage.style.setProperty('--stage-pointer-tilt-y', '0deg');
+            stage.style.setProperty('--stage-pointer-depth', '0px');
         };
 
         const handleWheel = (ev) => {
@@ -1686,9 +1688,18 @@ const wormholeReturnEase = (t) => {
             state.swipeStartX = null;
             state.swipeLock = false;
             if (state.dragCard) {
-                state.dragCard.classList.remove('is-dragging');
-                gsap.to(state.dragCard, { x: 0, rotateX: 0, rotateY: 0, scale: 1, duration: 0.5, ease: 'expo.out' });
+                const releasingCard = state.dragCard;
+                releasingCard.classList.remove('is-dragging');
                 state.dragCard = null;
+                gsap.to(releasingCard, {
+                    x: 0,
+                    rotateX: 0,
+                    rotateY: 0,
+                    scale: 1,
+                    duration: 0.5,
+                    ease: 'expo.out',
+                    onComplete: () => gsap.set(releasingCard, { clearProps: 'transform' })
+                });
             }
             state.dragActive = false;
             if (ev && typeof ev.pointerId === 'number' && stage.releasePointerCapture) {
