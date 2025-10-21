@@ -179,7 +179,7 @@ class AdaptiveToneMappingPass extends Pass {
         }
     }
 
-    reset() {
+    reset(renderer) {
         // render targets
         if (this.luminanceRT) {
             this.luminanceRT.dispose();
@@ -215,7 +215,34 @@ class AdaptiveToneMappingPass extends Pass {
         }
 
         // Put something in the adaptive luminance texture so that the scene can render initially
-        this.fsQuad.material = new MeshBasicMaterial({ color: 0x777777 });
+        const seedMaterial = new MeshBasicMaterial({ color: 0x777777 });
+        this.fsQuad.material = seedMaterial;
+
+        if (typeof renderer !== 'undefined' && renderer !== null) {
+            const currentRenderTarget = renderer.getRenderTarget();
+            const previousAutoClear = renderer.autoClear;
+
+            renderer.autoClear = true;
+
+            renderer.setRenderTarget(this.luminanceRT);
+            renderer.clear();
+            this.fsQuad.render(renderer);
+
+            renderer.setRenderTarget(this.previousLuminanceRT);
+            renderer.clear();
+            this.fsQuad.render(renderer);
+
+            renderer.setRenderTarget(this.currentLuminanceRT);
+            renderer.clear();
+            this.fsQuad.render(renderer);
+
+            renderer.setRenderTarget(currentRenderTarget);
+            renderer.autoClear = previousAutoClear;
+        }
+
+        this.fsQuad.material = null;
+        seedMaterial.dispose();
+
         this.materialLuminance.needsUpdate = true;
         this.materialAdaptiveLum.needsUpdate = true;
         this.materialToneMap.needsUpdate = true;
