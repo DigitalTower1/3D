@@ -242,6 +242,7 @@ class RealisticLighting {
 
         this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
         this.pmremGenerator.compileEquirectangularShader();
+        this.environmentRenderTarget = null;
 
         this.loadEnvironment(HDRI_LOCAL_URL, onEnvironmentLoaded);
     }
@@ -251,7 +252,12 @@ class RealisticLighting {
         loader.load(
             url,
             (hdr) => {
-                const envMap = this.pmremGenerator.fromEquirectangular(hdr).texture;
+                if (this.environmentRenderTarget && typeof this.environmentRenderTarget.dispose === 'function') {
+                    this.environmentRenderTarget.dispose();
+                }
+
+                this.environmentRenderTarget = this.pmremGenerator.fromEquirectangular(hdr);
+                const envMap = this.environmentRenderTarget.texture;
                 envMap.name = hasRetried ? 'NightSkyFallback' : 'SolitudeNightHDR';
                 this.scene.environment = envMap;
                 this.scene.background = envMap;
@@ -292,6 +298,10 @@ class RealisticLighting {
         if (this.scene) {
             this.scene.environment = null;
             this.scene.background = null;
+        }
+        if (this.environmentRenderTarget && typeof this.environmentRenderTarget.dispose === 'function') {
+            this.environmentRenderTarget.dispose();
+            this.environmentRenderTarget = null;
         }
         if (this.pmremGenerator && typeof this.pmremGenerator.dispose === 'function') {
             this.pmremGenerator.dispose();
