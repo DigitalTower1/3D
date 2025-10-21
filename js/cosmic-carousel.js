@@ -362,7 +362,8 @@ class CinematicPostFX {
         });
         this.composer.addPass(this.bokehPass);
 
-        this.toneMappingPass = new AdaptiveToneMappingPass(true, width);
+        const toneMappingResolution = 256; // keep adaptive tone mapping targets power-of-two for WebGL1 compatibility
+        this.toneMappingPass = new AdaptiveToneMappingPass(true, toneMappingResolution);
         this.toneMappingPass.setAdaptionRate(2.1);
         this.toneMappingPass.setMaxLuminance(38);
         this.toneMappingPass.setMiddleGrey(0.85);
