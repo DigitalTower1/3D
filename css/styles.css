@@ -195,6 +195,29 @@ html, body {
     }
 }
 
+@media (max-width: 900px) {
+    .cosmic-carousel__chrome {
+        width: 100vw;
+        height: 100vh;
+        padding: clamp(1.2rem, 4vw, 2rem);
+    }
+
+    .cosmic-carousel__hud {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.4rem;
+    }
+
+    .cosmic-carousel__hud-actions {
+        width: 100%;
+        justify-items: flex-start;
+    }
+
+    .cosmic-carousel__hud-instructions {
+        text-align: left;
+    }
+}
+
 .cosmic-carousel__exit {
     position: relative;
     pointer-events: auto;
