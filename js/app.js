@@ -1181,6 +1181,9 @@ const wormholeReturnEase = (t) => {
         stage.dataset.layout = state.layoutMode;
         stage.style.setProperty('--pointer-x', '0');
         stage.style.setProperty('--pointer-y', '0');
+        stage.style.setProperty('--stage-pointer-tilt-x', '0deg');
+        stage.style.setProperty('--stage-pointer-tilt-y', '0deg');
+        stage.style.setProperty('--stage-pointer-depth', '0px');
 
         const detachActionListeners = () => {
             exitBindings.splice(0).forEach(({ btn, handler }) => btn.removeEventListener('click', handler));
@@ -1592,6 +1595,12 @@ const wormholeReturnEase = (t) => {
             const y = (ev.clientY - rect.top) / rect.height - 0.5;
             stage.style.setProperty('--pointer-x', String(x));
             stage.style.setProperty('--pointer-y', String(y));
+            const tiltY = (x * 14).toFixed(4);
+            const tiltX = (-y * 10).toFixed(4);
+            const depth = Math.min(32, Math.hypot(x, y) * 44);
+            stage.style.setProperty('--stage-pointer-tilt-x', `${tiltX}deg`);
+            stage.style.setProperty('--stage-pointer-tilt-y', `${tiltY}deg`);
+            stage.style.setProperty('--stage-pointer-depth', `${depth.toFixed(4)}px`);
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
             if (centerHolo) {
                 gsap.to(centerHolo, {
@@ -1606,6 +1615,9 @@ const wormholeReturnEase = (t) => {
         const handleLeave = () => {
             stage.style.setProperty('--pointer-x', '0');
             stage.style.setProperty('--pointer-y', '0');
+            stage.style.setProperty('--stage-pointer-tilt-x', '0deg');
+            stage.style.setProperty('--stage-pointer-tilt-y', '0deg');
+            stage.style.setProperty('--stage-pointer-depth', '0px');
             const centerHolo = carouselEl.querySelector('.card-panel.is-center .card-holo');
             if (centerHolo) {
                 gsap.to(centerHolo, { rotateX: 0, rotateY: 0, duration: 0.6, ease: 'power2.out' });
