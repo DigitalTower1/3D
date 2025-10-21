@@ -19,6 +19,9 @@ import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 import { createEmbeddedAudio } from './audio-data.js';
 import { createCosmicCarousel } from './cosmic-carousel.js';
 
+const HDRI_LOCAL_URL = new URL('../assets/3d/env/solitude_night_4k.hdr', import.meta.url).href;
+const HDRI_FALLBACK_URL = 'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/hdri/night_sky.hdr';
+
     // -------------------------
     // DEBUG SWITCH (true/false)
     // -------------------------
@@ -115,12 +118,34 @@ const wormholeReturnEase = (t) => {
     const rgbeLoader = new RGBELoader();
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
-    rgbeLoader.load('./assets/3d/env/solitude_night_4k.hdr', (tex) => {
-        tex.mapping = THREE.EquirectangularReflectionMapping;
-        const envMap = pmremGenerator.fromEquirectangular(tex).texture;
-        scene.environment = envMap;
-        scene.background = envMap;
-    });
+    rgbeLoader.load(
+        HDRI_LOCAL_URL,
+        (tex) => {
+            tex.mapping = THREE.EquirectangularReflectionMapping;
+            const envMap = pmremGenerator.fromEquirectangular(tex).texture;
+            scene.environment = envMap;
+            scene.background = envMap;
+            tex.dispose?.();
+        },
+        undefined,
+        (error) => {
+            console.warn('[MainScene] Unable to load HDRI from local path.', error);
+            rgbeLoader.load(
+                HDRI_FALLBACK_URL,
+                (fallbackTex) => {
+                    fallbackTex.mapping = THREE.EquirectangularReflectionMapping;
+                    const envMap = pmremGenerator.fromEquirectangular(fallbackTex).texture;
+                    scene.environment = envMap;
+                    scene.background = envMap;
+                    fallbackTex.dispose?.();
+                },
+                undefined,
+                (fallbackError) => {
+                    console.error('[MainScene] Fallback HDRI failed to load.', fallbackError);
+                }
+            );
+        }
+    );
 
     // --------------------------------------------------------
     //  AUDIO
