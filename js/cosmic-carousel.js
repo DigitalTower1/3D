@@ -3,6 +3,8 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
+import { AdaptiveToneMappingPass } from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
@@ -12,6 +14,10 @@ const CARD_HEIGHT = CARD_WIDTH * 1.45;
 const CARD_THICKNESS = 0.05;
 const CAROUSEL_RADIUS = 3.6;
 const DEFAULT_ROTATION_SPEED = 0.22;
+
+const TEMP_NORMAL = new THREE.Vector3();
+const FRONT_NORMAL = new THREE.Vector3(0, 0, 1);
+const BACK_NORMAL = new THREE.Vector3(0, 0, -1);
 
 const VignetteShader = {
     uniforms: {
@@ -41,6 +47,326 @@ const VignetteShader = {
         }
     `
 };
+
+class RealisticCardMaterial {
+    constructor({ frontTexture, backTexture }) {
+        const sharedPhysicalProps = {
+            metalness: 0.68,
+            roughness: 0.22,
+            clearcoat: 1,
+            clearcoatRoughness: 0.08,
+            transmission: 0.12,
+            thickness: 0.48,
+            ior: 1.52,
+            reflectivity: 0.82,
+            sheen: 0.55,
+            sheenRoughness: 0.32,
+            iridescence: 0.68,
+            iridescenceIOR: 1.32,
+            iridescenceThicknessRange: [180, 420],
+            envMapIntensity: 1.35,
+            side: THREE.FrontSide,
+            transparent: true,
+            opacity: 1
+        };
+
+        this.frontMaterial = new THREE.MeshPhysicalMaterial({
+            ...sharedPhysicalProps,
+            map: frontTexture,
+            emissive: new THREE.Color(0x1a385b),
+            emissiveIntensity: 0.18,
+            specularIntensity: 0.65,
+            specularColor: new THREE.Color(0x9bd4ff),
+            attenuationColor: new THREE.Color(0x7fd3ff),
+            attenuationDistance: 1.2
+        });
+
+        this.backMaterial = new THREE.MeshPhysicalMaterial({
+            ...sharedPhysicalProps,
+            map: backTexture,
+            emissive: new THREE.Color(0x0a1e30),
+            emissiveIntensity: 0.14,
+            sheenColor: new THREE.Color(0x244a74),
+            envMapIntensity: 0.95,
+            attenuationColor: new THREE.Color(0x4d6c94),
+            attenuationDistance: 1.35
+        });
+
+        this.edgeMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0x090f1a,
+            metalness: 0.92,
+            roughness: 0.18,
+            clearcoat: 1,
+            clearcoatRoughness: 0.06,
+            envMapIntensity: 1.15,
+            specularIntensity: 0.9,
+            sheen: 0.35,
+            sheenColor: new THREE.Color(0x7aa0ff),
+            emissive: new THREE.Color(0x0d1b2f)
+        });
+
+        this.glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x99e0ff,
+            transparent: true,
+            opacity: 0.28,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            depthTest: false,
+            side: THREE.DoubleSide
+        });
+
+        this.materials = [this.frontMaterial, this.backMaterial, this.edgeMaterial, this.glowMaterial];
+        this.frontMesh = null;
+        this.backMesh = null;
+        this.edgeMesh = null;
+        this.glowMesh = null;
+        this.group = null;
+        this._cameraVector = new THREE.Vector3();
+        this._worldPosition = new THREE.Vector3();
+        this._worldQuaternion = new THREE.Quaternion();
+        this._frontSheenColor = new THREE.Color(0x9bd4ff);
+        this._edgeSheenColor = new THREE.Color(0x7aa0ff);
+    }
+
+    bind({ group, front, back, edge, glow }) {
+        this.group = group;
+        this.frontMesh = front;
+        this.backMesh = back;
+        this.edgeMesh = edge;
+        this.glowMesh = glow;
+    }
+
+    setEnvironment(envMap) {
+        this.materials.forEach((material) => {
+            if (material && 'envMap' in material) {
+                material.envMap = envMap;
+                material.needsUpdate = true;
+            }
+        });
+    }
+
+    update(camera, elapsed = 0) {
+        if (!this.group || !this.frontMesh) return;
+        this.group.getWorldPosition(this._worldPosition);
+        this._cameraVector.copy(camera.position).sub(this._worldPosition).normalize();
+
+        this.frontMesh.getWorldQuaternion(this._worldQuaternion);
+        TEMP_NORMAL.copy(FRONT_NORMAL).applyQuaternion(this._worldQuaternion);
+        const fresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 2.6);
+
+        const breathing = 0.5 + Math.sin(elapsed * 0.8) * 0.1;
+
+        this.frontMaterial.clearcoatRoughness = THREE.MathUtils.lerp(0.03, 0.16, fresnel);
+        this.frontMaterial.iridescence = THREE.MathUtils.lerp(0.45, 1, fresnel * 1.2);
+        this.frontMaterial.iridescenceThicknessRange = [180, 380 + fresnel * 260];
+        this.frontMaterial.emissiveIntensity = 0.16 + fresnel * 0.7;
+        this.frontMaterial.envMapIntensity = 1.25 + fresnel * 0.45;
+        this.frontMaterial.sheen = THREE.MathUtils.lerp(0.5, 0.9, fresnel);
+        this._frontSheenColor.setHSL(0.58, 0.56, 0.72 + fresnel * 0.12);
+        this.frontMaterial.sheenColor.copy(this._frontSheenColor);
+
+        if (this.backMaterial && this.backMesh) {
+            this.backMesh.getWorldQuaternion(this._worldQuaternion);
+            TEMP_NORMAL.copy(BACK_NORMAL).applyQuaternion(this._worldQuaternion);
+            const backFresnel = Math.pow(1 - Math.max(TEMP_NORMAL.dot(this._cameraVector), 0), 2.2);
+            this.backMaterial.envMapIntensity = 0.85 + backFresnel * 0.3;
+            this.backMaterial.iridescence = THREE.MathUtils.lerp(0.35, 0.72, backFresnel + breathing * 0.12);
+            this.backMaterial.emissiveIntensity = 0.12 + backFresnel * 0.4;
+        }
+
+        if (this.edgeMaterial) {
+            const pulse = 0.82 + Math.sin(elapsed * 1.6) * 0.08;
+            this.edgeMaterial.metalness = 0.88 + fresnel * 0.1;
+            this.edgeMaterial.roughness = THREE.MathUtils.lerp(0.12, 0.26, 1 - fresnel);
+            this.edgeMaterial.envMapIntensity = 1.05 + fresnel * 0.35;
+            this.edgeMaterial.sheen = 0.28 + fresnel * 0.22;
+            this._edgeSheenColor.setHSL(0.6, 0.4, 0.6 + fresnel * 0.2);
+            this.edgeMaterial.sheenColor.copy(this._edgeSheenColor);
+            this.edgeMaterial.emissiveIntensity = pulse * 0.2;
+        }
+
+        if (this.glowMaterial && this.glowMesh) {
+            const glowBase = 0.18 + fresnel * 0.55;
+            this.glowMaterial.opacity = THREE.MathUtils.clamp(glowBase + breathing * 0.08, 0.1, 0.85);
+            this.glowMesh.scale.setScalar(1.12 + fresnel * 0.22);
+        }
+    }
+
+    dispose() {
+        this.materials.forEach((material) => material?.dispose?.());
+        this.frontMesh = null;
+        this.backMesh = null;
+        this.edgeMesh = null;
+        this.glowMesh = null;
+        this.group = null;
+    }
+}
+
+class RealisticLighting {
+    constructor(scene, renderer, { onEnvironmentLoaded } = {}) {
+        this.scene = scene;
+        this.renderer = renderer;
+        this.tempVector = new THREE.Vector3();
+
+        this.ambient = new THREE.HemisphereLight(0x1d283c, 0x010206, 0.38);
+
+        this.keyLight = new THREE.DirectionalLight(0xffad72, 2.25);
+        this.keyLight.position.set(4.2, 6.5, 6.8);
+        this.keyLight.target.position.set(0, 1.2, 0);
+
+        this.fillLight = new THREE.DirectionalLight(0xcbd7e6, 0.9);
+        this.fillLight.position.set(-3.2, 3.4, 2.2);
+        this.fillLight.target.position.set(0, 1.1, 0);
+
+        this.rimLight = new THREE.DirectionalLight(0x74c8ff, 2.65);
+        this.rimLight.position.set(-5.8, 4.2, -6.4);
+        this.rimLight.target.position.set(0, 1.4, 0);
+
+        [
+            this.ambient,
+            this.keyLight,
+            this.keyLight.target,
+            this.fillLight,
+            this.fillLight.target,
+            this.rimLight,
+            this.rimLight.target
+        ].forEach((light) => this.scene.add(light));
+
+        this.pmremGenerator = new THREE.PMREMGenerator(this.renderer);
+        this.pmremGenerator.compileEquirectangularShader();
+
+        this.loadEnvironment('./assets/3d/env/solitude_night_4k.hdr', onEnvironmentLoaded);
+    }
+
+    loadEnvironment(path, onEnvironmentLoaded) {
+        new RGBELoader().setDataType(THREE.FloatType).load(
+            path,
+            (hdr) => {
+                const envMap = this.pmremGenerator.fromEquirectangular(hdr).texture;
+                envMap.name = 'SolitudeNightHDR';
+                this.scene.environment = envMap;
+                onEnvironmentLoaded?.(envMap);
+                hdr.dispose?.();
+            },
+            undefined,
+            () => {
+                new RGBELoader().load(
+                    'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/hdri/night_sky.hdr',
+                    (fallbackHdr) => {
+                        const envMap = this.pmremGenerator.fromEquirectangular(fallbackHdr).texture;
+                        envMap.name = 'NightSkyFallback';
+                        this.scene.environment = envMap;
+                        onEnvironmentLoaded?.(envMap);
+                        fallbackHdr.dispose?.();
+                    }
+                );
+            }
+        );
+    }
+
+    update(camera, elapsed = 0) {
+        const oscillation = Math.sin(elapsed * 0.6) * 0.1;
+        this.keyLight.intensity = 2.15 + oscillation * 0.6;
+        this.fillLight.intensity = 0.85 + Math.sin(elapsed * 0.8 + 1.4) * 0.12;
+
+        this.tempVector.copy(camera.position).normalize().multiplyScalar(-7.2);
+        this.tempVector.y += 4.6;
+        this.rimLight.position.lerp(this.tempVector, 0.12);
+        this.rimLight.intensity = 2.45 + Math.abs(Math.sin(elapsed * 1.1)) * 0.35;
+    }
+
+    dispose() {
+        this.pmremGenerator?.dispose?.();
+    }
+}
+
+class CinematicPostFX {
+    constructor(renderer, scene, camera, size) {
+        const width = size.clientWidth || window.innerWidth;
+        const height = size.clientHeight || window.innerHeight;
+
+        this.composer = new EffectComposer(renderer);
+        this.renderPass = new RenderPass(scene, camera);
+        this.composer.addPass(this.renderPass);
+
+        this.bloomPass = new UnrealBloomPass(new THREE.Vector2(width, height), 0.85, 0.6, 0.18);
+        this.bloomPass.threshold = 0.22;
+        this.bloomPass.radius = 0.68;
+        this.composer.addPass(this.bloomPass);
+
+        this.bokehPass = new BokehPass(scene, camera, {
+            focus: 3.2,
+            aperture: 0.00018,
+            maxblur: 0.012,
+            width,
+            height
+        });
+        this.composer.addPass(this.bokehPass);
+
+        this.toneMappingPass = new AdaptiveToneMappingPass(true, width);
+        this.toneMappingPass.setAdaptionRate(2.4);
+        this.toneMappingPass.setMaxLuminance(32);
+        this.toneMappingPass.setMiddleGrey(0.9);
+        this.toneMappingPass.setAverageLuminance(0.8);
+        this.composer.addPass(this.toneMappingPass);
+
+        this.vignettePass = new ShaderPass(VignetteShader);
+        this.vignettePass.uniforms.offset.value = 1.22;
+        this.vignettePass.uniforms.darkness.value = 1.18;
+        this.composer.addPass(this.vignettePass);
+
+        this.defaultFocus = this.bokehPass.uniforms.focus.value;
+        this.defaultAperture = this.bokehPass.uniforms.aperture.value;
+        this.defaultMaxBlur = this.bokehPass.uniforms.maxblur.value;
+    }
+
+    setSize(width, height) {
+        this.composer.setSize(width, height);
+        this.bloomPass.setSize(width, height);
+        if (this.bokehPass) {
+            this.bokehPass.setSize(width, height);
+        }
+        if (typeof this.toneMappingPass.setSize === 'function') {
+            this.toneMappingPass.setSize(width, height);
+        }
+    }
+
+    transitionFocus({ focus, aperture, maxblur, duration = 0.9 }) {
+        if (!this.bokehPass) return;
+        const time = Math.max(duration ?? 0.9, 0);
+        const animateUniform = (uniform, value) => {
+            if (!uniform || value === undefined) return;
+            if (time === 0) {
+                uniform.value = value;
+            } else {
+                gsap.to(uniform, { value, duration: time, ease: 'sine.inOut' });
+            }
+        };
+        animateUniform(this.bokehPass.uniforms.focus, focus);
+        animateUniform(this.bokehPass.uniforms.aperture, aperture);
+        animateUniform(this.bokehPass.uniforms.maxblur, maxblur);
+    }
+
+    resetFocus(duration = 0.7) {
+        this.transitionFocus({
+            focus: this.defaultFocus,
+            aperture: this.defaultAperture,
+            maxblur: this.defaultMaxBlur,
+            duration
+        });
+        ctx.restore();
+    }
+
+    render(delta) {
+        this.composer.render(delta);
+    }
+
+    dispose() {
+        this.composer?.dispose?.();
+        this.bokehPass?.renderTargetDepth?.dispose?.();
+        this.bokehPass?.renderTargetColor?.dispose?.();
+    }
+}
 
 function roundedRect(ctx, x, y, width, height, radius) {
     const r = Math.min(radius, Math.min(width, height) / 2);
@@ -245,40 +571,8 @@ function createCardMesh(card) {
     const frontTexture = drawCardFace(card, 'front');
     const backTexture = drawCardFace(card, 'back');
 
-    const baseMaterialProps = {
-        metalness: 0.22,
-        roughness: 0.34,
-        clearcoat: 0.72,
-        clearcoatRoughness: 0.22,
-        transmission: 0.16,
-        thickness: 0.38,
-        reflectivity: 0.52,
-        transparent: true,
-        opacity: 0.98,
-        side: THREE.FrontSide
-    };
-
-    const frontMaterial = new THREE.MeshPhysicalMaterial({
-        ...baseMaterialProps,
-        map: frontTexture,
-        emissive: new THREE.Color(0x082840),
-        emissiveIntensity: 0.12
-    });
-
-    const backMaterial = new THREE.MeshPhysicalMaterial({
-        ...baseMaterialProps,
-        map: backTexture,
-        emissive: new THREE.Color(0x041420),
-        emissiveIntensity: 0.1
-    });
-
-    const edgeMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0x0d1624,
-        metalness: 0.75,
-        roughness: 0.26,
-        clearcoat: 1,
-        clearcoatRoughness: 0.18
-    });
+    const materialController = new RealisticCardMaterial({ frontTexture, backTexture });
+    const [frontMaterial, backMaterial, edgeMaterial, glowMaterial] = materialController.materials;
 
     const bodyGeometry = new THREE.BoxGeometry(CARD_WIDTH, CARD_HEIGHT, CARD_THICKNESS, 8, 8, 2);
     const body = new THREE.Mesh(bodyGeometry, edgeMaterial);
@@ -294,16 +588,12 @@ function createCardMesh(card) {
     back.rotation.y = Math.PI;
     group.add(back);
 
-    const glowMaterial = new THREE.MeshBasicMaterial({
-        color: 0x7bd8ff,
-        transparent: true,
-        opacity: 0.2,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false
-    });
     const glow = new THREE.Mesh(new THREE.PlaneGeometry(CARD_WIDTH * 1.25, CARD_HEIGHT * 1.25), glowMaterial);
     glow.position.z = -CARD_THICKNESS;
+    glow.renderOrder = -5;
     group.add(glow);
+
+    materialController.bind({ group, front, back, edge: body, glow });
 
     [body, front, back].forEach((mesh) => {
         mesh.userData.cardGroup = group;
@@ -320,6 +610,7 @@ function createCardMesh(card) {
     group.userData.floatOffset = Math.random() * Math.PI * 2;
     group.userData.isFocused = false;
     group.userData.isReturning = false;
+    group.userData.materialController = materialController;
 
     return group;
 }
@@ -444,33 +735,27 @@ export function createCosmicCarousel({
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMappingExposure = 1.0;
+    renderer.physicallyCorrectLights = true;
+    renderer.useLegacyLights = false;
+    renderer.shadowMap.enabled = false;
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
 
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x040b16, 0.015);
+    scene.fog = new THREE.FogExp2(0x020712, 0.012);
 
     const camera = new THREE.PerspectiveCamera(48, 1, 0.1, 80);
     camera.position.set(0, 1.4, 6.4);
     const cameraTarget = new THREE.Vector3(0, 1.1, 0);
 
-    const composer = new EffectComposer(renderer);
-    const renderPass = new RenderPass(scene, camera);
-    composer.addPass(renderPass);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(overlay.clientWidth || window.innerWidth, overlay.clientHeight || window.innerHeight), 0.6, 0.65, 0.0);
-    composer.addPass(bloomPass);
-    const vignettePass = new ShaderPass(VignetteShader);
-    composer.addPass(vignettePass);
+    const postFX = new CinematicPostFX(renderer, scene, camera, overlay);
+    const bloomPass = postFX.bloomPass;
 
-    const ambient = new THREE.AmbientLight(0x335577, 0.6);
-    const keyLight = new THREE.DirectionalLight(0x9fd2ff, 1.6);
-    keyLight.position.set(4, 6, 6);
-    const rimLight = new THREE.DirectionalLight(0x4fa7ff, 2.2);
-    rimLight.position.set(-3, 5, -6);
-    const fillLight = new THREE.SpotLight(0xffb996, 1.1, 18, THREE.MathUtils.degToRad(32), 0.45, 1.4);
-    fillLight.position.set(2.4, 3.2, 2.2);
-    fillLight.target.position.set(0, 1.2, 0);
-    scene.add(ambient, keyLight, rimLight, fillLight, fillLight.target);
+    const lighting = new RealisticLighting(scene, renderer, {
+        onEnvironmentLoaded: (envMap) => {
+            updateEnvMap(envMap);
+        }
+    });
 
     const starFieldGeometry = new THREE.SphereGeometry(22, 32, 32);
     const starMaterial = new THREE.MeshBasicMaterial({
@@ -489,6 +774,7 @@ export function createCosmicCarousel({
     scene.add(focusGroup);
 
     const selectable = [];
+    const allCards = [];
 
     deck.forEach((card, index) => {
         const mesh = createCardMesh(card);
@@ -502,6 +788,10 @@ export function createCosmicCarousel({
         mesh.userData.idleRotation.copy(mesh.rotation);
         carouselGroup.add(mesh);
         selectable.push(mesh.children[0], mesh.children[1], mesh.children[2]);
+        allCards.push(mesh);
+        if (scene.environment) {
+            mesh.userData.materialController?.setEnvironment(scene.environment);
+        }
     });
 
     const raycaster = new THREE.Raycaster();
@@ -513,57 +803,21 @@ export function createCosmicCarousel({
     let isPointerDown = false;
     let dragDistance = 0;
     const defaultBloom = bloomPass.strength;
-    const focusBloom = 1.35;
+    const focusBloom = 1.22;
 
     const defaultCameraPosition = camera.position.clone();
     const defaultCameraTarget = cameraTarget.clone();
     const focusCameraPosition = new THREE.Vector3(0, 1.55, 3.6);
     const focusCameraTarget = new THREE.Vector3(0, 1.2, 0);
+    const focusPoint = new THREE.Vector3(0, 1.25, 0);
 
     const clock = new THREE.Clock();
 
     function updateEnvMap(envMap) {
-        carouselGroup.traverse((child) => {
-            if (child.isMesh && child.material && Array.isArray(child.material)) {
-                child.material.forEach((mat) => {
-                    if (mat && 'envMap' in mat) {
-                        mat.envMap = envMap;
-                        mat.needsUpdate = true;
-                    }
-                });
-            } else if (child.isMesh && child.material) {
-                const materials = Array.isArray(child.material) ? child.material : [child.material];
-                materials.forEach((mat) => {
-                    if (mat && 'envMap' in mat) {
-                        mat.envMap = envMap;
-                        mat.needsUpdate = true;
-                    }
-                });
-            }
+        allCards.forEach((card) => {
+            card.userData.materialController?.setEnvironment(envMap);
         });
     }
-
-    const pmremGenerator = new THREE.PMREMGenerator(renderer);
-    pmremGenerator.compileEquirectangularShader();
-    new RGBELoader().load(
-        'https://cdn.jsdelivr.net/gh/pmndrs/drei-assets@master/hdri/venice_sunset_1k.hdr',
-        (hdr) => {
-            const envMap = pmremGenerator.fromEquirectangular(hdr).texture;
-            scene.environment = envMap;
-            updateEnvMap(envMap);
-            hdr.dispose();
-        },
-        undefined,
-        () => {
-            // fallback senza HDR
-            const cubeTexture = new THREE.CubeTextureLoader().setPath('https://threejs.org/examples/textures/cube/Bridge2/').load([
-                'posx.jpg', 'negx.jpg', 'posy.jpg', 'negy.jpg', 'posz.jpg', 'negz.jpg'
-            ]);
-            cubeTexture.colorSpace = THREE.SRGBColorSpace;
-            scene.environment = cubeTexture;
-            updateEnvMap(cubeTexture);
-        }
-    );
 
     function focusCard(cardGroup) {
         if (!cardGroup || cardGroup === focusedCard) {
@@ -608,6 +862,12 @@ export function createCosmicCarousel({
 
         animateCamera(camera, cameraTarget, focusCameraPosition, focusCameraTarget);
         gsap.to(bloomPass, { strength: focusBloom, duration: 0.9, ease: 'sine.out' });
+        postFX.transitionFocus({
+            focus: focusCameraPosition.distanceTo(focusPoint),
+            aperture: 0.00032,
+            maxblur: 0.02,
+            duration: 0.95
+        });
         instructions.textContent = 'Card focalizzata · Clicca di nuovo per tornare al carosello';
     }
 
@@ -631,6 +891,7 @@ export function createCosmicCarousel({
             camera.position.copy(defaultCameraPosition);
             cameraTarget.copy(defaultCameraTarget);
             bloomPass.strength = defaultBloom;
+            postFX.resetFocus(0);
         } else {
             cardGroup.userData.isReturning = true;
             gsap.to(cardGroup.position, {
@@ -654,6 +915,7 @@ export function createCosmicCarousel({
             gsap.to(cardGroup.scale, { x: 1, y: 1, z: 1, duration: 0.6, ease: 'power2.out' });
             animateCamera(camera, cameraTarget, defaultCameraPosition, defaultCameraTarget);
             gsap.to(bloomPass, { strength: defaultBloom, duration: 0.8, ease: 'sine.inOut' });
+            postFX.resetFocus(0.75);
         }
 
         instructions.textContent = 'Clicca una card per approfondire · Drag per orbitare';
@@ -701,12 +963,11 @@ export function createCosmicCarousel({
     function handleResize() {
         const width = overlay.clientWidth || window.innerWidth;
         const height = overlay.clientHeight || window.innerHeight;
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
         renderer.setSize(width, height, false);
-        composer.setSize(width, height);
+        postFX.setSize(width, height);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
-        bloomPass.setSize(width, height);
     }
 
     function animate() {
@@ -728,8 +989,13 @@ export function createCosmicCarousel({
         starField.rotation.y += delta * 0.02;
         starField.rotation.z += delta * 0.01;
 
+        allCards.forEach((card) => {
+            card.userData.materialController?.update(camera, elapsed);
+        });
+
+        lighting.update(camera, elapsed);
         camera.lookAt(cameraTarget);
-        composer.render();
+        postFX.render(delta);
     }
 
     renderer.setAnimationLoop(animate);
@@ -770,12 +1036,20 @@ export function createCosmicCarousel({
         gsap.killTweensOf(camera.position);
         gsap.killTweensOf(cameraTarget);
         gsap.killTweensOf(bloomPass);
+        if (postFX.bokehPass?.uniforms) {
+            const { focus, aperture, maxblur } = postFX.bokehPass.uniforms;
+            gsap.killTweensOf(focus);
+            gsap.killTweensOf(aperture);
+            gsap.killTweensOf(maxblur);
+        }
+        postFX.resetFocus(0.25);
 
         overlay.classList.remove('is-active');
         overlay.classList.add('is-closing');
 
         setTimeout(() => {
-            composer.dispose();
+            postFX.dispose();
+            lighting.dispose?.();
             renderer.dispose();
             carouselGroup.traverse((child) => {
                 if (child.isMesh) {
@@ -784,6 +1058,9 @@ export function createCosmicCarousel({
                 }
                 if (child.userData?.textures) {
                     child.userData.textures.forEach((texture) => texture?.dispose?.());
+                }
+                if (child.userData?.materialController) {
+                    child.userData.materialController.dispose();
                 }
             });
             starFieldGeometry.dispose();
