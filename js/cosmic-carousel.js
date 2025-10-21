@@ -4,7 +4,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { BokehPass } from 'three/examples/jsm/postprocessing/BokehPass.js';
-import { AdaptiveToneMappingPass } from 'three/examples/jsm/postprocessing/AdaptiveToneMappingPass.js';
+import { AdaptiveToneMappingPass } from './vendor/AdaptiveToneMappingPass.js';
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { gsap } from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm';
 
